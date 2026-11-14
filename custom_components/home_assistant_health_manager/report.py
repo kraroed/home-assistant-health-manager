@@ -9,20 +9,20 @@ from .const import REPORT_DIR
 
 async def write_report(
     hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations,
-    issue_history=None, issue_summary=None, repair_prompt=None,
+    issue_history=None, issue_summary=None, repair_prompt=None, compatibility=None,
 ):
     retention_days = hass.data.get("home_assistant_health_manager_retention_days", 90)
     directory = hass.config.path(REPORT_DIR)
     return await asyncio.to_thread(
         _write_report_sync, directory, snapshot, analysis, sanitized_log,
         redaction_counts, recommendations, issue_history or {}, issue_summary or {},
-        repair_prompt or "No AI repair prompt was generated.", retention_days
+        repair_prompt or "No AI repair prompt was generated.", compatibility or {}, retention_days
     )
 
 
 def _write_report_sync(
     directory_path, snapshot, analysis, sanitized_log, redaction_counts,
-    recommendations, issue_history, issue_summary, repair_prompt, retention_days,
+    recommendations, issue_history, issue_summary, repair_prompt, compatibility, retention_days,
 ):
     directory = Path(directory_path)
     directory.mkdir(parents=True, exist_ok=True)
@@ -42,6 +42,7 @@ def _write_report_sync(
         "system": snapshot,
         "log_analysis": analysis,
         "recommendations": recommendations,
+        "compatibility_assessment": compatibility,
         "issue_history": issue_history,
         "issue_history_summary": issue_summary,
     }
@@ -56,6 +57,8 @@ def _write_report_sync(
         f"Assessment: {analysis.get('assessment_type', 'diagnostic')}",
         f"Home Assistant Core version: {snapshot.get('home_assistant_version', 'unknown')}",
         f"Platform update inventory: {snapshot.get('platform_updates', {})}",
+        f"Compatibility triage: {compatibility.get('overall_status', 'not_assessed')}",
+        f"Compatibility scope: {compatibility.get('scope_note', '')}",
         f"Entities: {snapshot.get('entity_count', 0)}",
         f"Unavailable entities: {snapshot.get('unavailable_entity_count', 0)}",
         f"Unknown entities: {snapshot.get('unknown_entity_count', 0)}",
