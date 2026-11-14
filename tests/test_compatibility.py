@@ -18,6 +18,11 @@ def test_available_platform_update_requires_compatibility_review():
             },
             "failed_config_entry_count": 0,
             "failed_config_entry_domains": {},
+            "integration_inventory": {
+                "integration_domain_count": 4,
+                "setup_state_totals": {"loaded": 5, "setup_error": 1},
+                "origin_classification": "not_attempted",
+            },
         },
         {"level_counts": {}},
     )
@@ -25,6 +30,8 @@ def test_available_platform_update_requires_compatibility_review():
     assert result["platforms"][0]["status"] == "review_required"
     assert result["confidence"] == "limited"
     assert "not a compatibility guarantee" in result["scope_note"]
+    assert result["health_signals"]["configured_integration_domain_count"] == 4
+    assert result["health_signals"]["integration_origin_classification"] == "not_attempted"
 
 
 def test_existing_failures_take_priority_over_update_status():
