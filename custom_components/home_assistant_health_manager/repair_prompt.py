@@ -55,6 +55,7 @@ def build_repair_prompt(snapshot, analysis, recommendations, generated_at, compa
         "log_level_counts": analysis.get("level_counts", {}),
         "repeated_log_patterns": analysis.get("top_messages", []),
         "compatibility_triage": compatibility or {},
+        "diagnostic_change_history": snapshot.get("diagnostic_change_history", {}),
         "findings": findings,
     }
     return """# Home Assistant Maintenance Repair & Validation Request
