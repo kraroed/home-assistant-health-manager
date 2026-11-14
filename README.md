@@ -68,3 +68,6 @@ GitHub Actions runs Python tests, Home Assistant hassfest, and HACS integration 
 ## Status
 
 Early development build. Supervisor/OS logs, host metrics, recorder internals, automation traces, dashboard resources, and approved remediation execution are future work. This release is read-only and is not a complete security audit.
+
+
+Compatibility triage includes integration domains with setup_error or setup_retry lifecycle states and reports when the bounded update-entity inventory is truncated. These are review signals, not compatibility verdicts.
