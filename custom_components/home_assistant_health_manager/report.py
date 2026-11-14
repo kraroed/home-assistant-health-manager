@@ -62,6 +62,7 @@ def _write_report_sync(
         f"Compatibility triage: {compatibility.get('overall_status', 'not_assessed')}",
         f"Compatibility scope: {compatibility.get('scope_note', '')}",
         f"Entities: {snapshot.get('entity_count', 0)}",
+        f"Entity counts by domain: {snapshot.get('entity_counts_by_domain', {})}",
         f"Unavailable entities: {snapshot.get('unavailable_entity_count', 0)}",
         f"Unknown entities: {snapshot.get('unknown_entity_count', 0)}",
         f"Failed integrations: {snapshot.get('failed_config_entry_count', 0)}",
