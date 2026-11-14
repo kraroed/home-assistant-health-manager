@@ -104,9 +104,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             raw_log, log_error = await self.hass.async_add_executor_job(read_core_log, log_path, max_bytes)
             core_log_status = "collected" if raw_log is not None else "unavailable"
         sanitized_log, log_counts = redact_text(raw_log) if raw_log else (None, {})
-        safe_snapshot, snapshot_counts = redact_object(snapshot)
-        analysis = analyze_log(sanitized_log)
         snapshot["collection_coverage"] = build_collection_coverage(snapshot, core_log_status)
+        analysis = analyze_log(sanitized_log)
         if log_error:
             analysis["collection_note"] = log_error
         analysis["assessment_type"] = "monthly_comprehensive" if comprehensive else "weekly_diagnostic"
@@ -119,6 +118,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         )
         history_summary = summarize_issue_history(self.schedule["issue_history"])
         compatibility = assess_compatibility(snapshot, analysis)
+        snapshot["diagnostic_trend"] = {}
+        safe_snapshot, snapshot_counts = redact_object(snapshot)
         safe_compatibility, _ = redact_object(compatibility)
         safe_recommendations, _ = redact_object(recommendations)
         repair_prompt = build_repair_prompt(safe_snapshot, analysis, safe_recommendations, now.isoformat(), safe_compatibility)
