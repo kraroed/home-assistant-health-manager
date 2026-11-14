@@ -18,7 +18,7 @@ def sample_snapshot():
         },
         "update_entity_inventory": {
             "update_entities": [{
-                "provider_domain": "hassio", "config_entry_domain": "hassio",
+                "provider_integration_domain": "hassio", "config_entry_domain": "hassio",
                 "installed_version": "1.0", "latest_version": "1.0",
                 "entity_id": "update.private_entity", "title": "Private title",
             }]
