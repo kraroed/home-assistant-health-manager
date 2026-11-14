@@ -33,6 +33,7 @@ The prompt is generated locally. It excludes raw log lines, entity IDs, config-e
 
 - Home Assistant Core version.
 - Installed/latest versions and update state for Home Assistant Core, Supervisor, and Home Assistant OS when their official update entities are available.
+- A bounded inventory of all available update entities, including the registry-backed provider integration domain, associated config-entry domain when resolvable, state, exposed versions, release summary, and release URL. Provider domain is explicitly not treated as proof of the package being updated.
 - Release summary and release-note URL supplied by those update entities.
 - Entity totals and counts by domain/state, with dedicated unavailable and unknown entity sensors and per-domain breakdowns.
 - Config-entry totals by integration domain and setup state, plus a per-domain setup-state inventory.
@@ -45,7 +46,7 @@ The prompt is generated locally. It excludes raw log lines, entity IDs, config-e
 
 ### Integration inventory limits
 
-The integration inventory lists configured domains and their config-entry lifecycle-state counts. It intentionally does not collect config-entry IDs, titles, data, options, or credentials. It does not currently determine whether an integration is built into Home Assistant Core, installed through HACS, or manually installed, and it does not infer integration package versions. A domain appearing in the inventory is a prompt for further investigation, not proof of source or compatibility. The AI prompt instructs the receiving agent to verify the actual source, installed version, manifest requirements, and current release notes before making compatibility claims.
+The integration inventory lists configured domains and their config-entry lifecycle-state counts. The update-entity inventory independently lists update entities and their registry-backed provider integration domains; this identifies which integration supplies the update entity, not necessarily the target component. It intentionally does not collect config-entry IDs, titles, data, options, or credentials. It does not currently determine whether an integration is built into Home Assistant Core, installed through HACS, or manually installed, and it does not infer integration package versions. Update entities may expose versions and release details for other software, but their provider integration must not be confused with the target package. A domain appearing in the inventory is a prompt for further investigation, not proof of source or compatibility. The AI prompt instructs the receiving agent to verify the actual source, installed version, manifest requirements, and current release notes before making compatibility claims.
 
 Platform update awareness reads Home Assistant's existing `update` entities. It does not call private Supervisor endpoints, use a Supervisor token, fetch release metadata independently, install updates, or restart the host. If an update entity is unavailable, the corresponding status is reported as missing/unknown rather than guessed.
 
