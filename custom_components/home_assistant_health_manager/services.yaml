@@ -1,0 +1,20 @@
+run_diagnostics:
+  name: Run diagnostics
+  description: Collect a local diagnostic snapshot and create a sanitized report.
+  fields:
+    comprehensive:
+      name: Comprehensive
+      description: Mark the report as a monthly comprehensive assessment.
+      required: false
+      selector:
+        boolean:
+generate_report:
+  name: Generate report
+  description: Generate a sanitized diagnostic ZIP immediately.
+  fields:
+    comprehensive:
+      name: Comprehensive
+      description: Mark the report as a monthly comprehensive assessment.
+      required: false
+      selector:
+        boolean:
