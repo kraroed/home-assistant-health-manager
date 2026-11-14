@@ -16,9 +16,9 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 ## Services
 - `home_assistant_health_manager.run_diagnostics`
 - `home_assistant_health_manager.generate_report`
+- `home_assistant_health_manager.generate_ai_repair_prompt`
 
-## Current collection scope
-- Home Assistant Core version.
+## AI repair and validation prompt\nEvery generated report includes a standalone `*_ai_repair_prompt.md` file, also bundled in the report ZIP. The `generate_ai_repair_prompt` service creates a fresh report and fires the `home_assistant_health_manager_ai_repair_prompt_created` event with the report and prompt file paths. The prompt is copy-ready for an AI assistant or agent and includes a bounded, redacted diagnostic summary, platform versions/update state, and the integration's findings. It asks the AI to verify the live installation, research current official documentation and release notes, cite version-specific sources, explain risks and rollback, guide one repair at a time, and validate each approved change. It explicitly forbids changes without the user's separate approval.\n\nThe prompt is generated locally. It excludes raw log lines, entity IDs, and configuration contents; however, redaction is best-effort, so users should review it before sharing. The integration does not send the prompt to an AI service. The user chooses where and with whom to share it.\n\n## Current collection scope\n- Home Assistant Core version.
 - Installed/latest versions and update state for Home Assistant Core, Supervisor, and Home Assistant OS when their official Supervisor update entities are available.
 - Release summary and release-note URL supplied by those official update entities.
 - Entity totals and counts by domain/state, with dedicated unavailable and unknown entity sensors and per-domain breakdowns.
