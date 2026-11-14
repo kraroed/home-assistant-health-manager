@@ -41,6 +41,7 @@ The prompt is generated locally. It excludes raw log lines, entity IDs, config-e
 - Bounded tail of the default Core log, if readable.
 - Error/warning counts and repeated log-message patterns.
 - Persistent issue lifecycle history: first/last detection, recurrence count, current/resolved status, and aggregate counts.
+- Bounded diagnostic change history: configured integration domains, aggregate setup-state changes, platform update signals, and update-entity inventory changes across snapshots.
 - Conservative rule-based recommendations with evidence and suggested next steps.
 - Compatibility triage that combines Core/Supervisor/OS update status, existing failed integrations, Core log errors, and inventory coverage without claiming that all custom integrations or add-ons are compatible.
 
@@ -52,7 +53,7 @@ Platform update awareness reads Home Assistant's existing `update` entities. It 
 
 Update recommendations include installed/latest versions and any release information exposed by Home Assistant. Before applying an update, review the linked official release notes and current upgrade guidance, check custom integration/add-on compatibility, verify a full backup, and choose a maintenance window. Recommendations are informational and never execute an update.
 
-Monthly reports include the current inventory, setup-state breakdowns, platform update versions, and accumulated issue history. They are not yet historical entity trend analyses or full Supervisor/host/recorder/automation audits; those remain future work.
+Monthly reports include the current inventory, setup-state breakdowns, platform update versions, accumulated issue history, and the latest bounded diagnostic change summary. They are not yet historical entity trend analyses or full Supervisor/host/recorder/automation audits; those remain future work.
 
 The integration does not collect unrestricted YAML, secrets files, entity attributes, recorder databases, or original unredacted logs. Issue history stores only rule identifiers, short titles, severity, timestamps, and occurrence counts; it does not store entity IDs or raw log lines.
 
