@@ -36,6 +36,19 @@ def assess_compatibility(snapshot, analysis):
     error_count = sum(levels.get(level, 0) for level in ("ERROR", "CRITICAL", "FATAL"))
     failed_entries = snapshot.get("failed_config_entry_count", 0)
     integration_inventory = snapshot.get("integration_inventory", {})
+    integration_review_domains = []
+    for integration in integration_inventory.get("integrations", []):
+        states = integration.get("setup_states", {})
+        retry_count = states.get("setup_retry", 0)
+        error_count_for_domain = states.get("setup_error", 0)
+        if retry_count or error_count_for_domain:
+            integration_review_domains.append({
+                "domain": integration.get("domain", "unknown"),
+                "setup_error_count": error_count_for_domain,
+                "setup_retry_count": retry_count,
+            })
+    integration_review_domains.sort(key=lambda item: item["domain"])
+    update_inventory = snapshot.get("update_entity_inventory", {})
     health_signals = {
         "failed_config_entry_count": failed_entries,
         "failed_config_entry_domains": sorted(snapshot.get("failed_config_entry_domains", {})),
@@ -43,9 +56,12 @@ def assess_compatibility(snapshot, analysis):
         "configured_integration_domain_count": integration_inventory.get("integration_domain_count"),
         "integration_setup_state_totals": integration_inventory.get("setup_state_totals", {}),
         "integration_origin_classification": integration_inventory.get("origin_classification", "not_available"),
-        "update_entity_count": snapshot.get("update_entity_inventory", {}).get("update_entity_count", 0),
+        "integration_domains_requiring_review": integration_review_domains,
+        "integration_domain_review_count": len(integration_review_domains),
+        "update_entity_count": update_inventory.get("update_entity_count", 0),
+        "update_entity_inventory_truncated": update_inventory.get("inventory_truncated", False),
         "update_entities_with_available_updates": sum(
-            1 for item in snapshot.get("update_entity_inventory", {}).get("update_entities", [])
+            1 for item in update_inventory.get("update_entities", [])
             if item.get("update_available") is True
         ),
     }
