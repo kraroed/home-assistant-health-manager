@@ -9,14 +9,15 @@ from .const import REPORT_DIR
 
 async def write_report(hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations):
     retention_days = hass.data.get("home_assistant_health_manager_retention_days", 90)
+    directory = hass.config.path(REPORT_DIR)
     return await asyncio.to_thread(
-        _write_report_sync, hass, snapshot, analysis, sanitized_log,
+        _write_report_sync, directory, snapshot, analysis, sanitized_log,
         redaction_counts, recommendations, retention_days
     )
 
 
-def _write_report_sync(hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations, retention_days):
-    directory = Path(hass.config.path(REPORT_DIR))
+def _write_report_sync(directory_path, snapshot, analysis, sanitized_log, redaction_counts, recommendations, retention_days):
+    directory = Path(directory_path)
     directory.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc)
     stamp = now.strftime("%Y%m%dT%H%M%S%fZ")
