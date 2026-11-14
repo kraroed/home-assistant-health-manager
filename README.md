@@ -53,7 +53,7 @@ Platform update awareness reads Home Assistant's existing `update` entities. It 
 
 Update recommendations include installed/latest versions and any release information exposed by Home Assistant. Before applying an update, review the linked official release notes and current upgrade guidance, check custom integration/add-on compatibility, verify a full backup, and choose a maintenance window. Recommendations are informational and never execute an update.
 
-Monthly reports include the current inventory, setup-state breakdowns, platform update versions, accumulated issue history, and the latest bounded diagnostic change summary. They are not yet historical entity trend analyses or full Supervisor/host/recorder/automation audits; those remain future work.
+Monthly reports include the current inventory, setup-state breakdowns, platform update versions, accumulated issue history, and the latest bounded diagnostic change summary. The report-time trend history compares aggregate entity and issue counts, Core log error counts, and diagnostic coverage across generated reports. This is not a continuous monitor or causal analysis. Full Supervisor/host/recorder/automation audits remain future work.
 
 The integration does not collect unrestricted YAML, secrets files, entity attributes, recorder databases, or original unredacted logs. Issue history stores only rule identifiers, short titles, severity, timestamps, and occurrence counts; it does not store entity IDs or raw log lines.
 
@@ -81,3 +81,8 @@ Each assessment reports whether entity states, config entries, platform update e
 ## Diagnostic trends
 
 Generated reports retain a bounded history of up to 90 aggregate trend samples. A sample is recorded when a report is generated, not on every coordinator refresh. Trends compare entity totals, unavailable and unknown entity counts, failed config entries, Core log error counts, and diagnostic collection coverage against the previous report sample. The `Diagnostic Trend` sensor reports `insufficient_data`, `improving`, `stable`, `worsening`, or `mixed`; its attributes are available on the Health Status sensor. Entity-total changes are shown but do not by themselves imply improvement or deterioration. Trend direction is a simple comparison, not causal analysis or a health guarantee. The stored history contains aggregate counts and statuses only, without entity IDs, config-entry IDs, log text, or configuration.
+
+
+## Lovelace dashboard
+
+An optional native Lovelace dashboard example using Markdown, Entities, and History Graph cards is available in [docs/DASHBOARD.md](docs/DASHBOARD.md). It requires no custom frontend resource and only displays read-only diagnostic sensors.
