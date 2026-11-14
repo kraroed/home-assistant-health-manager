@@ -7,6 +7,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .collector import collect_snapshot, read_core_log
 from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL
 from .log_analyzer import analyze_log
+from .recommendations import build_recommendations
 from .redactor import redact_object, redact_text
 from .report import write_report
 
@@ -22,6 +23,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule = {}
         self.last_report_path = None
         self._schedule_unsub = None
+        self.hass.data[f"{DOMAIN}_retention_days"] = entry.options.get("retention_days", 90)
 
     async def async_setup_schedule(self):
         self.schedule = await self.store.async_load() or {}
@@ -41,15 +43,18 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
 
     async def _async_scheduled_check(self, _now):
         now = datetime.now(timezone.utc)
-        if self.entry.options.get("monthly_reviews", True) and _is_due(self.schedule.get("next_monthly"), now):
-            await self.async_generate_report(comprehensive=True)
-            self.schedule["next_monthly"] = (now + timedelta(days=30)).isoformat()
-            await self.store.async_save(self.schedule)
-        elif self.entry.options.get("weekly_reports", True) and _is_due(self.schedule.get("next_weekly"), now):
-            await self.async_generate_report(comprehensive=False)
-            self.schedule["next_weekly"] = (now + timedelta(days=7)).isoformat()
-            await self.store.async_save(self.schedule)
-        await self.async_request_refresh()
+        try:
+            if self.entry.options.get("monthly_reviews", True) and _is_due(self.schedule.get("next_monthly"), now):
+                await self.async_generate_report(comprehensive=True)
+                self.schedule["next_monthly"] = (now + timedelta(days=30)).isoformat()
+                await self.store.async_save(self.schedule)
+            elif self.entry.options.get("weekly_reports", True) and _is_due(self.schedule.get("next_weekly"), now):
+                await self.async_generate_report(comprehensive=False)
+                self.schedule["next_weekly"] = (now + timedelta(days=7)).isoformat()
+                await self.store.async_save(self.schedule)
+            await self.async_request_refresh()
+        except Exception:
+            _LOGGER.exception("Scheduled health review failed")
 
     async def _async_update_data(self):
         try:
@@ -70,16 +75,19 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         snapshot = await self.hass.async_add_executor_job(collect_snapshot, self.hass)
         raw_log, log_error = (None, None)
         if self.entry.options.get("include_core_log", True):
-            raw_log, log_error = await self.hass.async_add_executor_job(read_core_log, self.hass)
+            max_bytes = 5_000_000 if comprehensive else 1_500_000
+            raw_log, log_error = await self.hass.async_add_executor_job(read_core_log, self.hass, max_bytes)
         sanitized_log, log_counts = redact_text(raw_log) if raw_log else (None, {})
         safe_snapshot, snapshot_counts = redact_object(snapshot)
         analysis = analyze_log(sanitized_log)
         if log_error:
             analysis["collection_note"] = log_error
         analysis["assessment_type"] = "monthly_comprehensive" if comprehensive else "weekly_diagnostic"
-        path = await write_report(self.hass, safe_snapshot, analysis, sanitized_log, {
-            "core_log": log_counts, "snapshot": snapshot_counts
-        })
+        recommendations = build_recommendations(snapshot, analysis)
+        path = await write_report(
+            self.hass, safe_snapshot, analysis, sanitized_log,
+            {"core_log": log_counts, "snapshot": snapshot_counts}, recommendations
+        )
         now = datetime.now(timezone.utc)
         self.schedule["last_assessment"] = now.isoformat()
         self.schedule["last_report"] = now.isoformat()
