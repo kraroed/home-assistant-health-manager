@@ -11,8 +11,9 @@ from .history import summarize_issue_history, update_issue_history
 from .change_history import update_change_history
 from .collection_coverage import build_collection_coverage
 from .trend_history import summarize_trends, update_trend_history
+from .integration_trends import summarize_integration_trends, update_integration_trend_history
 from .log_analyzer import analyze_log
-from .recommendations import add_recurring_issue_recommendations, build_recommendations
+from .recommendations import add_integration_trend_recommendations, add_recurring_issue_recommendations, build_recommendations
 from .redactor import redact_object, redact_text
 from .report import write_report
 from .repair_prompt import build_repair_prompt
@@ -40,6 +41,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule.setdefault("issue_history", {})
         self.schedule.setdefault("change_history", [])
         self.schedule.setdefault("trend_history", [])
+        self.schedule.setdefault("integration_trend_history", [])
         await self.store.async_save(self.schedule)
         from homeassistant.helpers.event import async_track_time_interval
         self._schedule_unsub = async_track_time_interval(
@@ -90,6 +92,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "compatibility_assessment": self.schedule.get("last_compatibility", {}),
                 "diagnostic_change_history": change_summary,
                 "diagnostic_trend": summarize_trends(self.schedule.get("trend_history", [])),
+                "integration_trend_summary": summarize_integration_trends(self.schedule.get("integration_trend_history", [])),
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
@@ -112,8 +115,22 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         if log_error:
             analysis["collection_note"] = log_error
         analysis["assessment_type"] = "monthly_comprehensive" if comprehensive else "weekly_diagnostic"
-        recommendations = build_recommendations(snapshot, analysis)
         now = datetime.now(timezone.utc)
+        compatibility = assess_compatibility(snapshot, analysis)
+        trend_history, trend_summary = update_trend_history(
+            self.schedule.get("trend_history", []), snapshot, analysis, compatibility, now.isoformat()
+        )
+        self.schedule["trend_history"] = trend_history
+        snapshot["diagnostic_trend"] = trend_summary
+        integration_trend_history, integration_trend_summary = update_integration_trend_history(
+            self.schedule.get("integration_trend_history", []),
+            snapshot.get("integration_inventory", {}),
+            now.isoformat(),
+        )
+        self.schedule["integration_trend_history"] = integration_trend_history
+        snapshot["integration_trend_summary"] = integration_trend_summary
+        recommendations = build_recommendations(snapshot, analysis)
+        recommendations = add_integration_trend_recommendations(recommendations, integration_trend_summary)
         self.schedule["issue_history"] = update_issue_history(
             self.schedule.get("issue_history", {}),
             recommendations,
@@ -122,12 +139,6 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         history_summary = summarize_issue_history(self.schedule["issue_history"])
         recommendations = add_recurring_issue_recommendations(recommendations, history_summary)
         snapshot["issue_history_summary"] = history_summary
-        compatibility = assess_compatibility(snapshot, analysis)
-        trend_history, trend_summary = update_trend_history(
-            self.schedule.get("trend_history", []), snapshot, analysis, compatibility, now.isoformat()
-        )
-        self.schedule["trend_history"] = trend_history
-        snapshot["diagnostic_trend"] = trend_summary
         safe_snapshot, snapshot_counts = redact_object(snapshot)
         safe_compatibility, _ = redact_object(compatibility)
         safe_recommendations, _ = redact_object(recommendations)
