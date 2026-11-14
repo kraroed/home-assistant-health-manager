@@ -4,6 +4,7 @@ from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntryState
 
+from .integration_inventory import collect_integration_inventory
 from .update_inventory import collect_platform_updates
 
 
@@ -22,6 +23,7 @@ def collect_snapshot(hass):
         "collected_at": datetime.now(timezone.utc).isoformat(),
         "home_assistant_version": hass.config.version,
         "platform_updates": collect_platform_updates(states),
+        "integration_inventory": collect_integration_inventory(entries),
         "entity_count": len(states),
         "unavailable_entity_count": len(unavailable),
         "unknown_entity_count": len(unknown),
