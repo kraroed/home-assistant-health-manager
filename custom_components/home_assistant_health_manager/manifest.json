@@ -1,6 +1,9 @@
 {
   "domain": "home_assistant_health_manager",
   "name": "Home Assistant Health Manager",
+  "categories": [
+    "computers_network.monitoring"
+  ],
   "codeowners": [
     "@kraroed"
   ],
