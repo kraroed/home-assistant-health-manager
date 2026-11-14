@@ -34,7 +34,7 @@ def _snapshot_signature(snapshot):
         if not isinstance(item, dict):
             continue
         update_signatures.append("|".join(str(item.get(key) or "")[:128] for key in (
-            "provider_domain", "config_entry_domain", "installed_version", "latest_version"
+            "provider_integration_domain", "config_entry_domain", "installed_version", "latest_version"
         )))
     return {
         "integration_domains": domains,
