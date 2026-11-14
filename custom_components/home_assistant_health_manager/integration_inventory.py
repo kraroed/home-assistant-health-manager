@@ -2,6 +2,8 @@
 
 from collections import Counter, defaultdict
 
+MAX_INTEGRATION_DOMAINS = 250
+
 
 def collect_integration_inventory(entries):
     """Summarize config-entry setup states per domain without entry details."""
@@ -14,8 +16,10 @@ def collect_integration_inventory(entries):
         state_value = getattr(state, "value", state)
         grouped[domain][str(state_value or "unknown")] += 1
 
+    all_domains = sorted(grouped)
+    included_domains = all_domains[:MAX_INTEGRATION_DOMAINS]
     integrations = []
-    for domain in sorted(grouped):
+    for domain in included_domains:
         states = dict(sorted(grouped[domain].items()))
         integrations.append({
             "domain": domain,
@@ -28,7 +32,10 @@ def collect_integration_inventory(entries):
     for item in integrations:
         totals.update(item["setup_states"])
     return {
-        "integration_domain_count": len(integrations),
+        "integration_domain_count": len(grouped),
+        "included_integration_domain_count": len(integrations),
+        "omitted_integration_domain_count": max(0, len(grouped) - len(integrations)),
+        "inventory_truncated": len(grouped) > MAX_INTEGRATION_DOMAINS,
         "config_entry_count": sum(totals.values()),
         "setup_state_totals": dict(sorted(totals.items())),
         "origin_classification": "not_attempted",
