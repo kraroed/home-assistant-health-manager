@@ -28,6 +28,9 @@ def test_available_platform_update_requires_compatibility_review():
             "integration_inventory": {
                 "integration_domain_count": 4,
                 "setup_state_totals": {"loaded": 5, "setup_error": 1},
+                "integrations": [
+                    {"domain": "custom_example", "setup_states": {"loaded": 2, "setup_error": 1}}
+                ],
                 "origin_classification": "not_attempted",
             },
         },
