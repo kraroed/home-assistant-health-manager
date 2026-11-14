@@ -71,3 +71,8 @@ Early development build. Supervisor/OS logs, host metrics, recorder internals, a
 
 
 Compatibility triage includes integration domains with setup_error or setup_retry lifecycle states and reports when the bounded update-entity inventory is truncated. These are review signals, not compatibility verdicts.
+
+
+## Diagnostic collection coverage
+
+Each assessment reports whether entity states, config entries, platform update entities, update entities, integration setup inventory, and the Core log were collected, unavailable, not checked, or disabled. The `Diagnostic Coverage` sensor reports the percentage of assessed sources successfully collected. Sources not checked or disabled are excluded from the percentage and shown separately. Coverage describes data availability only; it is not a health score, compatibility guarantee, or proof that every relevant source was inspected.
