@@ -22,7 +22,7 @@ async def async_setup_services(hass):
         path = await coordinator.async_generate_report(call.data.get("comprehensive", False))
         await coordinator.async_request_refresh()
         hass.bus.async_fire(f"{DOMAIN}_report_created", {
-            "path": path, "comprehensive": call.data.get("comprehensive", False)
+            "path": path, "prompt_path": coordinator.last_prompt_path, "comprehensive": call.data.get("comprehensive", False)
         })
 
     async def generate_ai_repair_prompt(call: ServiceCall):
