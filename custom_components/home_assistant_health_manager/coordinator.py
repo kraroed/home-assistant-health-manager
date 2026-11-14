@@ -9,6 +9,7 @@ from .compatibility import assess_compatibility
 from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL
 from .history import summarize_issue_history, update_issue_history
 from .change_history import update_change_history
+from .collection_coverage import build_collection_coverage
 from .log_analyzer import analyze_log
 from .recommendations import build_recommendations
 from .redactor import redact_object, redact_text
@@ -68,6 +69,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             # Home Assistant's async state/config-entry APIs must stay on the
             # event loop; only blocking filesystem work belongs in the executor.
             snapshot = collect_snapshot(self.hass)
+            snapshot["collection_coverage"] = build_collection_coverage(snapshot)
             change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
             if change_history != self.schedule.get('change_history', []):
                 self.schedule['change_history'] = change_history
@@ -95,13 +97,16 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule['change_history'] = change_history
         snapshot['diagnostic_change_history'] = change_summary
         raw_log, log_error = (None, None)
+        core_log_status = "not_enabled"
         if self.entry.options.get("include_core_log", True):
             max_bytes = 5_000_000 if comprehensive else 1_500_000
             log_path = self.hass.config.path("home-assistant.log")
             raw_log, log_error = await self.hass.async_add_executor_job(read_core_log, log_path, max_bytes)
+            core_log_status = "collected" if raw_log is not None else "unavailable"
         sanitized_log, log_counts = redact_text(raw_log) if raw_log else (None, {})
         safe_snapshot, snapshot_counts = redact_object(snapshot)
         analysis = analyze_log(sanitized_log)
+        snapshot["collection_coverage"] = build_collection_coverage(snapshot, core_log_status)
         if log_error:
             analysis["collection_note"] = log_error
         analysis["assessment_type"] = "monthly_comprehensive" if comprehensive else "weekly_diagnostic"
