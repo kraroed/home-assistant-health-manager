@@ -13,6 +13,11 @@ def sample_snapshot():
             "integrations": [{"domain": "mqtt"}, {"domain": "zha"}],
         },
         "config_entry_states": {"loaded": 2, "setup_error": 0},
+        "entity_count": 500,
+        "unavailable_entity_count": 3,
+        "unknown_entity_count": 1,
+        "unavailable_counts_by_domain": {"sensor": 2, "light": 1},
+        "unknown_counts_by_domain": {"sensor": 1},
         "platform_updates": {
             "core": {"installed_version": "2026.11.0", "latest_version": "2026.11.0", "state": "off", "update_available": False}
         },
@@ -41,7 +46,7 @@ def test_identical_snapshot_does_not_create_duplicate_event():
     assert summary["change_event_count"] == 0
 
 
-def test_detects_domains_setup_state_platform_and_update_inventory_changes():
+def test_detects_domains_setup_state_platform_update_and_entity_inventory_changes():
     first, _ = CHANGES.update_change_history([], sample_snapshot(), "2026-11-14T00:00:00Z")
     changed = sample_snapshot()
     changed["integration_inventory"]["integrations"].append({"domain": "z-wave"})
@@ -49,6 +54,8 @@ def test_detects_domains_setup_state_platform_and_update_inventory_changes():
     changed["platform_updates"]["core"]["latest_version"] = "2026.12.0"
     changed["platform_updates"]["core"]["update_available"] = True
     changed["update_entity_inventory"]["update_entities"] = []
+    changed["unavailable_entity_count"] = 4
+    changed["unavailable_counts_by_domain"] = {"sensor": 3, "light": 1}
     history, summary = CHANGES.update_change_history(first, changed, "2026-11-14T01:00:00Z")
     kinds = {item["type"] for item in summary["latest_changes"]}
     assert kinds == {
@@ -56,7 +63,11 @@ def test_detects_domains_setup_state_platform_and_update_inventory_changes():
         "config_entry_setup_state_counts_changed",
         "platform_update_signal_changed",
         "update_entity_inventory_changed",
+        "entity_inventory_changed",
     }
+    entity_change = next(item for item in summary["latest_changes"] if item["type"] == "entity_inventory_changed")
+    assert entity_change["before"]["unavailable_entity_count"] == 3
+    assert entity_change["after"]["unavailable_entity_count"] == 4
     assert summary["change_event_count"] == 1
     assert history[-1]["timestamp"] == "2026-11-14T01:00:00Z"
 
