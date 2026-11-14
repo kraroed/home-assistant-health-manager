@@ -16,11 +16,15 @@ def build_trend_point(snapshot, analysis, compatibility, timestamp):
         "unavailable_entity_count": _nonnegative_int(snapshot.get("unavailable_entity_count")),
         "unknown_entity_count": _nonnegative_int(snapshot.get("unknown_entity_count")),
         "failed_config_entry_count": _nonnegative_int(snapshot.get("failed_config_entry_count")),
-        "core_log_error_count": _nonnegative_int(
-            sum(
-                value for key, value in analysis.get("level_counts", {}).items()
-                if str(key).upper() in ("ERROR", "CRITICAL", "FATAL") and isinstance(value, int)
+        "core_log_error_count": (
+            _nonnegative_int(
+                sum(
+                    value for key, value in analysis.get("level_counts", {}).items()
+                    if str(key).upper() in ("ERROR", "CRITICAL", "FATAL")
+                    and isinstance(value, int) and not isinstance(value, bool)
+                )
             )
+            if analysis.get("available") is True else None
         ),
         "coverage_percent": (
             max(0, min(100, coverage["coverage_percent"]))
