@@ -49,8 +49,39 @@ def update_issue_history(existing, recommendations, now=None):
 
 
 def summarize_issue_history(history):
-    """Return counts suitable for sensors and report summaries."""
-    items = (history or {}).values()
+    """Return aggregate lifecycle counts and a bounded recurring-issue summary."""
+    records = history or {}
+    items = records.values()
     active = sum(item.get("status") == "active" for item in items)
-    total = len(history or {})
-    return {"tracked_issue_count": total, "active_tracked_issue_count": active, "resolved_tracked_issue_count": total - active}
+    total = len(records)
+    recurring = []
+    for issue_id, item in records.items():
+        occurrences = item.get("occurrences", 0)
+        if not isinstance(occurrences, int) or isinstance(occurrences, bool) or occurrences < 2:
+            continue
+        recurring.append({
+            "issue_id": issue_id,
+            "title": str(item.get("title", issue_id))[:160],
+            "severity": str(item.get("severity", "info"))[:16],
+            "status": item.get("status", "unknown"),
+            "occurrences": occurrences,
+            "first_seen": item.get("first_seen"),
+            "last_seen": item.get("last_seen"),
+            "last_resolved_at": item.get("last_resolved_at"),
+        })
+    recurring.sort(
+        key=lambda item: (
+            item["status"] == "active",
+            item["occurrences"],
+            item["last_seen"] or "",
+        ),
+        reverse=True,
+    )
+    return {
+        "tracked_issue_count": total,
+        "active_tracked_issue_count": active,
+        "resolved_tracked_issue_count": total - active,
+        "recurring_issue_count": len(recurring),
+        "active_recurring_issue_count": sum(item["status"] == "active" for item in recurring),
+        "recurring_issues": recurring[:20],
+    }
