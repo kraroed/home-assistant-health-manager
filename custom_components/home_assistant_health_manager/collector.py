@@ -7,15 +7,17 @@ from homeassistant.config_entries import ConfigEntryState
 
 def collect_snapshot(hass):
     states = list(hass.states.async_all())
-    unavailable = [state for state in states if state.state in ("unavailable", "unknown")]
+    unavailable = [state for state in states if state.state == "unavailable"]
+    unknown = [state for state in states if state.state == "unknown"]
     entries = hass.config_entries.async_entries()
     return {
         "collected_at": datetime.now(timezone.utc).isoformat(),
         "home_assistant_version": hass.config.version,
         "entity_count": len(states),
-        "unavailable_entity_count": sum(state.state == "unavailable" for state in states),
-        "unknown_entity_count": sum(state.state == "unknown" for state in states),
+        "unavailable_entity_count": len(unavailable),
+        "unknown_entity_count": len(unknown),
         "unavailable_counts_by_domain": dict(Counter(state.domain for state in unavailable)),
+        "unknown_counts_by_domain": dict(Counter(state.domain for state in unknown)),
         "entity_counts_by_domain": dict(Counter(state.domain for state in states)),
         "config_entry_count": len(entries),
         "config_entries_by_domain": dict(Counter(entry.domain for entry in entries)),
