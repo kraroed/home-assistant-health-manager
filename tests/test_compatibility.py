@@ -41,6 +41,10 @@ def test_available_platform_update_requires_compatibility_review():
     assert result["health_signals"]["integration_origin_classification"] == "not_attempted"
     assert result["health_signals"]["update_entity_count"] == 3
     assert result["health_signals"]["update_entities_with_available_updates"] == 1
+    assert result["health_signals"]["integration_domain_review_count"] == 1
+    assert result["health_signals"]["integration_domains_requiring_review"] == [
+        {"domain": "custom_example", "setup_error_count": 1, "setup_retry_count": 0}
+    ]
 
 
 def test_existing_failures_take_priority_over_update_status():
