@@ -18,6 +18,7 @@ def sample_snapshot():
         "unknown_entity_count": 1,
         "unavailable_counts_by_domain": {"sensor": 2, "light": 1},
         "unknown_counts_by_domain": {"sensor": 1},
+        "entity_counts_by_domain": {"sensor": 250, "light": 30},
         "platform_updates": {
             "core": {"installed_version": "2026.11.0", "latest_version": "2026.11.0", "state": "off", "update_available": False}
         },
@@ -56,6 +57,7 @@ def test_detects_domains_setup_state_platform_update_and_entity_inventory_change
     changed["update_entity_inventory"]["update_entities"] = []
     changed["unavailable_entity_count"] = 4
     changed["unavailable_counts_by_domain"] = {"sensor": 3, "light": 1}
+    changed["entity_counts_by_domain"] = {"sensor": 251, "light": 30}
     history, summary = CHANGES.update_change_history(first, changed, "2026-11-14T01:00:00Z")
     kinds = {item["type"] for item in summary["latest_changes"]}
     assert kinds == {
@@ -64,10 +66,14 @@ def test_detects_domains_setup_state_platform_update_and_entity_inventory_change
         "platform_update_signal_changed",
         "update_entity_inventory_changed",
         "entity_inventory_changed",
+        "entity_counts_by_domain_changed",
     }
     entity_change = next(item for item in summary["latest_changes"] if item["type"] == "entity_inventory_changed")
     assert entity_change["before"]["unavailable_entity_count"] == 3
     assert entity_change["after"]["unavailable_entity_count"] == 4
+    domain_change = next(item for item in summary["latest_changes"] if item["type"] == "entity_counts_by_domain_changed")
+    assert domain_change["before"]["sensor"] == 250
+    assert domain_change["after"]["sensor"] == 251
     assert summary["change_event_count"] == 1
     assert history[-1]["timestamp"] == "2026-11-14T01:00:00Z"
 
