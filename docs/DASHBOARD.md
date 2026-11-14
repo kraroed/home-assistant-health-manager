@@ -31,6 +31,10 @@ cards:
         name: Unknown entities
       - entity: sensor.failed_integrations
         name: Failed integrations
+      - entity: sensor.recurring_issues
+        name: Recurring issues
+      - entity: sensor.active_recurring_issues
+        name: Active recurring issues
       - entity: sensor.diagnostic_coverage
         name: Diagnostic coverage
       - entity: sensor.diagnostic_trend
@@ -68,3 +72,6 @@ cards:
 - A low or partial coverage result means some sources were unavailable. It must not be interpreted as proof of a healthy system.
 
 The card uses only read-only sensors. It does not invoke repair, update, restart, or other control actions.
+
+
+Recurring issue sensors count problems that were detected, resolved, and later detected again. The Health Status sensor attributes include the bounded recurrence list with occurrence count and first/last-seen timestamps. Only currently active recurring issues create an additional advisory recommendation; resolved recurring issues remain visible as history. These recommendations never execute repairs.
