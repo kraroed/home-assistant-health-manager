@@ -3,9 +3,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.helpers import entity_registry as er
 
 from .integration_inventory import collect_integration_inventory
 from .update_inventory import collect_platform_updates
+from .update_entity_inventory import collect_update_entity_inventory
 
 
 def collect_snapshot(hass):
@@ -14,6 +16,7 @@ def collect_snapshot(hass):
     unavailable = [state for state in states if state.state == "unavailable"]
     unknown = [state for state in states if state.state == "unknown"]
     entries = hass.config_entries.async_entries()
+    entity_registry = er.async_get(hass)
     failed_entries = [
         entry for entry in entries
         if entry.state is ConfigEntryState.SETUP_ERROR
@@ -23,6 +26,7 @@ def collect_snapshot(hass):
         "collected_at": datetime.now(timezone.utc).isoformat(),
         "home_assistant_version": hass.config.version,
         "platform_updates": collect_platform_updates(states),
+        "update_entity_inventory": collect_update_entity_inventory(states, entity_registry, hass.config_entries),
         "integration_inventory": collect_integration_inventory(entries),
         "entity_count": len(states),
         "unavailable_entity_count": len(unavailable),
