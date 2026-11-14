@@ -78,26 +78,38 @@ def summarize_integration_trends(history):
         item.get("domain"): item for item in previous.get("domains", [])
         if isinstance(item, dict) and isinstance(item.get("domain"), str)
     }
-    all_domains = set()
+    all_domains = {
+        item.get("domain")
+        for point in points
+        for item in point.get("domains", [])
+        if isinstance(item, dict) and isinstance(item.get("domain"), str)
+    }
     attention_samples = {}
-    for point in points:
-        for item in point.get("domains", []):
-            domain = item.get("domain")
-            if not isinstance(domain, str):
-                continue
-            all_domains.add(domain)
-            attention_samples.setdefault(domain, []).append(bool(item.get("attention")))
+    for domain in all_domains:
+        # Keep missing reports as unknown, not as clear observations.
+        attention_samples[domain] = []
+        for point in points:
+            observed = next(
+                (
+                    item for item in point.get("domains", [])
+                    if isinstance(item, dict) and item.get("domain") == domain
+                ),
+                None,
+            )
+            attention_samples[domain].append(
+                bool(observed.get("attention")) if observed is not None else None
+            )
 
     summaries = []
     for domain in all_domains:
         samples = attention_samples[domain]
         episodes = sum(
-            current and (index == 0 or not samples[index - 1])
+            current is True and (index == 0 or samples[index - 1] is False)
             for index, current in enumerate(samples)
         )
         consecutive = 0
         for active in reversed(samples):
-            if not active:
+            if active is not True:
                 break
             consecutive += 1
         current = latest_domains.get(domain)
