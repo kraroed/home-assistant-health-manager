@@ -14,7 +14,7 @@ def sample(unavailable=4, coverage=100, errors=2):
         "unknown_entity_count": 1,
         "failed_config_entry_count": 0,
         "collection_coverage": {"coverage_percent": coverage},
-    }, {"level_counts": {"ERROR": errors, "WARNING": 3}}, {"overall_status": "no_platform_update_reported"}
+    }, {"available": True, "level_counts": {"ERROR": errors, "WARNING": 3}}, {"overall_status": "no_platform_update_reported"}
 
 
 def test_first_sample_has_insufficient_data():
@@ -62,7 +62,7 @@ def test_missing_metric_values_remain_insufficient_and_compatibility_change_is_v
     second = {
         "collection_coverage": {},
     }
-    empty_analysis = {"level_counts": {}}
+    empty_analysis = {"available": False, "level_counts": {}}
     first_compat = {"overall_status": "insufficient_platform_data"}
     second_compat = {"overall_status": "existing_issues_require_review"}
     history, _ = TRENDS.update_trend_history([], first, empty_analysis, first_compat, "2026-11-14T00:00:00Z")
@@ -70,3 +70,16 @@ def test_missing_metric_values_remain_insufficient_and_compatibility_change_is_v
     assert summary["overall_direction"] == "insufficient_data"
     assert summary["compatibility_status"]["changed"] is True
     assert summary["compatibility_status"]["current"] == "existing_issues_require_review"
+
+
+
+def test_unavailable_core_log_is_not_recorded_as_zero_errors():
+    snapshot, analysis, compatibility = sample()
+    analysis["available"] = False
+    history, _ = TRENDS.update_trend_history([], snapshot, analysis, compatibility, "2026-11-14T00:00:00Z")
+    snapshot2, analysis2, _ = sample()
+    analysis2["available"] = False
+    history, summary = TRENDS.update_trend_history(history, snapshot2, analysis2, compatibility, "2026-11-21T00:00:00Z")
+    assert history[-1]["core_log_error_count"] is None
+    assert summary["metrics"]["core_log_error_count"]["direction"] == "insufficient_data"
+    assert summary["overall_direction"] == "improving"  # unavailable/unknown counts decreased in sample()
