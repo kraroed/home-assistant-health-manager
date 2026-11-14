@@ -13,6 +13,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = HealthManagerCoordinator(hass, entry)
+    entry.async_on_unload(coordinator.async_shutdown)
     await coordinator.async_setup_schedule()
     await coordinator.async_config_entry_first_refresh()
     hass.data[DOMAIN][entry.entry_id] = coordinator
