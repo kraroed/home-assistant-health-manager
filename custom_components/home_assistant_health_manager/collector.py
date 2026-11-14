@@ -27,7 +27,7 @@ def collect_snapshot(hass):
         "home_assistant_version": hass.config.version,
         "platform_updates": collect_platform_updates(states),
         "update_entity_inventory": collect_update_entity_inventory(states, entity_registry, hass.config_entries),
-        "integration_inventory": collect_integration_inventory(entries),
+        "integration_inventory": collect_integration_inventory(entries, entity_registry, states),
         "entity_count": len(states),
         "unavailable_entity_count": len(unavailable),
         "unknown_entity_count": len(unknown),
