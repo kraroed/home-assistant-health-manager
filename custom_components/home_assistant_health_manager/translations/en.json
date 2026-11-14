@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Home Assistant Health Manager",
+        "description": "Diagnostics are collected and processed locally.",
+        "data": {"name": "Name"}
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only one instance is supported."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Health Manager options",
+        "data": {
+          "weekly_reports": "Enable weekly reports",
+          "monthly_reviews": "Enable monthly comprehensive reviews",
+          "include_core_log": "Include sanitized Core log",
+          "retention_days": "Report retention (days)"
+        }
+      }
+    }
+  }
+}
