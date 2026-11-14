@@ -16,6 +16,7 @@ SENSORS = [
     ("core_update_status", "Core Update", None, None),
     ("supervisor_update_status", "Supervisor Update", None, None),
     ("operating_system_update_status", "Operating System Update", None, None),
+    ("compatibility_status", "Compatibility Status", None, None),
     ("report_count", "Generated Reports", "reports", SensorStateClass.TOTAL_INCREASING),
 ]
 
@@ -42,6 +43,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
+        if self.key == "compatibility_status":
+            return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
         if self.key.endswith("_update_status"):
             platform = self.key.removesuffix("_update_status")
             update = data.get("platform_updates", {}).get(platform, {})
@@ -64,6 +67,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "report_count": data.get("report_count", 0),
                 "home_assistant_version": data.get("home_assistant_version"),
                 "platform_updates": data.get("platform_updates", {}),
+                "compatibility_assessment": data.get("compatibility_assessment", {}),
                 "entity_count": data.get("entity_count"),
                 "unavailable_entity_count": data.get("unavailable_entity_count"),
                 "unknown_entity_count": data.get("unknown_entity_count"),
