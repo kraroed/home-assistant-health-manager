@@ -59,3 +59,25 @@ def test_history_is_bounded_and_summarized():
     assert summary["tracked_issue_count"] == 100
     assert summary["active_tracked_issue_count"] == 0
     assert summary["resolved_tracked_issue_count"] == 100
+
+
+
+def test_summary_identifies_active_and_resolved_recurring_issues():
+    active = HISTORY.update_issue_history(
+        {}, [{"id": "failed_config_entries", "title": "Failed integrations", "severity": "high"}],
+        "2026-11-01T00:00:00+00:00",
+    )
+    resolved = HISTORY.update_issue_history(active, [], "2026-11-02T00:00:00+00:00")
+    returned = HISTORY.update_issue_history(
+        resolved, [{"id": "failed_config_entries", "title": "Failed integrations", "severity": "high"}],
+        "2026-11-03T00:00:00+00:00",
+    )
+    summary = HISTORY.summarize_issue_history(returned)
+    assert summary["recurring_issue_count"] == 1
+    assert summary["active_recurring_issue_count"] == 1
+    assert summary["recurring_issues"][0]["issue_id"] == "failed_config_entries"
+    assert summary["recurring_issues"][0]["occurrences"] == 2
+    resolved_again = HISTORY.update_issue_history(returned, [], "2026-11-04T00:00:00+00:00")
+    resolved_summary = HISTORY.summarize_issue_history(resolved_again)
+    assert resolved_summary["recurring_issue_count"] == 1
+    assert resolved_summary["active_recurring_issue_count"] == 0
