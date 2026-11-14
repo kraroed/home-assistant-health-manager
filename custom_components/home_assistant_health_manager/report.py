@@ -1,26 +1,29 @@
 import asyncio
 import json
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .const import REPORT_DIR
 
 
-async def write_report(hass, snapshot, analysis, sanitized_log, redaction_counts):
+async def write_report(hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations):
+    retention_days = hass.data.get("home_assistant_health_manager_retention_days", 90)
     return await asyncio.to_thread(
-        _write_report_sync, hass, snapshot, analysis, sanitized_log, redaction_counts
+        _write_report_sync, hass, snapshot, analysis, sanitized_log,
+        redaction_counts, recommendations, retention_days
     )
 
 
-def _write_report_sync(hass, snapshot, analysis, sanitized_log, redaction_counts):
+def _write_report_sync(hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations, retention_days):
     directory = Path(hass.config.path(REPORT_DIR))
     directory.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    now = datetime.now(timezone.utc)
+    stamp = now.strftime("%Y%m%dT%H%M%S%fZ")
     base = f"health_report_{stamp}"
     payload = {
         "schema_version": 1,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now.isoformat(),
         "privacy": {
             "processing": "local_only",
             "external_transmission": False,
@@ -30,6 +33,7 @@ def _write_report_sync(hass, snapshot, analysis, sanitized_log, redaction_counts
         },
         "system": snapshot,
         "log_analysis": analysis,
+        "recommendations": recommendations,
     }
     json_path = directory / f"{base}.json"
     txt_path = directory / f"{base}.txt"
@@ -38,18 +42,30 @@ def _write_report_sync(hass, snapshot, analysis, sanitized_log, redaction_counts
     summary = [
         "Home Assistant Health Manager report",
         f"Generated: {payload['generated_at']}",
+        f"Assessment: {analysis.get('assessment_type', 'diagnostic')}",
         f"Entities: {snapshot.get('entity_count', 0)}",
-        f"Unavailable/unknown entities: {snapshot.get('unavailable_entity_count', 0)}",
-        f"Configured integrations: {snapshot.get('config_entry_count', 0)}",
+        f"Unavailable entities: {snapshot.get('unavailable_entity_count', 0)}",
+        f"Unknown entities: {snapshot.get('unknown_entity_count', 0)}",
+        f"Failed integrations: {snapshot.get('failed_config_entry_count', 0)}",
         f"Log levels: {analysis.get('level_counts', {})}",
+        f"Recommendations: {len(recommendations)}",
         "",
         "LOCAL-ONLY REPORT. Manual review is required before sharing.",
         f"Redaction counts: {redaction_counts}",
     ]
+    for item in recommendations:
+        summary.extend(["", f"[{item['severity'].upper()}] {item['title']}", item["detail"], f"Suggested next step: {item['suggested_action']}"])
     txt_path.write_text("\n".join(summary), encoding="utf-8")
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.write(json_path, arcname="health_report.json")
         archive.write(txt_path, arcname="summary.txt")
         if sanitized_log is not None:
             archive.writestr("logs/home_assistant_core_sanitized.log", sanitized_log)
+    cutoff = now - timedelta(days=max(7, min(int(retention_days), 365)))
+    for old_file in directory.glob("health_report_*"):
+        try:
+            if old_file.is_file() and datetime.fromtimestamp(old_file.stat().st_mtime, timezone.utc) < cutoff:
+                old_file.unlink()
+        except OSError:
+            continue
     return str(zip_path)
