@@ -31,6 +31,8 @@ cards:
         name: Unknown entities
       - entity: sensor.failed_integrations
         name: Failed integrations
+      - entity: sensor.integration_attention_domains
+        name: Integration domains needing attention
       - entity: sensor.recurring_issues
         name: Recurring issues
       - entity: sensor.active_recurring_issues
@@ -74,4 +76,4 @@ cards:
 The card uses only read-only sensors. It does not invoke repair, update, restart, or other control actions.
 
 
-Recurring issue sensors count problems that were detected, resolved, and later detected again. The Health Status sensor attributes include the bounded recurrence list with occurrence count and first/last-seen timestamps. Only currently active recurring issues create an additional advisory recommendation; resolved recurring issues remain visible as history. These recommendations never execute repairs.
+The `Integration Attention Domains` sensor counts provider integrations with setup errors/retries or unavailable/unknown registered entities. Its attributes on the sensor and Health Status entity show a bounded, severity-ranked domain list. This is a triage correlation, not proof of a shared root cause.\n\nRecurring issue sensors count problems that were detected, resolved, and later detected again. The Health Status sensor attributes include the bounded recurrence list with occurrence count and first/last-seen timestamps. Only currently active recurring issues create an additional advisory recommendation; resolved recurring issues remain visible as history. These recommendations never execute repairs.
