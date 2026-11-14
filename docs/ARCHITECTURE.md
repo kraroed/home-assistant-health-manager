@@ -16,3 +16,8 @@ This release is read-only. It does not modify Home Assistant configuration, rest
 
 ## Scheduling
 A persisted schedule checks for weekly and monthly reports hourly. First-run schedules are set one week and one month after setup rather than creating a large report immediately during installation.
+
+
+## Persistent diagnostic history
+
+The integration stores issue lifecycle records and up to 90 aggregate report-time trend samples using Home Assistant's local Store helper. Issue occurrence counts increase only when an issue previously marked resolved becomes active again; repeated observations during the same active period update last-seen metadata without incrementing recurrence. Recurrence summaries expose rule identifiers, short titles, severity, status, occurrence counts, and timestamps. Active recurring issues produce an additional advisory recommendation. This is recurrence of a diagnostic rule, not proof of an identical root cause. Trend samples store aggregate counts and statuses only. Neither history stores entity IDs, config-entry IDs, raw log text, or configuration contents.
