@@ -65,6 +65,7 @@ def _write_report_sync(
         f"Failed integrations: {snapshot.get('failed_config_entry_count', 0)}",
         f"Failed integration domains: {snapshot.get('failed_config_entry_domains', {})}",
         f"Integration setup states: {snapshot.get('config_entry_states', {})}",
+        f"Configured integration inventory: {snapshot.get('integration_inventory', {})}",
         f"Log levels: {analysis.get('level_counts', {})}",
         f"Recommendations: {len(recommendations)}",
         f"Tracked issues: {issue_summary.get('tracked_issue_count', 0)}",
