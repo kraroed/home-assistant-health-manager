@@ -35,10 +35,14 @@ def assess_compatibility(snapshot, analysis):
     levels = analysis.get("level_counts", {})
     error_count = sum(levels.get(level, 0) for level in ("ERROR", "CRITICAL", "FATAL"))
     failed_entries = snapshot.get("failed_config_entry_count", 0)
+    integration_inventory = snapshot.get("integration_inventory", {})
     health_signals = {
         "failed_config_entry_count": failed_entries,
         "failed_config_entry_domains": sorted(snapshot.get("failed_config_entry_domains", {})),
         "core_log_error_count": error_count,
+        "configured_integration_domain_count": integration_inventory.get("integration_domain_count"),
+        "integration_setup_state_totals": integration_inventory.get("setup_state_totals", {}),
+        "integration_origin_classification": integration_inventory.get("origin_classification", "not_available"),
     }
     if failed_entries or error_count:
         overall = "existing_issues_require_review"
