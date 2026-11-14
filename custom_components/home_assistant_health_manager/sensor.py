@@ -10,6 +10,9 @@ SENSORS = [
     ("unknown_entity_count", "Unknown Entities", "entities", SensorStateClass.MEASUREMENT),
     ("failed_config_entry_count", "Failed Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("config_entry_count", "Configured Integrations", "integrations", SensorStateClass.MEASUREMENT),
+    ("tracked_issue_count", "Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
+    ("active_tracked_issue_count", "Active Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
+    ("resolved_tracked_issue_count", "Resolved Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
     ("report_count", "Generated Reports", "reports", SensorStateClass.TOTAL_INCREASING),
 ]
 
