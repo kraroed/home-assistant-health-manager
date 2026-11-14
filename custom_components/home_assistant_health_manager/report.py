@@ -82,6 +82,7 @@ def _write_report_sync(
         f"Diagnostic change history: {change_summary}",
         f"Diagnostic collection coverage: {snapshot.get('collection_coverage', {})}",
         f"Diagnostic trend: {snapshot.get('diagnostic_trend', {})}",
+        f"Integration trend summary: {snapshot.get('integration_trend_summary', {})}",
         "",
         "LOCAL-ONLY REPORT. Manual review is required before sharing.",
         f"Redaction counts: {redaction_counts}",
