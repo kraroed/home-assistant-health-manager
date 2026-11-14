@@ -19,7 +19,7 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 
 ## Current collection scope
 - Home Assistant version.
-- Entity totals and counts by domain/state.
+- Entity totals and counts by domain/state, with dedicated unavailable and unknown entity sensors and per-domain breakdowns.
 - Config-entry domain and setup-error summaries (no entry data/options).
 - Bounded tail of the default Core log, if readable.
 - Error/warning counts and repeated log-message patterns.
