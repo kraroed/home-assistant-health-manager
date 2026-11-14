@@ -48,6 +48,8 @@ def _write_report_sync(directory_path, snapshot, analysis, sanitized_log, redact
         f"Unavailable entities: {snapshot.get('unavailable_entity_count', 0)}",
         f"Unknown entities: {snapshot.get('unknown_entity_count', 0)}",
         f"Failed integrations: {snapshot.get('failed_config_entry_count', 0)}",
+        f"Failed integration domains: {snapshot.get('failed_config_entry_domains', {})}",
+        f"Integration setup states: {snapshot.get('config_entry_states', {})}",
         f"Log levels: {analysis.get('level_counts', {})}",
         f"Recommendations: {len(recommendations)}",
         "",
