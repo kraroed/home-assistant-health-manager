@@ -65,7 +65,7 @@ def assess_compatibility(snapshot, analysis):
             if item.get("update_available") is True
         ),
     }
-    if failed_entries or error_count:
+    if failed_entries or error_count or integration_review_domains:
         overall = "existing_issues_require_review"
     elif update_available:
         overall = "platform_update_review_required"
