@@ -74,6 +74,8 @@ def _write_report_sync(
         f"Active tracked issues: {issue_summary.get('active_tracked_issue_count', 0)}",
         f"Resolved tracked issues: {issue_summary.get('resolved_tracked_issue_count', 0)}",
         "",
+        f"Diagnostic change history: {change_summary}",
+        "",
         "LOCAL-ONLY REPORT. Manual review is required before sharing.",
         f"Redaction counts: {redaction_counts}",
     ]
