@@ -76,3 +76,45 @@ def test_resolved_recurring_issue_is_reported_but_not_active_recommended():
         }]},
     )
     assert result == []
+
+
+def test_worsening_integration_trend_adds_approval_gated_finding():
+    result = RECOMMENDATIONS.add_integration_trend_recommendations(
+        [],
+        {"domains": [{
+            "domain": "mqtt", "status": "attention", "recurring_attention": False,
+            "attention_episodes": 1,
+            "deltas_from_previous_report": {"unavailable_entity_count": 2},
+            "current_counts": {"setup_error_count": 0},
+        }]},
+    )
+    finding = result[0]
+    assert finding["id"] == "integration_trend_domain_mqtt"
+    assert "increased" in finding["detail"]
+    assert finding["requires_user_approval"] is True
+    assert finding["automated_action_available"] is False
+
+
+def test_recurring_integration_attention_adds_finding_even_without_new_increase():
+    result = RECOMMENDATIONS.add_integration_trend_recommendations(
+        [],
+        {"domains": [{
+            "domain": "zha", "status": "attention", "recurring_attention": True,
+            "attention_episodes": 2, "deltas_from_previous_report": {},
+            "current_counts": {"setup_error_count": 1},
+        }]},
+    )
+    assert result[0]["severity"] == "high"
+    assert "2 separate report periods" in result[0]["detail"]
+
+
+def test_clear_integration_trend_does_not_create_active_recommendation():
+    result = RECOMMENDATIONS.add_integration_trend_recommendations(
+        [],
+        {"domains": [{
+            "domain": "mqtt", "status": "clear", "recurring_attention": True,
+            "attention_episodes": 2, "deltas_from_previous_report": {},
+            "current_counts": {},
+        }]},
+    )
+    assert result == []
