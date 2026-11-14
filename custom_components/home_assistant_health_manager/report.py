@@ -9,20 +9,20 @@ from .const import REPORT_DIR
 
 async def write_report(
     hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations,
-    issue_history=None, issue_summary=None, repair_prompt=None, compatibility=None,
+    issue_history=None, issue_summary=None, repair_prompt=None, compatibility=None, change_summary=None,
 ):
     retention_days = hass.data.get("home_assistant_health_manager_retention_days", 90)
     directory = hass.config.path(REPORT_DIR)
     return await asyncio.to_thread(
         _write_report_sync, directory, snapshot, analysis, sanitized_log,
         redaction_counts, recommendations, issue_history or {}, issue_summary or {},
-        repair_prompt or "No AI repair prompt was generated.", compatibility or {}, retention_days
+        repair_prompt or "No AI repair prompt was generated.", compatibility or {}, change_summary or {}, retention_days
     )
 
 
 def _write_report_sync(
     directory_path, snapshot, analysis, sanitized_log, redaction_counts,
-    recommendations, issue_history, issue_summary, repair_prompt, compatibility, retention_days,
+    recommendations, issue_history, issue_summary, repair_prompt, compatibility, change_summary, retention_days,
 ):
     directory = Path(directory_path)
     directory.mkdir(parents=True, exist_ok=True)
@@ -43,6 +43,7 @@ def _write_report_sync(
         "log_analysis": analysis,
         "recommendations": recommendations,
         "compatibility_assessment": compatibility,
+        "diagnostic_change_history": change_summary,
         "issue_history": issue_history,
         "issue_history_summary": issue_summary,
     }
