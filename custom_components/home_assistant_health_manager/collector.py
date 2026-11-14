@@ -11,6 +11,11 @@ def collect_snapshot(hass):
     unavailable = [state for state in states if state.state == "unavailable"]
     unknown = [state for state in states if state.state == "unknown"]
     entries = hass.config_entries.async_entries()
+    failed_entries = [
+        entry for entry in entries
+        if entry.state is ConfigEntryState.SETUP_ERROR
+    ]
+    entry_states = Counter(entry.state.value for entry in entries)
     return {
         "collected_at": datetime.now(timezone.utc).isoformat(),
         "home_assistant_version": hass.config.version,
@@ -22,7 +27,9 @@ def collect_snapshot(hass):
         "entity_counts_by_domain": dict(Counter(state.domain for state in states)),
         "config_entry_count": len(entries),
         "config_entries_by_domain": dict(Counter(entry.domain for entry in entries)),
-        "failed_config_entry_count": sum(entry.state is ConfigEntryState.SETUP_ERROR for entry in entries),
+        "config_entry_states": dict(entry_states),
+        "failed_config_entry_count": len(failed_entries),
+        "failed_config_entry_domains": dict(Counter(entry.domain for entry in failed_entries)),
     }
 
 
