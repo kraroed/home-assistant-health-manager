@@ -24,3 +24,41 @@ def test_clean_snapshot_is_not_claimed_to_be_issue_free():
     )
     assert result[0]["id"] == "no_rule_triggered"
     assert "not a guarantee" in result[0]["detail"]
+
+
+
+def test_active_recurring_issue_adds_approval_gated_finding():
+    result = RECOMMENDATIONS.add_recurring_issue_recommendations(
+        [],
+        {
+            "recurring_issues": [{
+                "issue_id": "failed_config_entries",
+                "title": "Failed integrations",
+                "severity": "high",
+                "status": "active",
+                "occurrences": 3,
+                "first_seen": "2026-11-01T00:00:00Z",
+                "last_seen": "2026-11-15T00:00:00Z",
+                "last_resolved_at": "2026-11-10T00:00:00Z",
+            }]
+        },
+    )
+    finding = result[0]
+    assert finding["id"] == "recurring_issue_failed_config_entries"
+    assert "separate time(s)" in finding["detail"]
+    assert finding["requires_user_approval"] is True
+    assert finding["automated_action_available"] is False
+
+
+def test_resolved_recurring_issue_is_reported_but_not_active_recommended():
+    result = RECOMMENDATIONS.add_recurring_issue_recommendations(
+        [],
+        {"recurring_issues": [{
+            "issue_id": "unavailable_entities",
+            "title": "Unavailable entities",
+            "severity": "medium",
+            "status": "resolved",
+            "occurrences": 2,
+        }]},
+    )
+    assert result == []
