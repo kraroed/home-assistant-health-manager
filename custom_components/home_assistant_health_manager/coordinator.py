@@ -5,6 +5,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .collector import collect_snapshot, read_core_log
+from .compatibility import assess_compatibility
 from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL
 from .history import summarize_issue_history, update_issue_history
 from .log_analyzer import analyze_log
@@ -100,12 +101,14 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             now.isoformat(),
         )
         history_summary = summarize_issue_history(self.schedule["issue_history"])
+        compatibility = assess_compatibility(snapshot, analysis)
+        safe_compatibility, _ = redact_object(compatibility)
         safe_recommendations, _ = redact_object(recommendations)
-        repair_prompt = build_repair_prompt(safe_snapshot, analysis, safe_recommendations, now.isoformat())
+        repair_prompt = build_repair_prompt(safe_snapshot, analysis, safe_recommendations, now.isoformat(), safe_compatibility)
         path = await write_report(
             self.hass, safe_snapshot, analysis, sanitized_log,
             {"core_log": log_counts, "snapshot": snapshot_counts},
-            recommendations, self.schedule["issue_history"], history_summary, repair_prompt,
+            recommendations, self.schedule["issue_history"], history_summary, repair_prompt, safe_compatibility,
         )
         self.schedule["last_assessment"] = now.isoformat()
         self.schedule["last_report"] = now.isoformat()
