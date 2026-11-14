@@ -57,6 +57,7 @@ def _write_report_sync(
         f"Assessment: {analysis.get('assessment_type', 'diagnostic')}",
         f"Home Assistant Core version: {snapshot.get('home_assistant_version', 'unknown')}",
         f"Platform update inventory: {snapshot.get('platform_updates', {})}",
+        f"Update entity inventory: {snapshot.get('update_entity_inventory', {})}",
         f"Compatibility triage: {compatibility.get('overall_status', 'not_assessed')}",
         f"Compatibility scope: {compatibility.get('scope_note', '')}",
         f"Entities: {snapshot.get('entity_count', 0)}",
