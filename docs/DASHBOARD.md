@@ -33,6 +33,8 @@ cards:
         name: Failed integrations
       - entity: sensor.integration_attention_domains
         name: Integration domains needing attention
+      - entity: sensor.integration_trend_domains
+        name: Integration domains with active trend attention
       - entity: sensor.recurring_issues
         name: Recurring issues
       - entity: sensor.active_recurring_issues
