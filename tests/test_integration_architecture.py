@@ -70,3 +70,15 @@ def test_unknown_entity_sensor_and_domain_breakdowns_are_exposed():
     assert '("unknown_entity_count", "Unknown Entities", "entities"' in source
     assert '"unknown_counts_by_domain": data.get("unknown_counts_by_domain", {})' in source
     assert '"unavailable_counts_by_domain": data.get("unavailable_counts_by_domain", {})' in source
+
+
+def test_failed_integration_domains_and_entry_states_are_exposed():
+    collector = (INTEGRATION / "collector.py").read_text(encoding="utf-8")
+    sensor = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    report = (INTEGRATION / "report.py").read_text(encoding="utf-8")
+    assert '"failed_config_entry_domains"' in collector
+    assert '"config_entry_states"' in collector
+    assert '"failed_config_entry_domains": data.get("failed_config_entry_domains", {})' in sensor
+    assert '"config_entry_states": data.get("config_entry_states", {})' in sensor
+    assert "Failed integration domains:" in report
+    assert "Integration setup states:" in report
