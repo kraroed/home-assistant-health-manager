@@ -5,6 +5,16 @@ MAX_DOMAINS = 250
 MAX_UPDATE_SIGNATURES = 100
 
 
+def _bounded_counts(values):
+    if not isinstance(values, dict):
+        return {}
+    return {
+        str(key)[:128]: max(0, value)
+        for key, value in sorted(values.items(), key=lambda item: str(item[0]))[:MAX_DOMAINS]
+        if isinstance(value, int) and not isinstance(value, bool)
+    }
+
+
 def _snapshot_signature(snapshot):
     """Build a bounded signature without entity IDs, entry IDs, or display titles."""
     inventory = snapshot.get("integration_inventory", {})
@@ -14,13 +24,12 @@ def _snapshot_signature(snapshot):
         for item in integrations
         if isinstance(item, dict) and item.get("domain")
     })[:MAX_DOMAINS]
-    setup_states = {
-        str(key)[:64]: max(0, int(value))
-        for key, value in snapshot.get("config_entry_states", {}).items()
-        if isinstance(value, int)
-    }
+    setup_states = _bounded_counts(snapshot.get("config_entry_states", {}))
     platforms = {}
-    for key, item in snapshot.get("platform_updates", {}).items():
+    raw_platforms = snapshot.get("platform_updates", {})
+    if not isinstance(raw_platforms, dict):
+        raw_platforms = {}
+    for key, item in raw_platforms.items():
         if isinstance(item, dict):
             platforms[str(key)[:64]] = {
                 "installed_version": _safe_value(item.get("installed_version")),
@@ -30,7 +39,11 @@ def _snapshot_signature(snapshot):
                 if isinstance(item.get("update_available"), bool) else None,
             }
     update_signatures = []
-    for item in snapshot.get("update_entity_inventory", {}).get("update_entities", [])[:MAX_UPDATE_SIGNATURES]:
+    update_inventory = snapshot.get("update_entity_inventory", {})
+    update_entities = update_inventory.get("update_entities", []) if isinstance(update_inventory, dict) else []
+    if not isinstance(update_entities, list):
+        update_entities = []
+    for item in update_entities[:MAX_UPDATE_SIGNATURES]:
         if not isinstance(item, dict):
             continue
         update_signatures.append("|".join(str(item.get(key) or "")[:128] for key in (
@@ -41,6 +54,13 @@ def _snapshot_signature(snapshot):
         "setup_states": setup_states,
         "platforms": platforms,
         "update_entity_signatures": sorted(update_signatures),
+        "entity_inventory": {
+            "entity_count": max(0, snapshot.get("entity_count", 0)) if isinstance(snapshot.get("entity_count"), int) else 0,
+            "unavailable_entity_count": max(0, snapshot.get("unavailable_entity_count", 0)) if isinstance(snapshot.get("unavailable_entity_count"), int) else 0,
+            "unknown_entity_count": max(0, snapshot.get("unknown_entity_count", 0)) if isinstance(snapshot.get("unknown_entity_count"), int) else 0,
+            "unavailable_by_domain": _bounded_counts(snapshot.get("unavailable_counts_by_domain", {})),
+            "unknown_by_domain": _bounded_counts(snapshot.get("unknown_counts_by_domain", {})),
+        },
     }
 
 
@@ -63,6 +83,8 @@ def update_change_history(existing, snapshot, timestamp):
         }
 
     previous = history[-1].get("signature", {})
+    if not isinstance(previous, dict):
+        previous = {}
     changes = []
     old_domains = set(previous.get("integration_domains", []))
     new_domains = set(current["integration_domains"])
@@ -77,6 +99,8 @@ def update_change_history(existing, snapshot, timestamp):
             "after": current["setup_states"],
         })
     old_platforms = previous.get("platforms", {})
+    if not isinstance(old_platforms, dict):
+        old_platforms = {}
     for platform in sorted(set(old_platforms) | set(current["platforms"])):
         before, after = old_platforms.get(platform), current["platforms"].get(platform)
         if before != after:
@@ -88,6 +112,13 @@ def update_change_history(existing, snapshot, timestamp):
             "type": "update_entity_inventory_changed",
             "added_count": len(new_updates - old_updates),
             "removed_count": len(old_updates - new_updates),
+        })
+    old_entity_inventory = previous.get("entity_inventory", {})
+    if old_entity_inventory != current["entity_inventory"]:
+        changes.append({
+            "type": "entity_inventory_changed",
+            "before": old_entity_inventory,
+            "after": current["entity_inventory"],
         })
 
     if changes:
@@ -109,7 +140,8 @@ def update_change_history(existing, snapshot, timestamp):
 
 _SCOPE_NOTE = (
     "Tracks changes between collected diagnostic snapshots only. It records configured integration "
-    "domain names, aggregate setup-state counts, platform update signals, and bounded update-entity "
-    "signatures. It does not prove when a change occurred, identify package sources, or guarantee "
+    "domain names, aggregate setup-state counts, platform update signals, bounded update-entity "
+    "signatures, and aggregate entity availability/counts by domain. It does not prove when a change "
+    "occurred, identify package sources, or guarantee "
     "compatibility. No entity IDs, config-entry IDs, titles, log text, or configuration are stored."
 )
