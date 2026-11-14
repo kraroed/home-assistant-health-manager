@@ -109,3 +109,20 @@ def test_domain_inventory_truncation_is_reported():
     assert point["domains_truncated"] is True
     _, summary = TRENDS.update_integration_trend_history([], source, "2026-11-14T00:00:00Z")
     assert summary["inventory_truncated"] is True
+
+
+def test_missing_inventory_gap_does_not_create_false_recurrence():
+    history, _ = TRENDS.update_integration_trend_history(
+        [], inventory(unavailable=2), "2026-11-01T00:00:00Z"
+    )
+    empty = {"integration_domain_count": 0, "integrations": [], "inventory_truncated": False}
+    history, _ = TRENDS.update_integration_trend_history(
+        history, empty, "2026-11-08T00:00:00Z"
+    )
+    history, summary = TRENDS.update_integration_trend_history(
+        history, inventory(unavailable=1), "2026-11-15T00:00:00Z"
+    )
+    domain = summary["domains"][0]
+    assert domain["attention_episodes"] == 1
+    assert domain["consecutive_attention_reports"] == 1
+    assert domain["recurring_attention"] is False
