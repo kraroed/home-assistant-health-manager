@@ -27,8 +27,9 @@ def update_issue_history(existing, recommendations, now=None):
             "title": str(item.get("title", issue_id))[:160],
             "severity": str(item.get("severity", "info"))[:16],
             "status": "active",
-            "first_seen": timestamp if not previous or was_resolved else previous.get("first_seen", timestamp),
+            "first_seen": previous.get("first_seen", timestamp),
             "last_seen": timestamp,
+            "last_resolved_at": previous.get("last_resolved_at") or previous.get("resolved_at"),
             "resolved_at": None,
             "occurrences": max(0, int(previous.get("occurrences", 0))) + (1 if not previous or was_resolved else 0),
         }
@@ -37,10 +38,11 @@ def update_issue_history(existing, recommendations, now=None):
         if issue_id not in active_ids and item.get("status") == "active":
             item["status"] = "resolved"
             item["resolved_at"] = timestamp
+            item["last_resolved_at"] = timestamp
 
     ordered = sorted(
         history.items(),
-        key=lambda pair: pair[1].get("last_seen", ""),
+        key=lambda pair: (pair[1].get("status") == "active", pair[1].get("last_seen", "")),
         reverse=True,
     )
     return dict(ordered[:MAX_HISTORY_ITEMS])
