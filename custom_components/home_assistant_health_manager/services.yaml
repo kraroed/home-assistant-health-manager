@@ -18,3 +18,14 @@ generate_report:
       required: false
       selector:
         boolean:
+
+generate_ai_repair_prompt:
+  name: Generate AI repair prompt
+  description: Create a diagnostic report and a copy-ready AI prompt for guided repairs and validation.
+  fields:
+    comprehensive:
+      name: Comprehensive
+      description: Use the monthly comprehensive assessment scope.
+      required: false
+      selector:
+        boolean:
