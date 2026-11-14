@@ -76,6 +76,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "last_report": self.schedule.get("last_report"),
                 "report_count": self.schedule.get("report_count", 0),
                 "last_report_path": self.last_report_path,
+                "compatibility_assessment": self.schedule.get("last_compatibility", {}),
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
@@ -110,6 +111,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             {"core_log": log_counts, "snapshot": snapshot_counts},
             recommendations, self.schedule["issue_history"], history_summary, repair_prompt, safe_compatibility,
         )
+        self.schedule["last_compatibility"] = safe_compatibility
         self.schedule["last_assessment"] = now.isoformat()
         self.schedule["last_report"] = now.isoformat()
         self.schedule["report_count"] = self.schedule.get("report_count", 0) + 1
