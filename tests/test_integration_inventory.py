@@ -17,6 +17,8 @@ def test_groups_config_entry_states_by_integration_domain():
         _entry("zha", "loaded"), _entry("zha", "setup_error"), _entry("mqtt", "loaded"),
     ])
     assert result["integration_domain_count"] == 2
+    assert result["included_integration_domain_count"] == 2
+    assert result["inventory_truncated"] is False
     assert result["config_entry_count"] == 3
     assert result["setup_state_totals"] == {"loaded": 2, "setup_error": 1}
     assert result["integrations"] == [
