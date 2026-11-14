@@ -41,7 +41,7 @@ The prompt is generated locally. It excludes raw log lines, entity IDs, config-e
 - Bounded tail of the default Core log, if readable.
 - Error/warning counts and repeated log-message patterns.
 - Persistent issue lifecycle history: first/last detection, recurrence count, current/resolved status, and aggregate counts.
-- Bounded diagnostic change history: configured integration domains, aggregate setup-state changes, platform update signals, update-entity inventory changes, and total/unavailable/unknown entity counts with unavailable/unknown breakdowns by domain across snapshots. It stores aggregate counts, not entity IDs.
+- Bounded diagnostic change history: configured integration domains, aggregate setup-state changes, platform update signals, update-entity inventory changes, and total/unavailable/unknown entity counts with total, unavailable, and unknown breakdowns by domain across snapshots. This helps surface changes in entity inventory by domain without retaining individual entity identifiers. It stores aggregate counts, not entity IDs.
 - Conservative rule-based recommendations with evidence and suggested next steps.
 - Compatibility triage that combines Core/Supervisor/OS update status, existing failed integrations, Core log errors, and inventory coverage without claiming that all custom integrations or add-ons are compatible.
 
