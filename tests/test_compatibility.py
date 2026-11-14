@@ -72,3 +72,35 @@ def test_missing_update_entities_are_not_treated_as_up_to_date():
     )
     assert result["overall_status"] == "insufficient_platform_data"
     assert all(item["status"] == "not_detected" for item in result["platforms"])
+
+
+def test_setup_retry_domain_requires_review_and_truncation_is_reported():
+    result = COMPATIBILITY.assess_compatibility(
+        {
+            "platform_updates": {
+                "core": {"entity_present": True, "state": "off", "update_available": False},
+                "supervisor": {"entity_present": True, "state": "off", "update_available": False},
+                "operating_system": {"entity_present": True, "state": "off", "update_available": False},
+            },
+            "failed_config_entry_count": 0,
+            "failed_config_entry_domains": {},
+            "integration_inventory": {
+                "integration_domain_count": 2,
+                "setup_state_totals": {"loaded": 2, "setup_retry": 1},
+                "integrations": [
+                    {"domain": "custom_retry", "setup_states": {"loaded": 1, "setup_retry": 1}}
+                ],
+            },
+            "update_entity_inventory": {
+                "update_entity_count": 101,
+                "inventory_truncated": True,
+                "update_entities": [],
+            },
+        },
+        {"level_counts": {}},
+    )
+    assert result["overall_status"] == "existing_issues_require_review"
+    assert result["health_signals"]["integration_domains_requiring_review"] == [
+        {"domain": "custom_retry", "setup_error_count": 0, "setup_retry_count": 1}
+    ]
+    assert result["health_signals"]["update_entity_inventory_truncated"] is True
