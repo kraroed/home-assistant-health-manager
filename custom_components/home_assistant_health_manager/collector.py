@@ -4,6 +4,8 @@ from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntryState
 
+from .update_inventory import collect_platform_updates
+
 
 def collect_snapshot(hass):
     """Collect in-memory Home Assistant data on the event-loop thread."""
@@ -19,6 +21,7 @@ def collect_snapshot(hass):
     return {
         "collected_at": datetime.now(timezone.utc).isoformat(),
         "home_assistant_version": hass.config.version,
+        "platform_updates": collect_platform_updates(states),
         "entity_count": len(states),
         "unavailable_entity_count": len(unavailable),
         "unknown_entity_count": len(unknown),
