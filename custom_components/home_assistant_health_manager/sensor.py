@@ -68,6 +68,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "report_count": data.get("report_count", 0),
                 "home_assistant_version": data.get("home_assistant_version"),
                 "platform_updates": data.get("platform_updates", {}),
+                "update_entity_inventory": data.get("update_entity_inventory", {}),
                 "compatibility_assessment": data.get("compatibility_assessment", {}),
                 "entity_count": data.get("entity_count"),
                 "unavailable_entity_count": data.get("unavailable_entity_count"),
