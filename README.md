@@ -76,3 +76,8 @@ Compatibility triage includes integration domains with setup_error or setup_retr
 ## Diagnostic collection coverage
 
 Each assessment reports whether entity states, config entries, platform update entities, update entities, integration setup inventory, and the Core log were collected, unavailable, not checked, or disabled. The `Diagnostic Coverage` sensor reports the percentage of assessed sources successfully collected. Sources not checked or disabled are excluded from the percentage and shown separately. Coverage describes data availability only; it is not a health score, compatibility guarantee, or proof that every relevant source was inspected.
+
+
+## Diagnostic trends
+
+Generated reports retain a bounded history of up to 90 aggregate trend samples. A sample is recorded when a report is generated, not on every coordinator refresh. Trends compare entity totals, unavailable and unknown entity counts, failed config entries, Core log error counts, and diagnostic collection coverage against the previous report sample. The `Diagnostic Trend` sensor reports `insufficient_data`, `improving`, `stable`, `worsening`, or `mixed`; its attributes are available on the Health Status sensor. Entity-total changes are shown but do not by themselves imply improvement or deterioration. Trend direction is a simple comparison, not causal analysis or a health guarantee. The stored history contains aggregate counts and statuses only, without entity IDs, config-entry IDs, log text, or configuration.
