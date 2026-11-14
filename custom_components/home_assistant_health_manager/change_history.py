@@ -115,13 +115,22 @@ def update_change_history(existing, snapshot, timestamp):
             "removed_count": len(old_updates - new_updates),
         })
     old_entity_inventory = previous.get("entity_inventory", {})
-    if old_entity_inventory != current["entity_inventory"]:
+    old_entity_totals = {
+        key: value for key, value in old_entity_inventory.items()
+        if key != "entity_counts_by_domain"
+    } if isinstance(old_entity_inventory, dict) else {}
+    new_entity_inventory = current["entity_inventory"]
+    new_entity_totals = {
+        key: value for key, value in new_entity_inventory.items()
+        if key != "entity_counts_by_domain"
+    }
+    if old_entity_totals != new_entity_totals:
         changes.append({
             "type": "entity_inventory_changed",
-            "before": old_entity_inventory,
-            "after": current["entity_inventory"],
+            "before": old_entity_totals,
+            "after": new_entity_totals,
         })
-    old_domain_counts = old_entity_inventory.get("entity_counts_by_domain", {})
+    old_domain_counts = old_entity_inventory.get("entity_counts_by_domain", {}) if isinstance(old_entity_inventory, dict) else {}
     new_domain_counts = current["entity_inventory"]["entity_counts_by_domain"]
     if old_domain_counts != new_domain_counts:
         changes.append({
