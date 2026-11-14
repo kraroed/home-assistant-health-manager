@@ -74,20 +74,33 @@ def summarize_trends(history):
                 "direction": "insufficient_data",
             }
     directional_metrics = [value for key, value in metrics.items() if key != "entity_count"]
+    comparable_count = sum(
+        item["direction"] != "insufficient_data" for item in directional_metrics
+    )
     worsening = sum(item["direction"] in ("worsened", "declined") for item in directional_metrics)
     improving = sum(item["direction"] == "improved" for item in directional_metrics)
     overall = (
-        "insufficient_data" if len(points) < 2
+        "insufficient_data" if len(points) < 2 or comparable_count == 0
         else "mixed" if worsening and improving
         else "worsening" if worsening
         else "improving" if improving
         else "stable"
     )
+    current_compatibility = latest.get("compatibility_status")
+    previous_compatibility = previous.get("compatibility_status")
     return {
         "sample_count": len(points),
         "latest_sample_at": latest.get("timestamp"),
         "previous_sample_at": previous.get("timestamp") if previous else None,
         "overall_direction": overall,
+        "compatibility_status": {
+            "current": current_compatibility,
+            "previous": previous_compatibility,
+            "changed": (
+                current_compatibility != previous_compatibility
+                if previous else None
+            ),
+        },
         "metrics": metrics,
         "scope_note": (
             "Compares aggregate values at generated-report times only. It is not a continuous "
