@@ -64,6 +64,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return {
                 "last_assessment": data.get("last_assessment"),
                 "last_report": data.get("last_report"),
+                "last_ai_repair_prompt_path": data.get("last_ai_repair_prompt_path"),
                 "report_count": data.get("report_count", 0),
                 "home_assistant_version": data.get("home_assistant_version"),
                 "platform_updates": data.get("platform_updates", {}),
