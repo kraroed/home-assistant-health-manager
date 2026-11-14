@@ -6,6 +6,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .collector import collect_snapshot, read_core_log
 from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL
+from .history import summarize_issue_history, update_issue_history
 from .log_analyzer import analyze_log
 from .recommendations import build_recommendations
 from .redactor import redact_object, redact_text
@@ -30,6 +31,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         now = datetime.now(timezone.utc)
         self.schedule.setdefault("next_weekly", (now + timedelta(days=7)).isoformat())
         self.schedule.setdefault("next_monthly", (now + timedelta(days=30)).isoformat())
+        self.schedule.setdefault("issue_history", {})
         await self.store.async_save(self.schedule)
         from homeassistant.helpers.event import async_track_time_interval
         self._schedule_unsub = async_track_time_interval(
@@ -61,8 +63,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             # Home Assistant's async state/config-entry APIs must stay on the
             # event loop; only blocking filesystem work belongs in the executor.
             snapshot = collect_snapshot(self.hass)
+            history_summary = summarize_issue_history(self.schedule.get("issue_history", {}))
             return {
                 **snapshot,
+                **history_summary,
                 "status": "attention" if snapshot["unavailable_entity_count"] or snapshot["unknown_entity_count"] or snapshot["failed_config_entry_count"] else "healthy",
                 "active_issues": snapshot["unavailable_entity_count"] + snapshot["unknown_entity_count"] + snapshot["failed_config_entry_count"],
                 "last_assessment": self.schedule.get("last_assessment"),
@@ -87,11 +91,18 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             analysis["collection_note"] = log_error
         analysis["assessment_type"] = "monthly_comprehensive" if comprehensive else "weekly_diagnostic"
         recommendations = build_recommendations(snapshot, analysis)
+        now = datetime.now(timezone.utc)
+        self.schedule["issue_history"] = update_issue_history(
+            self.schedule.get("issue_history", {}),
+            recommendations,
+            now.isoformat(),
+        )
+        history_summary = summarize_issue_history(self.schedule["issue_history"])
         path = await write_report(
             self.hass, safe_snapshot, analysis, sanitized_log,
-            {"core_log": log_counts, "snapshot": snapshot_counts}, recommendations
+            {"core_log": log_counts, "snapshot": snapshot_counts},
+            recommendations, self.schedule["issue_history"], history_summary,
         )
-        now = datetime.now(timezone.utc)
         self.schedule["last_assessment"] = now.isoformat()
         self.schedule["last_report"] = now.isoformat()
         self.schedule["report_count"] = self.schedule.get("report_count", 0) + 1
