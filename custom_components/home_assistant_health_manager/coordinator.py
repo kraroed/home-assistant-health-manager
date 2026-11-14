@@ -36,7 +36,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             self.hass, self._async_scheduled_check, SCHEDULE_INTERVAL
         )
 
-    async def async_shutdown(self):
+    def async_shutdown(self):
         if self._schedule_unsub:
             self._schedule_unsub()
             self._schedule_unsub = None
