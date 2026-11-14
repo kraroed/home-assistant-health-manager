@@ -8,6 +8,7 @@ from .collector import collect_snapshot, read_core_log
 from .compatibility import assess_compatibility
 from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL
 from .history import summarize_issue_history, update_issue_history
+from .change_history import update_change_history
 from .log_analyzer import analyze_log
 from .recommendations import build_recommendations
 from .redactor import redact_object, redact_text
@@ -35,6 +36,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule.setdefault("next_weekly", (now + timedelta(days=7)).isoformat())
         self.schedule.setdefault("next_monthly", (now + timedelta(days=30)).isoformat())
         self.schedule.setdefault("issue_history", {})
+        self.schedule.setdefault("change_history", [])
         await self.store.async_save(self.schedule)
         from homeassistant.helpers.event import async_track_time_interval
         self._schedule_unsub = async_track_time_interval(
@@ -66,6 +68,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             # Home Assistant's async state/config-entry APIs must stay on the
             # event loop; only blocking filesystem work belongs in the executor.
             snapshot = collect_snapshot(self.hass)
+            change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
+            if change_history != self.schedule.get('change_history', []):
+                self.schedule['change_history'] = change_history
+                await self.store.async_save(self.schedule)
             history_summary = summarize_issue_history(self.schedule.get("issue_history", {}))
             return {
                 **snapshot,
@@ -78,12 +84,16 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "last_report_path": self.last_report_path,
                 "last_ai_repair_prompt_path": self.last_prompt_path,
                 "compatibility_assessment": self.schedule.get("last_compatibility", {}),
+                "diagnostic_change_history": change_summary,
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
 
     async def async_generate_report(self, comprehensive=False):
         snapshot = collect_snapshot(self.hass)
+        change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
+        self.schedule['change_history'] = change_history
+        snapshot['diagnostic_change_history'] = change_summary
         raw_log, log_error = (None, None)
         if self.entry.options.get("include_core_log", True):
             max_bytes = 5_000_000 if comprehensive else 1_500_000
@@ -110,7 +120,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         path = await write_report(
             self.hass, safe_snapshot, analysis, sanitized_log,
             {"core_log": log_counts, "snapshot": snapshot_counts},
-            recommendations, self.schedule["issue_history"], history_summary, repair_prompt, safe_compatibility,
+            recommendations, self.schedule["issue_history"], history_summary, repair_prompt, safe_compatibility, change_summary,
         )
         self.schedule["last_compatibility"] = safe_compatibility
         self.schedule["last_assessment"] = now.isoformat()
