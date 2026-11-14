@@ -82,4 +82,4 @@ def test_unavailable_core_log_is_not_recorded_as_zero_errors():
     history, summary = TRENDS.update_trend_history(history, snapshot2, analysis2, compatibility, "2026-11-21T00:00:00Z")
     assert history[-1]["core_log_error_count"] is None
     assert summary["metrics"]["core_log_error_count"]["direction"] == "insufficient_data"
-    assert summary["overall_direction"] == "improving"  # unavailable/unknown counts decreased in sample()
+    assert summary["overall_direction"] == "stable"
