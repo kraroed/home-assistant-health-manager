@@ -75,6 +75,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "compatibility_assessment": data.get("compatibility_assessment", {}),
                 "diagnostic_change_history": data.get("diagnostic_change_history", {}),
                 "entity_count": data.get("entity_count"),
+                "entity_counts_by_domain": data.get("entity_counts_by_domain", {}),
                 "unavailable_entity_count": data.get("unavailable_entity_count"),
                 "unknown_entity_count": data.get("unknown_entity_count"),
                 "failed_config_entry_count": data.get("failed_config_entry_count"),
