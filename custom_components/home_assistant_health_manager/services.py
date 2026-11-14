@@ -12,6 +12,7 @@ async def async_setup_services(hass):
         coordinator = _get_coordinator(hass)
         await coordinator.async_request_refresh()
         path = await coordinator.async_generate_report(call.data.get("comprehensive", False))
+        await coordinator.async_request_refresh()
         hass.bus.async_fire(f"{DOMAIN}_report_created", {
             "path": path, "comprehensive": call.data.get("comprehensive", False)
         })
