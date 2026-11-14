@@ -10,6 +10,7 @@ SENSORS = [
     ("unknown_entity_count", "Unknown Entities", "entities", SensorStateClass.MEASUREMENT),
     ("failed_config_entry_count", "Failed Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("config_entry_count", "Configured Integrations", "integrations", SensorStateClass.MEASUREMENT),
+    ("integration_attention_domains", "Integration Attention Domains", "integrations", SensorStateClass.MEASUREMENT),
     ("tracked_issue_count", "Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
     ("active_tracked_issue_count", "Active Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
     ("resolved_tracked_issue_count", "Resolved Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
@@ -50,6 +51,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
         data = self.coordinator.data or {}
         if self.key == "compatibility_status":
             return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
+        if self.key == "integration_attention_domains":
+            return data.get("integration_inventory", {}).get("attention_domain_count", 0)
         if self.key == "diagnostic_change_events":
             return data.get("diagnostic_change_history", {}).get("change_event_count", 0)
         if self.key == "diagnostic_coverage":
@@ -95,8 +98,14 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "failed_config_entry_domains": data.get("failed_config_entry_domains", {}),
                 "config_entry_states": data.get("config_entry_states", {}),
                 "integration_inventory": data.get("integration_inventory", {}),
+                "integration_attention_domains": data.get("integration_inventory", {}).get("attention_domains", []),
                 "unavailable_counts_by_domain": data.get("unavailable_counts_by_domain", {}),
                 "unknown_counts_by_domain": data.get("unknown_counts_by_domain", {}),
+            }
+        if self.key == "integration_attention_domains":
+            return {
+                "domains": data.get("integration_inventory", {}).get("attention_domains", []),
+                "truncated": data.get("integration_inventory", {}).get("attention_domains_truncated", False),
             }
         if self.key.endswith("_update_status"):
             platform = self.key.removesuffix("_update_status")
