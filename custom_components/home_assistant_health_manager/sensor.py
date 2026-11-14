@@ -11,6 +11,7 @@ SENSORS = [
     ("failed_config_entry_count", "Failed Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("config_entry_count", "Configured Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("integration_attention_domains", "Integration Attention Domains", "integrations", SensorStateClass.MEASUREMENT),
+    ("integration_trend_domains", "Integration Trend Domains", "integrations", SensorStateClass.MEASUREMENT),
     ("tracked_issue_count", "Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
     ("active_tracked_issue_count", "Active Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
     ("resolved_tracked_issue_count", "Resolved Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
@@ -53,6 +54,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
         if self.key == "integration_attention_domains":
             return data.get("integration_inventory", {}).get("attention_domain_count", 0)
+        if self.key == "integration_trend_domains":
+            return data.get("integration_trend_summary", {}).get("active_attention_domain_count", 0)
         if self.key == "diagnostic_change_events":
             return data.get("diagnostic_change_history", {}).get("change_event_count", 0)
         if self.key == "diagnostic_coverage":
@@ -87,6 +90,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "diagnostic_change_history": data.get("diagnostic_change_history", {}),
                 "collection_coverage": data.get("collection_coverage", {}),
                 "diagnostic_trend": data.get("diagnostic_trend", {}),
+                "integration_trend_summary": data.get("integration_trend_summary", {}),
                 "recurring_issues": data.get("recurring_issues", []),
                 "recurring_issue_count": data.get("recurring_issue_count", 0),
                 "active_recurring_issue_count": data.get("active_recurring_issue_count", 0),
@@ -102,6 +106,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "unavailable_counts_by_domain": data.get("unavailable_counts_by_domain", {}),
                 "unknown_counts_by_domain": data.get("unknown_counts_by_domain", {}),
             }
+        if self.key == "integration_trend_domains":
+            return data.get("integration_trend_summary", {})
         if self.key == "integration_attention_domains":
             return {
                 "domains": data.get("integration_inventory", {}).get("attention_domains", []),
