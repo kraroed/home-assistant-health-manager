@@ -12,7 +12,7 @@ from .change_history import update_change_history
 from .collection_coverage import build_collection_coverage
 from .trend_history import summarize_trends, update_trend_history
 from .log_analyzer import analyze_log
-from .recommendations import build_recommendations
+from .recommendations import add_recurring_issue_recommendations, build_recommendations
 from .redactor import redact_object, redact_text
 from .report import write_report
 from .repair_prompt import build_repair_prompt
@@ -120,6 +120,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             now.isoformat(),
         )
         history_summary = summarize_issue_history(self.schedule["issue_history"])
+        recommendations = add_recurring_issue_recommendations(recommendations, history_summary)
+        snapshot["issue_history_summary"] = history_summary
         compatibility = assess_compatibility(snapshot, analysis)
         trend_history, trend_summary = update_trend_history(
             self.schedule.get("trend_history", []), snapshot, analysis, compatibility, now.isoformat()
