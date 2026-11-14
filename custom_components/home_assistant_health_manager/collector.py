@@ -1,0 +1,36 @@
+from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def collect_snapshot(hass):
+    states = list(hass.states.async_all())
+    unavailable = [state for state in states if state.state in ("unavailable", "unknown")]
+    entries = hass.config_entries.async_entries()
+    return {
+        "collected_at": datetime.now(timezone.utc).isoformat(),
+        "home_assistant_version": hass.config.version,
+        "entity_count": len(states),
+        "unavailable_entity_count": len(unavailable),
+        "unknown_entity_count": sum(state.state == "unknown" for state in states),
+        "unavailable_counts_by_domain": dict(Counter(state.domain for state in unavailable)),
+        "entity_counts_by_domain": dict(Counter(state.domain for state in states)),
+        "config_entry_count": len(entries),
+        "config_entries_by_domain": dict(Counter(entry.domain for entry in entries)),
+        "failed_config_entry_count": sum(str(entry.state) == "ConfigEntryState.SETUP_ERROR" for entry in entries),
+    }
+
+
+def read_core_log(hass, max_bytes=1_500_000):
+    path = Path(hass.config.path("home-assistant.log"))
+    try:
+        if not path.is_file():
+            return None, "Core log file not found at the default path"
+        size = path.stat().st_size
+        with path.open("rb") as handle:
+            if size > max_bytes:
+                handle.seek(-max_bytes, 2)
+            raw = handle.read(max_bytes)
+        return raw.decode("utf-8", errors="replace"), None
+    except OSError as err:
+        return None, f"Core log could not be read ({type(err).__name__})"
