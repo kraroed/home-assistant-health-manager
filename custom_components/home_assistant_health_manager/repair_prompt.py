@@ -47,6 +47,7 @@ def build_repair_prompt(snapshot, analysis, recommendations, generated_at, compa
             "integrations": [],
         }),
         "entity_count": snapshot.get("entity_count"),
+        "entity_counts_by_domain": snapshot.get("entity_counts_by_domain", {}),
         "unavailable_entity_count": snapshot.get("unavailable_entity_count"),
         "unknown_entity_count": snapshot.get("unknown_entity_count"),
         "failed_config_entry_count": snapshot.get("failed_config_entry_count"),
