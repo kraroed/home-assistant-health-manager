@@ -22,6 +22,16 @@ def test_prompt_contains_version_context_and_approval_workflow():
             "entity_count": 100, "unavailable_entity_count": 2, "unknown_entity_count": 1,
             "failed_config_entry_count": 1, "failed_config_entry_domains": {"example_integration": 1},
             "config_entry_states": {"loaded": 20, "setup_error": 1},
+            "integration_inventory": {
+                "integration_domain_count": 2,
+                "config_entry_count": 21,
+                "setup_state_totals": {"loaded": 20, "setup_error": 1},
+                "origin_classification": "not_attempted",
+                "integrations": [
+                    {"domain": "example_integration", "config_entry_count": 1,
+                     "setup_states": {"setup_error": 1}, "origin": "not_classified"}
+                ],
+            },
         },
         {"level_counts": {"ERROR": 3}, "repeated_patterns": ["Example error occurred 3 times"]},
         [{
@@ -38,6 +48,9 @@ def test_prompt_contains_version_context_and_approval_workflow():
     assert "Wait for my approval" in prompt
     assert "configuration validation" in prompt
     assert "Do not make changes yet" in prompt
+    assert "integration_inventory" in prompt
+    assert "example_integration" in prompt
+    assert "does not establish whether an integration is built-in" in prompt
 
 
 def test_prompt_excludes_raw_logs_entity_ids_and_clean_snapshot_pseudo_issue():
