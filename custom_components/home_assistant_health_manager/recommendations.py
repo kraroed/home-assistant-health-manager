@@ -109,3 +109,42 @@ def build_recommendations(snapshot, analysis):
             "automated_action_available": False,
         })
     return items
+
+
+
+def add_recurring_issue_recommendations(recommendations, issue_summary):
+    """Add advisory findings for issues that returned after being resolved."""
+    items = list(recommendations)
+    existing_ids = {item.get("id") for item in items}
+    for issue in issue_summary.get("recurring_issues", []):
+        if issue.get("status") != "active":
+            continue
+        issue_id = issue.get("issue_id")
+        if not isinstance(issue_id, str):
+            continue
+        recommendation_id = f"recurring_issue_{issue_id}"
+        if recommendation_id in existing_ids:
+            continue
+        title = str(issue.get("title", issue_id))[:160]
+        occurrences = issue.get("occurrences", 2)
+        items.append({
+            "id": recommendation_id,
+            "severity": issue.get("severity", "medium"),
+            "title": f"Recurring issue: {title}"[:180],
+            "detail": (
+                f"This issue has returned after resolution and has been observed "
+                f"{occurrences} separate time(s). First seen: {issue.get('first_seen') or 'unknown'}; "
+                f"most recently seen: {issue.get('last_seen') or 'unknown'}; "
+                f"last resolved: {issue.get('last_resolved_at') or 'unknown'}."
+            ),
+            "suggested_action": (
+                "Investigate the underlying cause rather than repeating the same temporary fix. "
+                "Compare the logs and configuration around the previous resolution and recurrence, "
+                "verify whether a related integration or dependency changed, and validate one "
+                "approved corrective change at a time."
+            ),
+            "requires_user_approval": True,
+            "automated_action_available": False,
+        })
+        existing_ids.add(recommendation_id)
+    return items
