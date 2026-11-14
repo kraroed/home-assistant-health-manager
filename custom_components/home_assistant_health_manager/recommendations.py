@@ -181,3 +181,50 @@ def add_recurring_issue_recommendations(recommendations, issue_summary):
         })
         existing_ids.add(recommendation_id)
     return items
+
+
+def add_integration_trend_recommendations(recommendations, trend_summary):
+    """Add advisory findings when a provider domain worsens or repeatedly recurs."""
+    items = list(recommendations)
+    existing_ids = {item.get("id") for item in items}
+    for domain in trend_summary.get("domains", []):
+        if domain.get("status") != "attention":
+            continue
+        deltas = domain.get("deltas_from_previous_report", {})
+        worsening = any(
+            isinstance(deltas.get(key), int) and deltas[key] > 0
+            for key in ("setup_error_count", "setup_retry_count", "unavailable_entity_count", "unknown_entity_count")
+        )
+        recurring = domain.get("recurring_attention") is True
+        if not worsening and not recurring:
+            continue
+        name = domain.get("domain")
+        if not isinstance(name, str) or not name:
+            continue
+        recommendation_id = f"integration_trend_domain_{name}"
+        if recommendation_id in existing_ids:
+            continue
+        counts = domain.get("current_counts", {})
+        severity = "high" if counts.get("setup_error_count", 0) else "medium"
+        reasons = []
+        if worsening:
+            reasons.append("one or more issue counts increased since the previous report")
+        if recurring:
+            reasons.append(f"attention has returned in {domain.get('attention_episodes', 0)} separate report periods")
+        items.append({
+            "id": recommendation_id,
+            "severity": severity,
+            "title": f"Integration trend needs review: {name}",
+            "detail": f"The {name} provider domain remains in an attention state; " + "; ".join(reasons) + ".",
+            "suggested_action": (
+                f"Compare the {name} integration's setup state and registered entity availability with "
+                "the previous diagnostic report. Review relevant Core log entries and recent integration "
+                "changes. Confirm the current condition before proposing a repair; trend correlation does "
+                "not establish a common root cause."
+            ),
+            "integration_domain": name,
+            "requires_user_approval": True,
+            "automated_action_available": False,
+        })
+        existing_ids.add(recommendation_id)
+    return items
