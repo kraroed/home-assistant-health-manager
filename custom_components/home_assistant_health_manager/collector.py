@@ -6,6 +6,7 @@ from homeassistant.config_entries import ConfigEntryState
 
 
 def collect_snapshot(hass):
+    """Collect in-memory Home Assistant data on the event-loop thread."""
     states = list(hass.states.async_all())
     unavailable = [state for state in states if state.state == "unavailable"]
     unknown = [state for state in states if state.state == "unknown"]
@@ -25,8 +26,9 @@ def collect_snapshot(hass):
     }
 
 
-def read_core_log(hass, max_bytes=1_500_000):
-    path = Path(hass.config.path("home-assistant.log"))
+def read_core_log(log_path, max_bytes=1_500_000):
+    """Read a bounded Core log tail; safe to call in an executor thread."""
+    path = Path(log_path)
     try:
         if not path.is_file():
             return None, "Core log file not found at the default path"
