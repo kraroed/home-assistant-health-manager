@@ -53,6 +53,8 @@ def _write_report_sync(
         "Home Assistant Health Manager report",
         f"Generated: {payload['generated_at']}",
         f"Assessment: {analysis.get('assessment_type', 'diagnostic')}",
+        f"Home Assistant Core version: {snapshot.get('home_assistant_version', 'unknown')}",
+        f"Platform update inventory: {snapshot.get('platform_updates', {})}",
         f"Entities: {snapshot.get('entity_count', 0)}",
         f"Unavailable entities: {snapshot.get('unavailable_entity_count', 0)}",
         f"Unknown entities: {snapshot.get('unknown_entity_count', 0)}",
