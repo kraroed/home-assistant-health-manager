@@ -58,6 +58,40 @@ def build_recommendations(snapshot, analysis):
             "requires_user_approval": True,
             "automated_action_available": False,
         })
+
+    integration_inventory = snapshot.get("integration_inventory", {})
+    for domain in integration_inventory.get("attention_domains", []):
+        domain_name = domain.get("domain")
+        if not isinstance(domain_name, str) or not domain_name:
+            continue
+        signals = domain.get("signals", [])
+        detail_parts = []
+        setup_errors = domain.get("setup_states", {}).get("setup_error", 0)
+        setup_retries = domain.get("setup_states", {}).get("setup_retry", 0)
+        if setup_errors:
+            detail_parts.append(f"{setup_errors} config entry setup error(s)")
+        if setup_retries:
+            detail_parts.append(f"{setup_retries} config entry setup retry/retries")
+        if domain.get("unavailable_entity_count", 0):
+            detail_parts.append(f"{domain['unavailable_entity_count']} unavailable registered entit(y/ies)")
+        if domain.get("unknown_entity_count", 0):
+            detail_parts.append(f"{domain['unknown_entity_count']} unknown registered entit(y/ies)")
+        items.append({
+            "id": f"integration_domain_{domain_name}",
+            "severity": domain.get("severity", "low"),
+            "title": f"Investigate integration: {domain_name}",
+            "detail": f"The integration inventory associated these signals with the {domain_name} provider domain: {', '.join(detail_parts) or ', '.join(signals)}.",
+            "suggested_action": (
+                f"Inspect the {domain_name} integration's current setup state and its related Core log entries. "
+                "Confirm whether affected entities are expected to be available, then consult the integration's "
+                "official documentation and release notes. Treat this as a correlation for triage, not proof "
+                "that every affected entity shares one root cause."
+            ),
+            "integration_domain": domain_name,
+            "requires_user_approval": True,
+            "automated_action_available": False,
+        })
+
     if unavailable:
         items.append({
             "id": "unavailable_entities",
@@ -109,7 +143,6 @@ def build_recommendations(snapshot, analysis):
             "automated_action_available": False,
         })
     return items
-
 
 
 def add_recurring_issue_recommendations(recommendations, issue_summary):
