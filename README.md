@@ -8,6 +8,7 @@ A local-first Home Assistant custom integration for scheduled health diagnostics
 - **Approval required:** this release recommends actions only. It never applies fixes.
 - **Scheduled reviews:** weekly diagnostic reports and monthly comprehensive reports.
 - **Sanitized exports:** reports are written locally under `/config/health_manager/reports`.
+- **Retention:** report files older than the configured retention period are removed locally.
 
 ## Development installation
 Copy `custom_components/home_assistant_health_manager` into your Home Assistant `custom_components` directory, restart Home Assistant, then add **Home Assistant Health Manager** under Settings → Devices & services.
@@ -19,14 +20,20 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 ## Current collection scope
 - Home Assistant version.
 - Entity totals and counts by domain/state.
-- Config-entry domain and state summaries (no entry data/options).
+- Config-entry domain and setup-error summaries (no entry data/options).
 - Bounded tail of the default Core log, if readable.
 - Error/warning counts and repeated log-message patterns.
+- Conservative rule-based recommendations with evidence and suggested next steps.
+
+Monthly reports currently use a larger Core log sample than weekly reports; broader Supervisor, host, recorder, and automation-trace diagnostics are not yet implemented.
 
 The integration does not collect unrestricted YAML, secrets files, entity attributes, recorder databases, or original unredacted logs.
 
 ## Privacy warning
-Redaction is best-effort pattern matching, not a guarantee that every identifier or secret is removed. Review an export before sharing it. The original Core log is read in memory and only the sanitized version is written to a report.
+Redaction is best-effort pattern matching for common secrets and identifiers, including email, IP/MAC addresses, UUIDs, entity IDs, location-like coordinates, and common home-directory paths. It is not a guarantee that every identifier or secret is removed. Review an export before sharing it. The original Core log is read in memory and only the sanitized version is written to a report.
+
+## Validation
+GitHub Actions runs Home Assistant hassfest and HACS integration validation on pushes and pull requests.
 
 ## Status
-Early development build. Supervisor/OS logs, deeper platform diagnostics, issue history, dashboard resources, retention cleanup, and Home Assistant/HACS validation remain future work. Do not treat this release as a complete security audit.
+Early development build. Supervisor/OS logs, host metrics, recorder internals, automation traces, persistent issue history, dashboard resources, and approved remediation execution are future work. This release is read-only and is not a complete security audit.
