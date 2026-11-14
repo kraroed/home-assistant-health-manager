@@ -58,7 +58,9 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         try:
-            snapshot = await self.hass.async_add_executor_job(collect_snapshot, self.hass)
+            # Home Assistant's async state/config-entry APIs must stay on the
+            # event loop; only blocking filesystem work belongs in the executor.
+            snapshot = collect_snapshot(self.hass)
             return {
                 **snapshot,
                 "status": "attention" if snapshot["unavailable_entity_count"] or snapshot["unknown_entity_count"] or snapshot["failed_config_entry_count"] else "healthy",
@@ -72,11 +74,12 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
 
     async def async_generate_report(self, comprehensive=False):
-        snapshot = await self.hass.async_add_executor_job(collect_snapshot, self.hass)
+        snapshot = collect_snapshot(self.hass)
         raw_log, log_error = (None, None)
         if self.entry.options.get("include_core_log", True):
             max_bytes = 5_000_000 if comprehensive else 1_500_000
-            raw_log, log_error = await self.hass.async_add_executor_job(read_core_log, self.hass, max_bytes)
+            log_path = self.hass.config.path("home-assistant.log")
+            raw_log, log_error = await self.hass.async_add_executor_job(read_core_log, log_path, max_bytes)
         sanitized_log, log_counts = redact_text(raw_log) if raw_log else (None, {})
         safe_snapshot, snapshot_counts = redact_object(snapshot)
         analysis = analyze_log(sanitized_log)
