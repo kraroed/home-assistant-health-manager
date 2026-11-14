@@ -18,6 +18,13 @@ def test_available_platform_update_requires_compatibility_review():
             },
             "failed_config_entry_count": 0,
             "failed_config_entry_domains": {},
+            "update_entity_inventory": {
+                "update_entity_count": 3,
+                "update_entities": [
+                    {"update_available": True}, {"update_available": False},
+                    {"update_available": None},
+                ],
+            },
             "integration_inventory": {
                 "integration_domain_count": 4,
                 "setup_state_totals": {"loaded": 5, "setup_error": 1},
@@ -32,6 +39,8 @@ def test_available_platform_update_requires_compatibility_review():
     assert "not a compatibility guarantee" in result["scope_note"]
     assert result["health_signals"]["configured_integration_domain_count"] == 4
     assert result["health_signals"]["integration_origin_classification"] == "not_attempted"
+    assert result["health_signals"]["update_entity_count"] == 3
+    assert result["health_signals"]["update_entities_with_available_updates"] == 1
 
 
 def test_existing_failures_take_priority_over_update_status():
