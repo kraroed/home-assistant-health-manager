@@ -9,6 +9,41 @@ def build_recommendations(snapshot, analysis):
     errors = levels.get("ERROR", 0) + levels.get("CRITICAL", 0) + levels.get("FATAL", 0)
     warnings = levels.get("WARNING", 0)
 
+    platform_updates = snapshot.get("platform_updates", {})
+    for key, label in (
+        ("core", "Home Assistant Core"),
+        ("supervisor", "Home Assistant Supervisor"),
+        ("operating_system", "Home Assistant Operating System"),
+    ):
+        update = platform_updates.get(key, {})
+        if update.get("update_available") is True:
+            installed = update.get("installed_version") or "unknown"
+            latest = update.get("latest_version") or "unknown"
+            release_note = update.get("release_summary")
+            detail = f"{label} update available: installed {installed}; latest {latest}."
+            if release_note:
+                detail += f" Release summary: {release_note}"
+            items.append({
+                "id": f"{key}_update_available",
+                "severity": "medium",
+                "title": f"{label} update available",
+                "detail": detail,
+                "suggested_action": "Review the linked release notes and current Home Assistant upgrade guidance, confirm custom integrations and apps are compatible, create and verify a full backup, then schedule the update and restart during a maintenance window. Install only after reviewing the changes.",
+                "release_url": update.get("release_url"),
+                "requires_user_approval": True,
+                "automated_action_available": False,
+            })
+        elif update.get("entity_present") and update.get("state") in ("unknown", "unavailable"):
+            items.append({
+                "id": f"{key}_update_status_unknown",
+                "severity": "low",
+                "title": f"{label} update status is {update.get('state')}",
+                "detail": "The official update entity is present, but its current update status cannot be confirmed.",
+                "suggested_action": "Check the Home Assistant Supervisor integration and its update entity availability before planning a platform upgrade.",
+                "requires_user_approval": True,
+                "automated_action_available": False,
+            })
+
     if failed:
         domain_detail = (
             f" Affected integration domains: {', '.join(sorted(failed_domains))}."
