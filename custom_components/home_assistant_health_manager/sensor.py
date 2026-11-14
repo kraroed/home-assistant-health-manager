@@ -18,6 +18,7 @@ SENSORS = [
     ("operating_system_update_status", "Operating System Update", None, None),
     ("compatibility_status", "Compatibility Status", None, None),
     ("diagnostic_change_events", "Diagnostic Change Events", "events", SensorStateClass.MEASUREMENT),
+    ("diagnostic_coverage", "Diagnostic Coverage", "%", SensorStateClass.MEASUREMENT),
     ("report_count", "Generated Reports", "reports", SensorStateClass.TOTAL_INCREASING),
 ]
 
@@ -48,6 +49,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
         if self.key == "diagnostic_change_events":
             return data.get("diagnostic_change_history", {}).get("change_event_count", 0)
+        if self.key == "diagnostic_coverage":
+            return data.get("collection_coverage", {}).get("coverage_percent")
         if self.key.endswith("_update_status"):
             platform = self.key.removesuffix("_update_status")
             update = data.get("platform_updates", {}).get(platform, {})
@@ -74,6 +77,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "update_entity_inventory": data.get("update_entity_inventory", {}),
                 "compatibility_assessment": data.get("compatibility_assessment", {}),
                 "diagnostic_change_history": data.get("diagnostic_change_history", {}),
+                "collection_coverage": data.get("collection_coverage", {}),
                 "entity_count": data.get("entity_count"),
                 "entity_counts_by_domain": data.get("entity_counts_by_domain", {}),
                 "unavailable_entity_count": data.get("unavailable_entity_count"),
