@@ -61,8 +61,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             snapshot = await self.hass.async_add_executor_job(collect_snapshot, self.hass)
             return {
                 **snapshot,
-                "status": "attention" if snapshot["unavailable_entity_count"] or snapshot["failed_config_entry_count"] else "healthy",
-                "active_issues": snapshot["unavailable_entity_count"] + snapshot["failed_config_entry_count"],
+                "status": "attention" if snapshot["unavailable_entity_count"] or snapshot["unknown_entity_count"] or snapshot["failed_config_entry_count"] else "healthy",
+                "active_issues": snapshot["unavailable_entity_count"] + snapshot["unknown_entity_count"] + snapshot["failed_config_entry_count"],
                 "last_assessment": self.schedule.get("last_assessment"),
                 "last_report": self.schedule.get("last_report"),
                 "report_count": self.schedule.get("report_count", 0),
