@@ -19,7 +19,8 @@ def test_prompt_contains_version_context_and_approval_workflow():
                     "release_url": "https://example.com/release",
                 }
             },
-            "entity_count": 100, "unavailable_entity_count": 2, "unknown_entity_count": 1,
+            "entity_count": 100, "entity_counts_by_domain": {"sensor": 70, "light": 30},
+            "unavailable_entity_count": 2, "unknown_entity_count": 1,
             "failed_config_entry_count": 1, "failed_config_entry_domains": {"example_integration": 1},
             "config_entry_states": {"loaded": 20, "setup_error": 1},
             "update_entity_inventory": {
@@ -53,6 +54,8 @@ def test_prompt_contains_version_context_and_approval_workflow():
         }],
         "2026-11-14T12:00:00+00:00",
     )
+    assert '"entity_counts_by_domain": {' in prompt
+    assert '"sensor": 70' in prompt
     assert "2026.11.1" in prompt
     assert "2026.10.0" in prompt and "2026.11.0" in prompt
     assert "https://example.com/release" in prompt
