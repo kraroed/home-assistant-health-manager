@@ -39,6 +39,12 @@ def test_prompt_contains_version_context_and_approval_workflow():
                 "config_entry_count": 21,
                 "setup_state_totals": {"loaded": 20, "setup_error": 1},
                 "origin_classification": "not_attempted",
+                "attention_domains": [{
+                    "domain": "example_integration", "severity": "high",
+                    "signals": ["setup_error"], "config_entry_count": 1,
+                    "setup_states": {"setup_error": 1}, "entity_count": 0,
+                    "unavailable_entity_count": 0, "unknown_entity_count": 0,
+                }],
                 "integrations": [
                     {"domain": "example_integration", "config_entry_count": 1,
                      "setup_states": {"setup_error": 1}, "origin": "not_classified"}
@@ -64,6 +70,7 @@ def test_prompt_contains_version_context_and_approval_workflow():
     assert "Do not make changes yet" in prompt
     assert "integration_inventory" in prompt
     assert "example_integration" in prompt
+    assert '"integration_attention_domains": [' in prompt
     assert "does not establish whether an integration is built-in" in prompt
     assert "Example Integration" in prompt
     assert "provider integration domain" in prompt
