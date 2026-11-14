@@ -46,6 +46,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
         data = self.coordinator.data or {}
         if self.key == "compatibility_status":
             return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
+        if self.key == "diagnostic_change_events":
+            return data.get("diagnostic_change_history", {}).get("change_event_count", 0)
         if self.key.endswith("_update_status"):
             platform = self.key.removesuffix("_update_status")
             update = data.get("platform_updates", {}).get(platform, {})
