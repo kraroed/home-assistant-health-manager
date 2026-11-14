@@ -7,6 +7,7 @@ SENSORS = [
     ("status", "Health Status", None, None),
     ("active_issues", "Active Issues", "issues", SensorStateClass.MEASUREMENT),
     ("unavailable_entity_count", "Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
+    ("unknown_entity_count", "Unknown Entities", "entities", SensorStateClass.MEASUREMENT),
     ("failed_config_entry_count", "Failed Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("config_entry_count", "Configured Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("report_count", "Generated Reports", "reports", SensorStateClass.TOTAL_INCREASING),
@@ -45,5 +46,11 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "last_report": data.get("last_report"),
                 "report_count": data.get("report_count", 0),
                 "home_assistant_version": data.get("home_assistant_version"),
+                "entity_count": data.get("entity_count"),
+                "unavailable_entity_count": data.get("unavailable_entity_count"),
+                "unknown_entity_count": data.get("unknown_entity_count"),
+                "failed_config_entry_count": data.get("failed_config_entry_count"),
+                "unavailable_counts_by_domain": data.get("unavailable_counts_by_domain", {}),
+                "unknown_counts_by_domain": data.get("unknown_counts_by_domain", {}),
             }
         return {}
