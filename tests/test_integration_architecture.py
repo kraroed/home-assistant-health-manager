@@ -63,3 +63,10 @@ def test_manifest_declares_calculated_iot_class():
     )
     assert manifest["iot_class"] == "calculated"
     assert manifest["integration_type"] == "service"
+
+
+def test_unknown_entity_sensor_and_domain_breakdowns_are_exposed():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    assert '("unknown_entity_count", "Unknown Entities", "entities"' in source
+    assert '"unknown_counts_by_domain": data.get("unknown_counts_by_domain", {})' in source
+    assert '"unavailable_counts_by_domain": data.get("unavailable_counts_by_domain", {})' in source
