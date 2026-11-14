@@ -2,6 +2,8 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
+from homeassistant.config_entries import ConfigEntryState
+
 
 def collect_snapshot(hass):
     states = list(hass.states.async_all())
@@ -11,13 +13,13 @@ def collect_snapshot(hass):
         "collected_at": datetime.now(timezone.utc).isoformat(),
         "home_assistant_version": hass.config.version,
         "entity_count": len(states),
-        "unavailable_entity_count": len(unavailable),
+        "unavailable_entity_count": sum(state.state == "unavailable" for state in states),
         "unknown_entity_count": sum(state.state == "unknown" for state in states),
         "unavailable_counts_by_domain": dict(Counter(state.domain for state in unavailable)),
         "entity_counts_by_domain": dict(Counter(state.domain for state in states)),
         "config_entry_count": len(entries),
         "config_entries_by_domain": dict(Counter(entry.domain for entry in entries)),
-        "failed_config_entry_count": sum(str(entry.state) == "ConfigEntryState.SETUP_ERROR" for entry in entries),
+        "failed_config_entry_count": sum(entry.state is ConfigEntryState.SETUP_ERROR for entry in entries),
     }
 
 
