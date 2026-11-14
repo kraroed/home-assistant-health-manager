@@ -2,6 +2,7 @@ def build_recommendations(snapshot, analysis):
     """Return evidence-based, non-executing remediation suggestions."""
     items = []
     failed = snapshot.get("failed_config_entry_count", 0)
+    failed_domains = snapshot.get("failed_config_entry_domains", {})
     unavailable = snapshot.get("unavailable_entity_count", 0)
     unknown = snapshot.get("unknown_entity_count", 0)
     levels = analysis.get("level_counts", {})
@@ -9,11 +10,15 @@ def build_recommendations(snapshot, analysis):
     warnings = levels.get("WARNING", 0)
 
     if failed:
+        domain_detail = (
+            f" Affected integration domains: {', '.join(sorted(failed_domains))}."
+            if failed_domains else ""
+        )
         items.append({
             "id": "failed_config_entries",
             "severity": "high",
             "title": "One or more integrations failed to set up",
-            "detail": f"The diagnostic snapshot found {failed} config entries in setup-error state.",
+            "detail": f"The diagnostic snapshot found {failed} config entries in setup-error state.{domain_detail}",
             "suggested_action": "Review the corresponding integration setup errors in the Home Assistant log, then consult the integration documentation before attempting a reload or reconfiguration.",
             "requires_user_approval": True,
             "automated_action_available": False,
