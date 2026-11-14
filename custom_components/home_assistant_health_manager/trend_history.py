@@ -59,7 +59,9 @@ def summarize_trends(history):
         if isinstance(current, int) and isinstance(prior, int):
             delta = current - prior
             # More entities and coverage are generally positive; issue counts are negative.
-            if key in ("entity_count", "coverage_percent"):
+            if key == "entity_count":
+                direction = "changed" if delta else "stable"
+            elif key == "coverage_percent":
                 direction = "improved" if delta > 0 else "declined" if delta < 0 else "stable"
             else:
                 direction = "worsened" if delta > 0 else "improved" if delta < 0 else "stable"
@@ -71,8 +73,9 @@ def summarize_trends(history):
                 "delta": None,
                 "direction": "insufficient_data",
             }
-    worsening = sum(item["direction"] in ("worsened", "declined") for item in metrics.values())
-    improving = sum(item["direction"] == "improved" for item in metrics.values())
+    directional_metrics = [value for key, value in metrics.items() if key != "entity_count"]
+    worsening = sum(item["direction"] in ("worsened", "declined") for item in directional_metrics)
+    improving = sum(item["direction"] == "improved" for item in directional_metrics)
     overall = (
         "insufficient_data" if len(points) < 2
         else "mixed" if worsening and improving
