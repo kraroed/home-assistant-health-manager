@@ -7,16 +7,23 @@ from pathlib import Path
 from .const import REPORT_DIR
 
 
-async def write_report(hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations):
+async def write_report(
+    hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations,
+    issue_history=None, issue_summary=None,
+):
     retention_days = hass.data.get("home_assistant_health_manager_retention_days", 90)
     directory = hass.config.path(REPORT_DIR)
     return await asyncio.to_thread(
         _write_report_sync, directory, snapshot, analysis, sanitized_log,
-        redaction_counts, recommendations, retention_days
+        redaction_counts, recommendations, issue_history or {}, issue_summary or {},
+        retention_days
     )
 
 
-def _write_report_sync(directory_path, snapshot, analysis, sanitized_log, redaction_counts, recommendations, retention_days):
+def _write_report_sync(
+    directory_path, snapshot, analysis, sanitized_log, redaction_counts,
+    recommendations, issue_history, issue_summary, retention_days,
+):
     directory = Path(directory_path)
     directory.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc)
@@ -35,6 +42,8 @@ def _write_report_sync(directory_path, snapshot, analysis, sanitized_log, redact
         "system": snapshot,
         "log_analysis": analysis,
         "recommendations": recommendations,
+        "issue_history": issue_history,
+        "issue_history_summary": issue_summary,
     }
     json_path = directory / f"{base}.json"
     txt_path = directory / f"{base}.txt"
@@ -52,6 +61,9 @@ def _write_report_sync(directory_path, snapshot, analysis, sanitized_log, redact
         f"Integration setup states: {snapshot.get('config_entry_states', {})}",
         f"Log levels: {analysis.get('level_counts', {})}",
         f"Recommendations: {len(recommendations)}",
+        f"Tracked issues: {issue_summary.get('tracked_issue_count', 0)}",
+        f"Active tracked issues: {issue_summary.get('active_tracked_issue_count', 0)}",
+        f"Resolved tracked issues: {issue_summary.get('resolved_tracked_issue_count', 0)}",
         "",
         "LOCAL-ONLY REPORT. Manual review is required before sharing.",
         f"Redaction counts: {redaction_counts}",
