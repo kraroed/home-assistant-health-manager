@@ -18,7 +18,9 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 - `home_assistant_health_manager.generate_report`
 
 ## Current collection scope
-- Home Assistant version.
+- Home Assistant Core version.
+- Installed/latest versions and update state for Home Assistant Core, Supervisor, and Home Assistant OS when their official Supervisor update entities are available.
+- Release summary and release-note URL supplied by those official update entities.
 - Entity totals and counts by domain/state, with dedicated unavailable and unknown entity sensors and per-domain breakdowns.
 - Config-entry totals by integration domain and setup state, plus failed integration domains (without collecting entry data/options).
 - Bounded tail of the default Core log, if readable.
@@ -26,7 +28,7 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 - Persistent issue lifecycle history: first/last detection, recurrence count, current/resolved status, and aggregate counts.
 - Conservative rule-based recommendations with evidence and suggested next steps.
 
-Monthly reports include the current inventory, setup-state breakdowns, and accumulated issue history. They are not yet historical entity trend analyses or full Supervisor/host/recorder/automation audits; those remain future work.
+Platform update awareness reads Home Assistant's existing `update` entities. It does not call private Supervisor endpoints, use a Supervisor token, fetch release metadata independently, install updates, or restart the host. If the Supervisor integration or one of its update entities is unavailable, the corresponding status is reported as missing/unknown rather than guessed.\n\nUpdate recommendations include installed/latest versions and any release information exposed by Home Assistant. Before applying an update, review the linked official release notes and current upgrade guidance, check custom integration/app compatibility, verify a full backup, and choose a maintenance window. Recommendations are informational and never execute an update.\n\nMonthly reports include the current inventory, setup-state breakdowns, platform update versions, and accumulated issue history. They are not yet historical entity trend analyses or full Supervisor/host/recorder/automation audits; those remain future work.
 
 The integration does not collect unrestricted YAML, secrets files, entity attributes, recorder databases, or original unredacted logs. Issue history stores only rule identifiers, short titles, severity, timestamps, and occurrence counts; it does not store entity IDs or raw log lines.
 
