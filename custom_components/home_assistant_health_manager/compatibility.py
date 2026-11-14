@@ -43,6 +43,11 @@ def assess_compatibility(snapshot, analysis):
         "configured_integration_domain_count": integration_inventory.get("integration_domain_count"),
         "integration_setup_state_totals": integration_inventory.get("setup_state_totals", {}),
         "integration_origin_classification": integration_inventory.get("origin_classification", "not_available"),
+        "update_entity_count": snapshot.get("update_entity_inventory", {}).get("update_entity_count", 0),
+        "update_entities_with_available_updates": sum(
+            1 for item in snapshot.get("update_entity_inventory", {}).get("update_entities", [])
+            if item.get("update_available") is True
+        ),
     }
     if failed_entries or error_count:
         overall = "existing_issues_require_review"
