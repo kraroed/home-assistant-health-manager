@@ -86,3 +86,8 @@ Generated reports retain a bounded history of up to 90 aggregate trend samples. 
 ## Lovelace dashboard
 
 An optional native Lovelace dashboard example using Markdown, Entities, and History Graph cards is available in [docs/DASHBOARD.md](docs/DASHBOARD.md). It requires no custom frontend resource and only displays read-only diagnostic sensors.
+
+
+## Recurring issue detection
+
+Issue history distinguishes repeated observations during one uninterrupted active period from a true recurrence. The occurrence count increases when a previously resolved issue is detected again. Reports and the AI repair prompt include bounded recurrence details, and active recurring issues produce an approval-gated recommendation to investigate the underlying cause rather than repeat a temporary fix. Resolved recurring issues remain visible in history but do not create active recommendations. Recurrence is based on the integration's existing rule identifiers; it does not prove that the same underlying root cause returned. All actions remain user-approved and read-only.
