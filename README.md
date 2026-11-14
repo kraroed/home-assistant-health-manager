@@ -23,11 +23,12 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 - Config-entry totals by integration domain and setup state, plus failed integration domains (without collecting entry data/options).
 - Bounded tail of the default Core log, if readable.
 - Error/warning counts and repeated log-message patterns.
+- Persistent issue lifecycle history: first/last detection, recurrence count, current/resolved status, and aggregate counts.
 - Conservative rule-based recommendations with evidence and suggested next steps.
 
-Monthly reports currently collect a larger Core log sample than weekly reports and include the same point-in-time inventory and setup-state breakdowns. They are not yet historical trend analyses or full Supervisor/host/recorder/automation audits; those remain future work.
+Monthly reports include the current inventory, setup-state breakdowns, and accumulated issue history. They are not yet historical entity trend analyses or full Supervisor/host/recorder/automation audits; those remain future work.
 
-The integration does not collect unrestricted YAML, secrets files, entity attributes, recorder databases, or original unredacted logs.
+The integration does not collect unrestricted YAML, secrets files, entity attributes, recorder databases, or original unredacted logs. Issue history stores only rule identifiers, short titles, severity, timestamps, and occurrence counts; it does not store entity IDs or raw log lines.
 
 ## Privacy warning
 Redaction is best-effort pattern matching for common secrets and identifiers, including email, IP/MAC addresses, UUIDs, entity IDs, location-like coordinates, and common home-directory paths. It is not a guarantee that every identifier or secret is removed. Review an export before sharing it. The original Core log is read in memory and only the sanitized version is written to a report.
@@ -36,4 +37,4 @@ Redaction is best-effort pattern matching for common secrets and identifiers, in
 GitHub Actions runs Home Assistant hassfest and HACS integration validation on pushes and pull requests.
 
 ## Status
-Early development build. Supervisor/OS logs, host metrics, recorder internals, automation traces, persistent issue history, dashboard resources, and approved remediation execution are future work. This release is read-only and is not a complete security audit.
+Early development build. Supervisor/OS logs, host metrics, recorder internals, automation traces, dashboard resources, and approved remediation execution are future work. This release is read-only and is not a complete security audit.
