@@ -52,3 +52,21 @@ def test_history_is_bounded_and_deduplicates_identical_consecutive_points():
     assert len(history) <= TRENDS.MAX_TREND_POINTS
     latest, _ = TRENDS.update_trend_history(history, snapshot, analysis, compatibility, "2026-11-109T00:00:00Z")
     assert latest == history
+
+
+
+def test_missing_metric_values_remain_insufficient_and_compatibility_change_is_visible():
+    first = {
+        "collection_coverage": {},
+    }
+    second = {
+        "collection_coverage": {},
+    }
+    empty_analysis = {"level_counts": {}}
+    first_compat = {"overall_status": "insufficient_platform_data"}
+    second_compat = {"overall_status": "existing_issues_require_review"}
+    history, _ = TRENDS.update_trend_history([], first, empty_analysis, first_compat, "2026-11-14T00:00:00Z")
+    history, summary = TRENDS.update_trend_history(history, second, empty_analysis, second_compat, "2026-11-21T00:00:00Z")
+    assert summary["overall_direction"] == "insufficient_data"
+    assert summary["compatibility_status"]["changed"] is True
+    assert summary["compatibility_status"]["current"] == "existing_issues_require_review"
