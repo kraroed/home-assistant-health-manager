@@ -9,20 +9,20 @@ from .const import REPORT_DIR
 
 async def write_report(
     hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations,
-    issue_history=None, issue_summary=None,
+    issue_history=None, issue_summary=None, repair_prompt=None,
 ):
     retention_days = hass.data.get("home_assistant_health_manager_retention_days", 90)
     directory = hass.config.path(REPORT_DIR)
     return await asyncio.to_thread(
         _write_report_sync, directory, snapshot, analysis, sanitized_log,
         redaction_counts, recommendations, issue_history or {}, issue_summary or {},
-        retention_days
+        repair_prompt or "No AI repair prompt was generated.", retention_days
     )
 
 
 def _write_report_sync(
     directory_path, snapshot, analysis, sanitized_log, redaction_counts,
-    recommendations, issue_history, issue_summary, retention_days,
+    recommendations, issue_history, issue_summary, repair_prompt, retention_days,
 ):
     directory = Path(directory_path)
     directory.mkdir(parents=True, exist_ok=True)
@@ -48,6 +48,7 @@ def _write_report_sync(
     json_path = directory / f"{base}.json"
     txt_path = directory / f"{base}.txt"
     zip_path = directory / f"{base}.zip"
+    prompt_path = directory / f"{base}_ai_repair_prompt.md"
     json_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     summary = [
         "Home Assistant Health Manager report",
@@ -73,9 +74,11 @@ def _write_report_sync(
     for item in recommendations:
         summary.extend(["", f"[{item['severity'].upper()}] {item['title']}", item["detail"], f"Suggested next step: {item['suggested_action']}"])
     txt_path.write_text("\n".join(summary), encoding="utf-8")
+    prompt_path.write_text(repair_prompt, encoding="utf-8")
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.write(json_path, arcname="health_report.json")
         archive.write(txt_path, arcname="summary.txt")
+        archive.write(prompt_path, arcname="ai_repair_prompt.md")
         if sanitized_log is not None:
             archive.writestr("logs/home_assistant_core_sanitized.log", sanitized_log)
     cutoff = now - timedelta(days=max(7, min(int(retention_days), 365)))
