@@ -35,7 +35,7 @@ def test_provider_domain_finding_uses_bounded_inventory_evidence():
         {"level_counts": {}},
     )
     finding = next(item for item in result if item["id"] == "integration_domain_mqtt")
-    assert "2 unavailable registered entit(y/ies)" in finding["detail"]
+    assert "2 unavailable registered entities" in finding["detail"]
     assert finding["integration_domain"] == "mqtt"
     assert finding["requires_user_approval"] is True
     assert finding["automated_action_available"] is False
