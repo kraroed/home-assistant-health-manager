@@ -60,6 +60,7 @@ def _snapshot_signature(snapshot):
             "unknown_entity_count": max(0, snapshot.get("unknown_entity_count", 0)) if isinstance(snapshot.get("unknown_entity_count"), int) else 0,
             "unavailable_by_domain": _bounded_counts(snapshot.get("unavailable_counts_by_domain", {})),
             "unknown_by_domain": _bounded_counts(snapshot.get("unknown_counts_by_domain", {})),
+            "entity_counts_by_domain": _bounded_counts(snapshot.get("entity_counts_by_domain", {})),
         },
     }
 
@@ -119,6 +120,14 @@ def update_change_history(existing, snapshot, timestamp):
             "type": "entity_inventory_changed",
             "before": old_entity_inventory,
             "after": current["entity_inventory"],
+        })
+    old_domain_counts = old_entity_inventory.get("entity_counts_by_domain", {})
+    new_domain_counts = current["entity_inventory"]["entity_counts_by_domain"]
+    if old_domain_counts != new_domain_counts:
+        changes.append({
+            "type": "entity_counts_by_domain_changed",
+            "before": old_domain_counts,
+            "after": new_domain_counts,
         })
 
     if changes:
