@@ -11,6 +11,7 @@ from .log_analyzer import analyze_log
 from .recommendations import build_recommendations
 from .redactor import redact_object, redact_text
 from .report import write_report
+from .repair_prompt import build_repair_prompt
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
         self.schedule = {}
         self.last_report_path = None
+        self.last_prompt_path = None
         self._schedule_unsub = None
         self.hass.data[f"{DOMAIN}_retention_days"] = entry.options.get("retention_days", 90)
 
@@ -98,15 +100,17 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             now.isoformat(),
         )
         history_summary = summarize_issue_history(self.schedule["issue_history"])
+        repair_prompt = build_repair_prompt(snapshot, analysis, recommendations, now.isoformat())
         path = await write_report(
             self.hass, safe_snapshot, analysis, sanitized_log,
             {"core_log": log_counts, "snapshot": snapshot_counts},
-            recommendations, self.schedule["issue_history"], history_summary,
+            recommendations, self.schedule["issue_history"], history_summary, repair_prompt,
         )
         self.schedule["last_assessment"] = now.isoformat()
         self.schedule["last_report"] = now.isoformat()
         self.schedule["report_count"] = self.schedule.get("report_count", 0) + 1
         self.last_report_path = path
+        self.last_prompt_path = path[:-4] + "_ai_repair_prompt.md" if path.endswith(".zip") else None
         await self.store.async_save(self.schedule)
         self.async_update_listeners()
         return path
