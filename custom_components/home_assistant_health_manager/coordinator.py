@@ -10,6 +10,7 @@ from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_I
 from .history import summarize_issue_history, update_issue_history
 from .change_history import update_change_history
 from .collection_coverage import build_collection_coverage
+from .trend_history import summarize_trends, update_trend_history
 from .log_analyzer import analyze_log
 from .recommendations import build_recommendations
 from .redactor import redact_object, redact_text
@@ -38,6 +39,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule.setdefault("next_monthly", (now + timedelta(days=30)).isoformat())
         self.schedule.setdefault("issue_history", {})
         self.schedule.setdefault("change_history", [])
+        self.schedule.setdefault("trend_history", [])
         await self.store.async_save(self.schedule)
         from homeassistant.helpers.event import async_track_time_interval
         self._schedule_unsub = async_track_time_interval(
@@ -87,6 +89,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "last_ai_repair_prompt_path": self.last_prompt_path,
                 "compatibility_assessment": self.schedule.get("last_compatibility", {}),
                 "diagnostic_change_history": change_summary,
+                "diagnostic_trend": summarize_trends(self.schedule.get("trend_history", [])),
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
@@ -118,7 +121,11 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         )
         history_summary = summarize_issue_history(self.schedule["issue_history"])
         compatibility = assess_compatibility(snapshot, analysis)
-        snapshot["diagnostic_trend"] = {}
+        trend_history, trend_summary = update_trend_history(
+            self.schedule.get("trend_history", []), snapshot, analysis, compatibility, now.isoformat()
+        )
+        self.schedule["trend_history"] = trend_history
+        snapshot["diagnostic_trend"] = trend_summary
         safe_snapshot, snapshot_counts = redact_object(snapshot)
         safe_compatibility, _ = redact_object(compatibility)
         safe_recommendations, _ = redact_object(recommendations)
