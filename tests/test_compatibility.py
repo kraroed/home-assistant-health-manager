@@ -36,7 +36,7 @@ def test_available_platform_update_requires_compatibility_review():
         },
         {"level_counts": {}},
     )
-    assert result["overall_status"] == "platform_update_review_required"
+    assert result["overall_status"] == "existing_issues_require_review"
     assert result["platforms"][0]["status"] == "review_required"
     assert result["confidence"] == "limited"
     assert "not a compatibility guarantee" in result["scope_note"]
