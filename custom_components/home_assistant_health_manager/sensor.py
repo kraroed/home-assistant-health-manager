@@ -13,6 +13,9 @@ SENSORS = [
     ("tracked_issue_count", "Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
     ("active_tracked_issue_count", "Active Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
     ("resolved_tracked_issue_count", "Resolved Tracked Issues", "issues", SensorStateClass.MEASUREMENT),
+    ("core_update_status", "Core Update", None, None),
+    ("supervisor_update_status", "Supervisor Update", None, None),
+    ("operating_system_update_status", "Operating System Update", None, None),
     ("report_count", "Generated Reports", "reports", SensorStateClass.TOTAL_INCREASING),
 ]
 
@@ -38,7 +41,18 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        return self.coordinator.data.get(self.key) if self.coordinator.data else None
+        data = self.coordinator.data or {}
+        if self.key.endswith("_update_status"):
+            platform = self.key.removesuffix("_update_status")
+            update = data.get("platform_updates", {}).get(platform, {})
+            if not update.get("entity_present"):
+                return "not_detected"
+            if update.get("update_available") is True:
+                return "update_available"
+            if update.get("state") == "off":
+                return "up_to_date"
+            return update.get("state", "unknown")
+        return data.get(self.key)
 
     @property
     def extra_state_attributes(self):
@@ -49,6 +63,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "last_report": data.get("last_report"),
                 "report_count": data.get("report_count", 0),
                 "home_assistant_version": data.get("home_assistant_version"),
+                "platform_updates": data.get("platform_updates", {}),
                 "entity_count": data.get("entity_count"),
                 "unavailable_entity_count": data.get("unavailable_entity_count"),
                 "unknown_entity_count": data.get("unknown_entity_count"),
@@ -58,4 +73,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "unavailable_counts_by_domain": data.get("unavailable_counts_by_domain", {}),
                 "unknown_counts_by_domain": data.get("unknown_counts_by_domain", {}),
             }
+        if self.key.endswith("_update_status"):
+            platform = self.key.removesuffix("_update_status")
+            return data.get("platform_updates", {}).get(platform, {})
         return {}
