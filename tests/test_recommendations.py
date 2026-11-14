@@ -17,6 +17,30 @@ def test_failed_integration_produces_approval_gated_recommendation():
     assert result[0]["automated_action_available"] is False
 
 
+def test_provider_domain_finding_uses_bounded_inventory_evidence():
+    result = RECOMMENDATIONS.build_recommendations(
+        {
+            "failed_config_entry_count": 0,
+            "unavailable_entity_count": 2,
+            "unknown_entity_count": 0,
+            "integration_inventory": {
+                "attention_domains": [{
+                    "domain": "mqtt", "severity": "medium",
+                    "signals": ["unavailable_entities"], "config_entry_count": 1,
+                    "setup_states": {"loaded": 1}, "entity_count": 4,
+                    "unavailable_entity_count": 2, "unknown_entity_count": 0,
+                }]
+            },
+        },
+        {"level_counts": {}},
+    )
+    finding = next(item for item in result if item["id"] == "integration_domain_mqtt")
+    assert "2 unavailable registered entit(y/ies)" in finding["detail"]
+    assert finding["integration_domain"] == "mqtt"
+    assert finding["requires_user_approval"] is True
+    assert finding["automated_action_available"] is False
+
+
 def test_clean_snapshot_is_not_claimed_to_be_issue_free():
     result = RECOMMENDATIONS.build_recommendations(
         {"failed_config_entry_count": 0, "unavailable_entity_count": 0, "unknown_entity_count": 0},
@@ -26,22 +50,15 @@ def test_clean_snapshot_is_not_claimed_to_be_issue_free():
     assert "not a guarantee" in result[0]["detail"]
 
 
-
 def test_active_recurring_issue_adds_approval_gated_finding():
     result = RECOMMENDATIONS.add_recurring_issue_recommendations(
         [],
-        {
-            "recurring_issues": [{
-                "issue_id": "failed_config_entries",
-                "title": "Failed integrations",
-                "severity": "high",
-                "status": "active",
-                "occurrences": 3,
-                "first_seen": "2026-11-01T00:00:00Z",
-                "last_seen": "2026-11-15T00:00:00Z",
-                "last_resolved_at": "2026-11-10T00:00:00Z",
-            }]
-        },
+        {"recurring_issues": [{
+            "issue_id": "failed_config_entries", "title": "Failed integrations",
+            "severity": "high", "status": "active", "occurrences": 3,
+            "first_seen": "2026-11-01T00:00:00Z", "last_seen": "2026-11-15T00:00:00Z",
+            "last_resolved_at": "2026-11-10T00:00:00Z",
+        }]},
     )
     finding = result[0]
     assert finding["id"] == "recurring_issue_failed_config_entries"
@@ -54,11 +71,8 @@ def test_resolved_recurring_issue_is_reported_but_not_active_recommended():
     result = RECOMMENDATIONS.add_recurring_issue_recommendations(
         [],
         {"recurring_issues": [{
-            "issue_id": "unavailable_entities",
-            "title": "Unavailable entities",
-            "severity": "medium",
-            "status": "resolved",
-            "occurrences": 2,
+            "issue_id": "unavailable_entities", "title": "Unavailable entities",
+            "severity": "medium", "status": "resolved", "occurrences": 2,
         }]},
     )
     assert result == []
