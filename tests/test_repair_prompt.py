@@ -22,6 +22,17 @@ def test_prompt_contains_version_context_and_approval_workflow():
             "entity_count": 100, "unavailable_entity_count": 2, "unknown_entity_count": 1,
             "failed_config_entry_count": 1, "failed_config_entry_domains": {"example_integration": 1},
             "config_entry_states": {"loaded": 20, "setup_error": 1},
+            "update_entity_inventory": {
+                "update_entity_count": 1,
+                "update_entities": [{
+                    "provider_integration_domain": "hacs",
+                    "config_entry_domain": "hacs",
+                    "title": "Example Integration",
+                    "installed_version": "1.0",
+                    "latest_version": "2.0",
+                    "update_available": True,
+                }],
+            },
             "integration_inventory": {
                 "integration_domain_count": 2,
                 "config_entry_count": 21,
@@ -51,6 +62,9 @@ def test_prompt_contains_version_context_and_approval_workflow():
     assert "integration_inventory" in prompt
     assert "example_integration" in prompt
     assert "does not establish whether an integration is built-in" in prompt
+    assert "Example Integration" in prompt
+    assert "provider integration domain" in prompt
+    assert "hacs" in prompt
 
 
 def test_prompt_excludes_raw_logs_entity_ids_and_clean_snapshot_pseudo_issue():
