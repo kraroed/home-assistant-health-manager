@@ -20,12 +20,12 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 ## Current collection scope
 - Home Assistant version.
 - Entity totals and counts by domain/state, with dedicated unavailable and unknown entity sensors and per-domain breakdowns.
-- Config-entry domain and setup-error summaries (no entry data/options).
+- Config-entry totals by integration domain and setup state, plus failed integration domains (without collecting entry data/options).
 - Bounded tail of the default Core log, if readable.
 - Error/warning counts and repeated log-message patterns.
 - Conservative rule-based recommendations with evidence and suggested next steps.
 
-Monthly reports currently use a larger Core log sample than weekly reports; broader Supervisor, host, recorder, and automation-trace diagnostics are not yet implemented.
+Monthly reports currently collect a larger Core log sample than weekly reports and include the same point-in-time inventory and setup-state breakdowns. They are not yet historical trend analyses or full Supervisor/host/recorder/automation audits; those remain future work.
 
 The integration does not collect unrestricted YAML, secrets files, entity attributes, recorder databases, or original unredacted logs.
 
