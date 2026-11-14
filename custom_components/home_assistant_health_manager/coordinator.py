@@ -100,7 +100,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             now.isoformat(),
         )
         history_summary = summarize_issue_history(self.schedule["issue_history"])
-        repair_prompt = build_repair_prompt(snapshot, analysis, recommendations, now.isoformat())
+        safe_recommendations, _ = redact_object(recommendations)
+        repair_prompt = build_repair_prompt(safe_snapshot, analysis, safe_recommendations, now.isoformat())
         path = await write_report(
             self.hass, safe_snapshot, analysis, sanitized_log,
             {"core_log": log_counts, "snapshot": snapshot_counts},
