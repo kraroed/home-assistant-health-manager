@@ -17,6 +17,7 @@ SENSORS = [
     ("supervisor_update_status", "Supervisor Update", None, None),
     ("operating_system_update_status", "Operating System Update", None, None),
     ("compatibility_status", "Compatibility Status", None, None),
+    ("diagnostic_change_events", "Diagnostic Change Events", "events", SensorStateClass.MEASUREMENT),
     ("report_count", "Generated Reports", "reports", SensorStateClass.TOTAL_INCREASING),
 ]
 
@@ -70,6 +71,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "platform_updates": data.get("platform_updates", {}),
                 "update_entity_inventory": data.get("update_entity_inventory", {}),
                 "compatibility_assessment": data.get("compatibility_assessment", {}),
+                "diagnostic_change_history": data.get("diagnostic_change_history", {}),
                 "entity_count": data.get("entity_count"),
                 "unavailable_entity_count": data.get("unavailable_entity_count"),
                 "unknown_entity_count": data.get("unknown_entity_count"),
