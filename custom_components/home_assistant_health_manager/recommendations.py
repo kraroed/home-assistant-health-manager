@@ -71,11 +71,11 @@ def build_recommendations(snapshot, analysis):
         if setup_errors:
             detail_parts.append(f"{setup_errors} config entry setup error(s)")
         if setup_retries:
-            detail_parts.append(f"{setup_retries} config entry setup retry/retries")
+            detail_parts.append(f"{setup_retries} config entry setup retries")
         if domain.get("unavailable_entity_count", 0):
-            detail_parts.append(f"{domain['unavailable_entity_count']} unavailable registered entit(y/ies)")
+            detail_parts.append(f"{domain['unavailable_entity_count']} unavailable registered entities")
         if domain.get("unknown_entity_count", 0):
-            detail_parts.append(f"{domain['unknown_entity_count']} unknown registered entit(y/ies)")
+            detail_parts.append(f"{domain['unknown_entity_count']} unknown registered entities")
         items.append({
             "id": f"integration_domain_{domain_name}",
             "severity": domain.get("severity", "low"),
