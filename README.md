@@ -20,6 +20,7 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 - `home_assistant_health_manager.run_diagnostics`
 - `home_assistant_health_manager.generate_report`
 - `home_assistant_health_manager.generate_ai_repair_prompt`
+- `home_assistant_health_manager.generate_focused_repair_prompt` (requires the exact `plan_id` from the latest repair-plan sensor attributes)
 
 ## AI repair and validation prompt
 
@@ -100,3 +101,8 @@ Each generated report includes a bounded, severity-sorted repair plan. It groups
 
 
 The `Prioritized Repair Plan Items` sensor exposes the number of items in the latest generated plan; its attributes provide the bounded plan details, and the Health Status sensor includes the same plan. It updates when a report is generated, not on every coordinator refresh. See [docs/DASHBOARD.md](docs/DASHBOARD.md) for the native Lovelace example.
+
+
+## Focused repair investigations
+
+After generating a diagnostic report, inspect the `Prioritized Repair Plan Items` sensor attributes and choose one item's exact `plan_id`. Call `home_assistant_health_manager.generate_focused_repair_prompt` with that ID. The service writes a separate Markdown prompt under `/config/health_manager/reports` and fires `home_assistant_health_manager_focused_repair_prompt_created` with the selected ID and prompt path. The focused prompt includes only that plan item, its linked recommendations, and matching provider-domain log/trend evidence where available; unrelated plan items and unrelated provider evidence are excluded. Stale IDs are rejected rather than silently selecting a different item. The prompt is local-only, follows the configured report retention period, and remains approval-gated. Generate a fresh report before selecting an item so the ID and evidence reflect the latest assessment.
