@@ -42,6 +42,8 @@ class RepairPlanSelect(CoordinatorEntity, SelectEntity):
         }
 
     async def async_select_option(self, option):
+        items = (self.coordinator.data or {}).get("repair_plan", {}).get("items", [])
+        self._option_to_plan_id = build_repair_plan_options(items)
         plan_id = self._option_to_plan_id.get(option)
         if plan_id is None:
             raise ValueError("That repair-plan option is no longer available. Refresh diagnostics and select a current item.")
