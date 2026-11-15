@@ -89,6 +89,12 @@ def test_selected_investigation_handles_missing_or_stale_selection():
 def test_investigation_helpers_tolerate_malformed_stored_shapes():
     assert HISTORY.summarize_investigations(None)["investigation_count"] == 0
     assert HISTORY.build_investigation_options(None) == {}
+    try:
+        HISTORY.set_investigation_status(None, "missing", "resolved", "now")
+    except ValueError as err:
+        assert "No investigation history" in str(err)
+    else:
+        raise AssertionError("Malformed history must not produce a false successful update")
     assert HISTORY.record_investigation(
         None,
         {"plan_id": "mqtt", "title": "MQTT review"},
