@@ -57,7 +57,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             self.hass, self.schedule.get("last_report_path")
         )
         await async_reconcile_focused_prompt_transactions(
-            self.hass, self.schedule.get("investigation_history", [])
+            self.hass, schedule_snapshot.get("investigation_history", [])
         )
         self.last_report_path = self.schedule.get("last_report_path")
         await self.store.async_save(self.schedule)
@@ -95,22 +95,23 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                     schedule['change_history'] = change_history
                     await self.store.async_save(schedule)
                     self.schedule = schedule
-            history_summary = summarize_issue_history(self.schedule.get("issue_history", {}))
+                schedule_snapshot = deepcopy(self.schedule)
+            history_summary = summarize_issue_history(schedule_snapshot.get("issue_history", {}))
             return {
                 **snapshot,
                 **history_summary,
                 "status": "attention" if snapshot["unavailable_entity_count"] or snapshot["unknown_entity_count"] or snapshot["failed_config_entry_count"] else "healthy",
                 "active_issues": snapshot["unavailable_entity_count"] + snapshot["unknown_entity_count"] + snapshot["failed_config_entry_count"],
-                "last_assessment": self.schedule.get("last_assessment"),
-                "last_report": self.schedule.get("last_report"),
-                "report_count": self.schedule.get("report_count", 0),
+                "last_assessment": schedule_snapshot.get("last_assessment"),
+                "last_report": schedule_snapshot.get("last_report"),
+                "report_count": schedule_snapshot.get("report_count", 0),
                 "last_report_path": self.last_report_path,
                 "last_ai_repair_prompt_path": self.last_prompt_path,
-                "compatibility_assessment": self.schedule.get("last_compatibility", {}),
+                "compatibility_assessment": schedule_snapshot.get("last_compatibility", {}),
                 "diagnostic_change_history": change_summary,
-                "diagnostic_trend": summarize_trends(self.schedule.get("trend_history", [])),
-                "integration_trend_summary": summarize_integration_trends(self.schedule.get("integration_trend_history", [])),
-                "repair_plan": self.schedule.get("last_repair_plan", {}),
+                "diagnostic_trend": summarize_trends(schedule_snapshot.get("trend_history", [])),
+                "integration_trend_summary": summarize_integration_trends(schedule_snapshot.get("integration_trend_history", [])),
+                "repair_plan": schedule_snapshot.get("last_repair_plan", {}),
                 **summarize_investigations(self.schedule.get("investigation_history", [])),
             }
         except Exception as err:
@@ -213,18 +214,18 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
 
     async def async_generate_focused_repair_prompt(self, plan_id):
         """Generate a focused prompt for one item from the latest report."""
-        context = self.last_repair_context
-        if not context:
-            raise RuntimeError('Generate a diagnostic report before requesting a focused repair prompt.')
-        plan_item = next(
-            (item for item in context.get("repair_plan", {}).get("items", [])
-             if item.get("plan_id") == plan_id),
-            None,
-        )
-        if plan_item is None:
-            raise ValueError(f"Repair plan item not found: {plan_id}")
-        prompt = build_focused_repair_prompt(context, plan_id)
         async with self._state_lock:
+            context = self.last_repair_context
+            if not context:
+                raise RuntimeError('Generate a diagnostic report before requesting a focused repair prompt.')
+            plan_item = next(
+                (item for item in context.get("repair_plan", {}).get("items", [])
+                 if item.get("plan_id") == plan_id),
+                None,
+            )
+            if plan_item is None:
+                raise ValueError(f"Repair plan item not found: {plan_id}")
+            prompt = build_focused_repair_prompt(context, plan_id)
             prompt_path = await write_focused_repair_prompt(self.hass, plan_id, prompt)
             schedule = deepcopy(self.schedule)
             schedule["investigation_history"] = record_investigation(
