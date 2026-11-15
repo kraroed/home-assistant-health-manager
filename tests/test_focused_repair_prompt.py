@@ -60,3 +60,17 @@ def test_unknown_or_stale_plan_id_is_rejected():
         assert "not present in the latest report" in str(err)
     else:
         raise AssertionError("Unknown plan IDs must be rejected")
+
+
+
+def test_repair_plan_select_options_are_readable_unique_and_keep_exact_ids():
+    options = FOCUSED.build_repair_plan_options([
+        {"plan_id": "integration_mqtt", "severity": "high", "title": "MQTT setup attention"},
+        {"plan_id": "recommendation_unavailable_entities", "severity": "medium", "title": "Unavailable entities"},
+        {"plan_id": "integration_zha", "severity": "low", "title": "MQTT setup attention"},
+        {"plan_id": "", "severity": "low", "title": "Invalid"},
+    ])
+    assert len(options) == 3
+    assert len(set(options)) == 3
+    assert any(label.startswith("HIGH · MQTT setup attention") for label in options)
+    assert set(options.values()) == {"integration_mqtt", "recommendation_unavailable_entities", "integration_zha"}
