@@ -221,10 +221,17 @@ def _reconcile_report_transactions_sync(directory, committed_report_path=None):
         base = marker.name[1:-len(".complete")]
         if (directory / f"{base}.zip").is_file():
             continue
-        try:
-            marker.unlink(missing_ok=True)
-        except OSError:
-            continue
+        cleanup_complete = True
+        for suffix in (".json", ".txt", "_ai_repair_prompt.md"):
+            try:
+                (directory / f"{base}{suffix}").unlink(missing_ok=True)
+            except OSError:
+                cleanup_complete = False
+        if cleanup_complete:
+            try:
+                marker.unlink(missing_ok=True)
+            except OSError:
+                continue
 
 
 async def async_commit_report(hass, report_path):
