@@ -35,7 +35,7 @@ def record_investigation(history, plan_item, prompt_path, now):
         existing["last_updated"] = now
         existing["prompt_path"] = prompt_path
         existing["generation_count"] = _generation_count(existing) + 1
-        if existing.get("status") in {"resolved", "dismissed"}:
+        if existing.get("status") in ("resolved", "dismissed"):
             existing["status"] = "prompt_generated"
     else:
         records.append({
@@ -55,7 +55,7 @@ def record_investigation(history, plan_item, prompt_path, now):
 
 def set_investigation_status(history, plan_id, status, now):
     """Update a user's tracking label for an existing investigation."""
-    if status not in VALID_STATUSES:
+    if not isinstance(status, str) or status not in VALID_STATUSES:
         raise ValueError(f"Unsupported investigation status: {status}")
     records = [dict(item) for item in history if isinstance(item, dict)] if isinstance(history, list) else []
     for item in records:
@@ -73,7 +73,7 @@ def summarize_investigations(history):
     counts = {status: 0 for status in sorted(VALID_STATUSES)}
     for item in records:
         status = item.get("status")
-        if status in counts:
+        if isinstance(status, str) and status in counts:
             counts[status] += 1
     return {
         "investigation_count": len(records),
