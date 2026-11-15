@@ -17,6 +17,7 @@ from .recommendations import add_integration_trend_recommendations, add_recurrin
 from .redactor import redact_object, redact_text
 from .report import write_report
 from .repair_prompt import build_repair_prompt
+from .repair_plan import build_repair_plan
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -139,6 +140,11 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         history_summary = summarize_issue_history(self.schedule["issue_history"])
         recommendations = add_recurring_issue_recommendations(recommendations, history_summary)
         snapshot["issue_history_summary"] = history_summary
+        snapshot["repair_plan"] = build_repair_plan(
+            recommendations,
+            analysis.get("integration_log_evidence", {}),
+            integration_trend_summary,
+        )
         safe_snapshot, snapshot_counts = redact_object(snapshot)
         safe_compatibility, _ = redact_object(compatibility)
         safe_recommendations, _ = redact_object(recommendations)
