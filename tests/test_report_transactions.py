@@ -207,7 +207,7 @@ def test_cancelled_focused_prompt_writer_removes_artifacts_after_worker_finishes
     started = threading.Event()
     release = threading.Event()
 
-    def slow_writer(directory, safe_id, stamp, prompt, retention_days):
+    def slow_writer(directory, safe_id, stamp, prompt, retention_days, preserved_paths=None):
         directory = Path(directory)
         path = directory / f"focused_repair_{safe_id}_{stamp}.md"
         path.with_name(f".{path.name}.pending").touch()
@@ -315,3 +315,47 @@ def test_reconcile_does_not_commit_report_when_only_a_different_artifact_is_refe
     assert not list(tmp_path.glob(f"{base}*"))
     assert not pending.exists()
     assert not (tmp_path / f".{base}.complete").exists()
+
+
+def test_focused_prompt_retention_preserves_store_referenced_prompt(tmp_path):
+    import os
+    import time
+
+    old_prompt = tmp_path / "focused_repair_mqtt_20200101T000000000000Z.md"
+    old_prompt.write_text("saved investigation prompt", encoding="utf-8")
+    old_time = time.time() - 400 * 24 * 60 * 60
+    os.utime(old_prompt, (old_time, old_time))
+
+    REPORT._write_focused_prompt_sync(
+        tmp_path,
+        "zigbee",
+        "20261115T120000000000Z",
+        "new prompt",
+        90,
+        {str(old_prompt)},
+    )
+
+    assert old_prompt.read_text(encoding="utf-8") == "saved investigation prompt"
+    assert len(list(tmp_path.glob("focused_repair_*.md"))) == 2
+
+
+def test_focused_prompt_retention_removes_expired_unreferenced_prompt(tmp_path):
+    import os
+    import time
+
+    old_prompt = tmp_path / "focused_repair_mqtt_20200101T000000000000Z.md"
+    old_prompt.write_text("expired prompt", encoding="utf-8")
+    old_time = time.time() - 400 * 24 * 60 * 60
+    os.utime(old_prompt, (old_time, old_time))
+
+    REPORT._write_focused_prompt_sync(
+        tmp_path,
+        "zigbee",
+        "20261115T120000000000Z",
+        "new prompt",
+        90,
+        set(),
+    )
+
+    assert not old_prompt.exists()
+    assert len(list(tmp_path.glob("focused_repair_*.md"))) == 1
