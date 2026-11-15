@@ -18,7 +18,9 @@ from .log_analyzer import analyze_log
 from .recommendations import add_integration_trend_recommendations, add_recurring_issue_recommendations, build_recommendations
 from .redactor import redact_object, redact_text
 from .report import (
+    async_commit_focused_prompt,
     async_commit_report,
+    async_reconcile_focused_prompt_transactions,
     async_reconcile_report_transactions,
     write_report,
     write_focused_repair_prompt,
@@ -53,6 +55,9 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule = normalize_schedule_data(stored_data)
         await async_reconcile_report_transactions(
             self.hass, self.schedule.get("last_report_path")
+        )
+        await async_reconcile_focused_prompt_transactions(
+            self.hass, self.schedule.get("investigation_history", [])
         )
         self.last_report_path = self.schedule.get("last_report_path")
         await self.store.async_save(self.schedule)
@@ -236,6 +241,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             )
             await self.store.async_save(schedule)
             self.schedule = schedule
+            try:
+                await async_commit_focused_prompt(self.hass, prompt_path)
+            except OSError:
+                _LOGGER.exception("Focused prompt was saved, but its commit marker could not be removed")
         await self.async_request_refresh()
         return prompt_path
 
