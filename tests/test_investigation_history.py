@@ -1,0 +1,49 @@
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+
+MODULE_PATH = Path(__file__).parents[1] / "custom_components" / "home_assistant_health_manager" / "investigation_history.py"
+SPEC = spec_from_file_location("health_manager_investigation_history", MODULE_PATH)
+HISTORY = module_from_spec(SPEC)
+SPEC.loader.exec_module(HISTORY)
+
+
+def test_prompt_generation_records_minimal_history_and_increments_existing_item():
+    item = {"plan_id": "integration_mqtt", "title": "MQTT needs attention", "severity": "high"}
+    history = HISTORY.record_investigation([], item, "/config/health_manager/reports/focused.md", "2026-11-15T10:00:00+00:00")
+    assert len(history) == 1
+    assert history[0]["status"] == "prompt_generated"
+    assert history[0]["generation_count"] == 1
+    assert "entity_id" not in history[0]
+    history = HISTORY.record_investigation(history, item, "/config/health_manager/reports/focused2.md", "2026-11-16T10:00:00+00:00")
+    assert len(history) == 1
+    assert history[0]["generation_count"] == 2
+    assert history[0]["first_generated_at"] == "2026-11-15T10:00:00+00:00"
+
+
+def test_status_updates_are_explicit_and_unknown_items_rejected():
+    history = HISTORY.record_investigation([], {"plan_id": "mqtt"}, "/tmp/prompt.md", "2026-11-15T10:00:00+00:00")
+    updated = HISTORY.set_investigation_status(history, "mqtt", "in_progress", "2026-11-15T11:00:00+00:00")
+    assert updated[0]["status"] == "in_progress"
+    try:
+        HISTORY.set_investigation_status(updated, "missing", "resolved", "2026-11-15T12:00:00+00:00")
+    except ValueError as err:
+        assert "No investigation history" in str(err)
+    else:
+        raise AssertionError("Unknown investigation must be rejected")
+
+
+def test_status_validation_and_history_are_bounded():
+    try:
+        HISTORY.set_investigation_status([], "x", "fixed", "now")
+    except ValueError as err:
+        assert "Unsupported" in str(err)
+    else:
+        raise AssertionError("Unknown statuses must be rejected")
+    records = [
+        {"plan_id": f"issue_{index}", "status": "prompt_generated", "last_updated": str(index)}
+        for index in range(60)
+    ]
+    summary = HISTORY.summarize_investigations(records)
+    assert summary["investigation_count"] == 50
+    assert len(summary["investigations"]) == 50
+    assert summary["investigation_status_counts"]["prompt_generated"] == 50
