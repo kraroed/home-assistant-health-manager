@@ -65,10 +65,13 @@ def build_repair_plan(recommendations, integration_log_evidence=None, integratio
             log_item = log_domains.get(identity)
             trend_item = trend_domains.get(identity)
             if log_item:
+                severity_counts = log_item.get("level_counts", {})
                 item["evidence"].append({
                     "type": "explicit_component_logger",
-                    "attributed_entry_count": log_item.get("entry_count", log_item.get("total_count")),
-                    "severity_counts": log_item.get("level_counts", log_item.get("severity_counts", {})),
+                    "attributed_entry_count": sum(
+                        value for value in severity_counts.values() if isinstance(value, int)
+                    ),
+                    "severity_counts": severity_counts,
                     "interpretation": "Logger namespace identifies the emitting component, not necessarily the root cause.",
                 })
             if trend_item:
