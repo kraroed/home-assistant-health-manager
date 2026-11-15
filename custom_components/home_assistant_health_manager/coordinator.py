@@ -60,6 +60,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             self.hass, self.schedule.get("investigation_history", [])
         )
         self.last_report_path = self.schedule.get("last_report_path")
+        if self.last_report_path and self.last_report_path.endswith(".zip"):
+            self.last_prompt_path = self.last_report_path[:-4] + "_ai_repair_prompt.md"
         await self.store.async_save(self.schedule)
         from homeassistant.helpers.event import async_track_time_interval
         self._schedule_unsub = async_track_time_interval(
@@ -105,8 +107,11 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "last_assessment": schedule_snapshot.get("last_assessment"),
                 "last_report": schedule_snapshot.get("last_report"),
                 "report_count": schedule_snapshot.get("report_count", 0),
-                "last_report_path": self.last_report_path,
-                "last_ai_repair_prompt_path": self.last_prompt_path,
+                "last_report_path": schedule_snapshot.get("last_report_path"),
+                "last_ai_repair_prompt_path": (
+                    schedule_snapshot.get("last_report_path", "")[:-4] + "_ai_repair_prompt.md"
+                    if schedule_snapshot.get("last_report_path", "").endswith(".zip") else None
+                ),
                 "compatibility_assessment": schedule_snapshot.get("last_compatibility", {}),
                 "diagnostic_change_history": change_summary,
                 "diagnostic_trend": summarize_trends(schedule_snapshot.get("trend_history", [])),
