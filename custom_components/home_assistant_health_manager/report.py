@@ -315,15 +315,18 @@ def _remove_report_artifacts_sync(report_path):
     path = Path(report_path)
     directory = path.parent
     base = path.stem
+    cleanup_complete = True
     for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
         try:
             (directory / f"{base}{suffix}").unlink(missing_ok=True)
         except OSError:
-            continue
-    try:
-        (directory / f".{base}.pending").unlink(missing_ok=True)
-    except OSError:
-        pass
+            cleanup_complete = False
+    # Leave the pending marker as a recovery record if any artifact remains.
+    if cleanup_complete:
+        try:
+            (directory / f".{base}.pending").unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def _remove_focused_prompt_artifacts_sync(prompt_path):
@@ -332,7 +335,8 @@ def _remove_focused_prompt_artifacts_sync(prompt_path):
     try:
         path.unlink(missing_ok=True)
     except OSError:
-        pass
+        # Keep the marker so startup recovery can retry removing the prompt.
+        return
     try:
         path.with_name(f".{path.name}.pending").unlink(missing_ok=True)
     except OSError:
