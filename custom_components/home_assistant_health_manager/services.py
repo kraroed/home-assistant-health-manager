@@ -34,10 +34,21 @@ async def async_setup_services(hass):
             "prompt_path": coordinator.last_prompt_path,
         })
 
+    async def generate_focused_repair_prompt(call: ServiceCall):
+        coordinator = _get_coordinator(hass)
+        plan_id = call.data["plan_id"]
+        prompt_path = await coordinator.async_generate_focused_repair_prompt(plan_id)
+        hass.bus.async_fire(f"{DOMAIN}_focused_repair_prompt_created", {
+            "plan_id": plan_id,
+            "prompt_path": prompt_path,
+        })
+
     schema = vol.Schema({vol.Optional("comprehensive", default=False): bool})
+    focused_schema = vol.Schema({vol.Required("plan_id"): str})
     hass.services.async_register(DOMAIN, "run_diagnostics", run_diagnostics, schema=schema)
     hass.services.async_register(DOMAIN, "generate_report", generate_report, schema=schema)
     hass.services.async_register(DOMAIN, "generate_ai_repair_prompt", generate_ai_repair_prompt, schema=schema)
+    hass.services.async_register(DOMAIN, "generate_focused_repair_prompt", generate_focused_repair_prompt, schema=focused_schema)
 
 
 def _get_coordinator(hass):
