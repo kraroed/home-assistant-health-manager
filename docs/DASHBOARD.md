@@ -58,7 +58,7 @@ cards:
   - type: markdown
     title: Repair investigation history
     content: |
-      {% set investigations = state_attr('sensor.repair_investigations', 'investigations') or [] %}
+      {% set investigations = state_attr('sensor.home_assistant_health_manager_repair_investigations', 'investigations') or [] %}
       {% if investigations %}
       {% for item in investigations %}
       **{{ item.title }}** ({{ item.severity | upper }}) — `{{ item.status }}`
