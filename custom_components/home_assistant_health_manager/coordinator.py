@@ -62,12 +62,18 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         try:
             if self.entry.options.get("monthly_reviews", True) and _is_due(self.schedule.get("next_monthly"), now):
                 await self.async_generate_report(comprehensive=True)
-                self.schedule["next_monthly"] = (now + timedelta(days=30)).isoformat()
-                await self.store.async_save(self.schedule)
+                async with self._state_lock:
+                    schedule = deepcopy(self.schedule)
+                    schedule["next_monthly"] = (now + timedelta(days=30)).isoformat()
+                    await self.store.async_save(schedule)
+                    self.schedule = schedule
             elif self.entry.options.get("weekly_reports", True) and _is_due(self.schedule.get("next_weekly"), now):
                 await self.async_generate_report(comprehensive=False)
-                self.schedule["next_weekly"] = (now + timedelta(days=7)).isoformat()
-                await self.store.async_save(self.schedule)
+                async with self._state_lock:
+                    schedule = deepcopy(self.schedule)
+                    schedule["next_weekly"] = (now + timedelta(days=7)).isoformat()
+                    await self.store.async_save(schedule)
+                    self.schedule = schedule
             await self.async_request_refresh()
         except Exception:
             _LOGGER.exception("Scheduled health review failed")
