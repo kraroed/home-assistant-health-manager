@@ -82,3 +82,38 @@ def test_failed_integration_domains_and_entry_states_are_exposed():
     assert '"config_entry_states": data.get("config_entry_states", {})' in sensor
     assert "Failed integration domains:" in report
     assert "Integration setup states:" in report
+
+
+def test_scheduled_report_uses_imported_timedelta_and_report_generation_is_serialized():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    imported_datetime_names = {
+        alias.name
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "datetime"
+        for alias in node.names
+    }
+    assert "timedelta" in imported_datetime_names
+
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    report_method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_generate_report"
+    )
+    assert any(
+        isinstance(node, ast.AsyncWith)
+        and any(
+            isinstance(item.context_expr, ast.Attribute)
+            and item.context_expr.attr == "_report_lock"
+            for item in node.items
+        )
+        for node in ast.walk(report_method)
+    )
+    assert any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "_async_generate_report_locked"
+        for node in ast.walk(report_method)
+    )
