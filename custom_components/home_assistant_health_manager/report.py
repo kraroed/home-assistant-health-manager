@@ -71,6 +71,7 @@ def _write_report_sync(
         f"Configured integration inventory: {snapshot.get('integration_inventory', {})}",
         f"Integration domains needing attention: {snapshot.get('integration_inventory', {}).get('attention_domains', [])}",
         f"Log levels: {analysis.get('level_counts', {})}",
+        f"Integration log evidence: {analysis.get('integration_log_evidence', {})}",
         f"Recommendations: {len(recommendations)}",
         f"Tracked issues: {issue_summary.get('tracked_issue_count', 0)}",
         f"Active tracked issues: {issue_summary.get('active_tracked_issue_count', 0)}",
