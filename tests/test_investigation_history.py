@@ -47,3 +47,13 @@ def test_status_validation_and_history_are_bounded():
     assert summary["investigation_count"] == 50
     assert len(summary["investigations"]) == 50
     assert summary["investigation_status_counts"]["prompt_generated"] == 50
+
+
+def test_dashboard_investigation_options_are_readable_and_map_to_exact_ids():
+    options = HISTORY.build_investigation_options([
+        {"plan_id": "mqtt", "title": "MQTT setup needs review", "status": "in_progress", "last_updated": "2026-11-15T12:00:00+00:00"},
+        {"plan_id": "zha", "title": "ZHA unavailable entities", "status": "needs_follow_up", "last_updated": "2026-11-15T11:00:00+00:00"},
+    ])
+    assert len(options) == 2
+    assert set(options.values()) == {"mqtt", "zha"}
+    assert any(label.startswith("In Progress · MQTT setup needs review") for label in options)
