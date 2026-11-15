@@ -21,3 +21,7 @@ A persisted schedule checks for weekly and monthly reports hourly. First-run sch
 ## Persistent diagnostic history
 
 The integration stores issue lifecycle records and up to 90 aggregate report-time trend samples using Home Assistant's local Store helper. Issue occurrence counts increase only when an issue previously marked resolved becomes active again; repeated observations during the same active period update last-seen metadata without incrementing recurrence. Recurrence summaries expose rule identifiers, short titles, severity, status, occurrence counts, and timestamps. Active recurring issues produce an additional advisory recommendation. This is recurrence of a diagnostic rule, not proof of an identical root cause. Trend samples store aggregate counts and statuses only. Neither history stores entity IDs, config-entry IDs, raw log text, or configuration contents.
+
+## Persisted-state recovery
+
+The coordinator validates the shape of its local schedule store during setup before registering its periodic callback. If the top-level stored value is not a dictionary, it starts from safe defaults. Invalid history containers and malformed history records are discarded individually, while valid records and unknown forward-compatible keys are preserved. Invalid cached repair-plan/compatibility objects and invalid report counters are reset to safe defaults. This is a recovery boundary for malformed local state, not a backup or migration mechanism; users should still keep normal Home Assistant backups.
