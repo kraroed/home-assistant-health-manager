@@ -187,5 +187,7 @@ def test_status_selector_handles_selection_that_went_stale(selector_module):
     entity = module.InvestigationStatusSelect(coordinator, FakeEntry())
 
     assert entity.current_option is None
+    assert entity.extra_state_attributes["selection_required"] is True
+    assert entity.extra_state_attributes["selection_stale"] is True
     with pytest.raises(ValueError, match="No investigation history"):
         asyncio.run(entity.async_select_option("resolved"))
