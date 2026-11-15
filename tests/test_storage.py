@@ -55,3 +55,9 @@ def test_schedule_normalization_repairs_malformed_fields_and_preserves_valid_his
 def test_schedule_normalization_rejects_boolean_report_count():
     result = STORAGE.normalize_schedule_data({"report_count": True})
     assert result["report_count"] == 0
+
+
+
+def test_schedule_normalization_discards_invalid_last_report_path():
+    result = STORAGE.normalize_schedule_data({"last_report_path": {"unexpected": "shape"}})
+    assert "last_report_path" not in result
