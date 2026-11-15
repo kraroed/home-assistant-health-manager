@@ -404,3 +404,123 @@ def test_scheduled_report_rechecks_due_state_after_serialization_lock():
         )
     )
     assert guard_index < collection_index
+
+
+def test_startup_recovery_and_store_save_complete_before_scheduled_callback_registration():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    setup = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_setup_schedule"
+    )
+    statements = setup.body
+    report_recovery = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "async_reconcile_report_transactions"
+            for node in ast.walk(statement)
+        )
+    )
+    prompt_recovery = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "async_reconcile_focused_prompt_transactions"
+            for node in ast.walk(statement)
+        )
+    )
+    store_save = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "async_save"
+            for node in ast.walk(statement)
+        )
+    )
+    callback_registration = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "async_track_time_interval"
+            for node in ast.walk(statement)
+        )
+    )
+    assert report_recovery < store_save < callback_registration
+    assert prompt_recovery < store_save < callback_registration
+
+
+def test_focused_prompt_live_schedule_is_committed_only_after_store_save():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_generate_focused_repair_prompt"
+    )
+    statements = method.body
+    store_save = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "async_save"
+            for node in ast.walk(statement)
+        )
+    )
+    schedule_commit = next(
+        index for index, statement in enumerate(statements)
+        if isinstance(statement, ast.Assign)
+        and any(
+            isinstance(target, ast.Attribute)
+            and target.attr == "schedule"
+            for target in statement.targets
+        )
+    )
+    marker_commit = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "async_commit_focused_prompt"
+            for node in ast.walk(statement)
+        )
+    )
+    assert store_save < schedule_commit < marker_commit
+
+
+def test_coordinator_shutdown_unregisters_scheduled_callback():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    shutdown = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.FunctionDef) and node.name == "async_shutdown"
+    )
+    calls = [
+        node.func.attr
+        for node in ast.walk(shutdown)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    ]
+    assert "self._schedule_unsub" in ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), shutdown
+    )
+    assert calls.count("__call__") == 0
+    assert "self._schedule_unsub()" in ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), shutdown
+    )
+    assert "self._schedule_unsub = None" in ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), shutdown
+    )
