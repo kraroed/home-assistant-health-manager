@@ -32,9 +32,9 @@ def test_schedule_normalization_repairs_malformed_fields_and_preserves_valid_his
     source = {
         "issue_history": {"mqtt": valid_issue, "broken": "not-a-record"},
         "change_history": None,
-        "trend_history": [{"sample": 1}],
+        "trend_history": [{"sample": 1}, "corrupt-record"],
         "integration_trend_history": {},
-        "investigation_history": [valid_investigation],
+        "investigation_history": [valid_investigation, None],
         "last_repair_plan": None,
         "last_compatibility": [],
         "report_count": -3,
