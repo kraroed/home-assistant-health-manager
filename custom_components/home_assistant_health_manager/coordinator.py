@@ -32,6 +32,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule = {}
         self.last_report_path = None
         self.last_prompt_path = None
+        self.last_repair_context = None
         self._schedule_unsub = None
         self.hass.data[f"{DOMAIN}_retention_days"] = entry.options.get("retention_days", 90)
 
@@ -153,7 +154,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         safe_recommendations, _ = redact_object(recommendations)
         safe_analysis, _ = redact_object(analysis)
         safe_snapshot['compatibility_assessment'] = safe_compatibility
-        self.schedule['last_repair_context'] = {
+        self.last_repair_context = {
             'generated_at': now.isoformat(),
             'snapshot': safe_snapshot,
             'analysis': safe_analysis,
@@ -178,7 +179,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
 
     async def async_generate_focused_repair_prompt(self, plan_id):
         """Generate a focused prompt for one item from the latest report."""
-        context = self.schedule.get('last_repair_context')
+        context = self.last_repair_context
         if not context:
             raise RuntimeError('Generate a diagnostic report before requesting a focused repair prompt.')
         prompt = build_focused_repair_prompt(context, plan_id)
