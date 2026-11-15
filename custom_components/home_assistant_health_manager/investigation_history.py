@@ -40,7 +40,7 @@ def set_investigation_status(history, plan_id, status, now):
     """Update a user's tracking label for an existing investigation."""
     if status not in VALID_STATUSES:
         raise ValueError(f"Unsupported investigation status: {status}")
-    records = [dict(item) for item in history if isinstance(item, dict)]
+    records = [dict(item) for item in history if isinstance(item, dict)] if isinstance(history, list) else []
     for item in records:
         if item.get("plan_id") == plan_id:
             item["status"] = status
