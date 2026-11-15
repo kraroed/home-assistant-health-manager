@@ -2,6 +2,7 @@ from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .investigation_history import build_selected_investigation
 
 SENSORS = [
     ("status", "Health Status", None, None),
@@ -19,6 +20,7 @@ SENSORS = [
     ("active_recurring_issue_count", "Active Recurring Issues", "issues", SensorStateClass.MEASUREMENT),
     ("repair_plan_items", "Prioritized Repair Plan Items", "items", SensorStateClass.MEASUREMENT),
     ("repair_investigations", "Repair Investigations", "investigations", SensorStateClass.MEASUREMENT),
+    ("selected_investigation", "Selected Investigation", None, None),
     ("core_update_status", "Core Update", None, None),
     ("supervisor_update_status", "Supervisor Update", None, None),
     ("operating_system_update_status", "Operating System Update", None, None),
@@ -62,6 +64,11 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("repair_plan", {}).get("item_count", 0)
         if self.key == "repair_investigations":
             return data.get("investigation_count", 0)
+        if self.key == "selected_investigation":
+            selected = build_selected_investigation(
+                data, self.coordinator.selected_investigation_plan_id
+            )["selected"]
+            return selected.get("title") if selected else "none_selected"
         if self.key == "diagnostic_change_events":
             return data.get("diagnostic_change_history", {}).get("change_event_count", 0)
         if self.key == "diagnostic_coverage":
@@ -124,6 +131,14 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "investigations": data.get("investigations", []),
                 "status_counts": data.get("investigation_status_counts", {}),
                 "retained_limit": 50,
+            }
+        if self.key == "selected_investigation":
+            return {
+                **build_selected_investigation(
+                    data, self.coordinator.selected_investigation_plan_id
+                ),
+                "selection_required": self.coordinator.selected_investigation_plan_id is None,
+                "scope_note": "Finding details come from the latest generated repair plan. Investigation status is a user tracking label, not verification.",
             }
         if self.key == "integration_attention_domains":
             return {
