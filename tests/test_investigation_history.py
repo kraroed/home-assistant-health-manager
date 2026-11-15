@@ -57,3 +57,29 @@ def test_dashboard_investigation_options_are_readable_and_map_to_exact_ids():
     assert len(options) == 2
     assert set(options.values()) == {"mqtt", "zha"}
     assert any(label.startswith("In Progress · MQTT setup needs review") for label in options)
+
+
+def test_selected_investigation_returns_matching_history_and_latest_finding():
+    data = {
+        "investigations": [
+            {"plan_id": "integration_mqtt", "title": "MQTT needs attention", "status": "in_progress"},
+            {"plan_id": "integration_zha", "title": "ZHA review", "status": "prompt_generated"},
+        ],
+        "repair_plan": {
+            "items": [
+                {"plan_id": "integration_mqtt", "evidence": [{"type": "integration_trend"}], "suggested_actions": ["Review MQTT logs"]},
+                {"plan_id": "integration_zha"},
+            ]
+        },
+    }
+    selected = HISTORY.build_selected_investigation(data, "integration_mqtt")
+    assert selected["selected"]["status"] == "in_progress"
+    assert selected["finding"]["evidence"][0]["type"] == "integration_trend"
+    assert selected["finding"]["suggested_actions"] == ["Review MQTT logs"]
+
+
+def test_selected_investigation_handles_missing_or_stale_selection():
+    assert HISTORY.build_selected_investigation({}, None) == {"selected": None, "finding": None}
+    assert HISTORY.build_selected_investigation(
+        {"investigations": [], "repair_plan": {"items": []}}, "stale"
+    ) == {"selected": None, "finding": None}
