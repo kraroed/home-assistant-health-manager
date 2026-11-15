@@ -151,6 +151,11 @@ def _write_report_sync(
             ) >= cutoff:
                 continue
             base = report_zip.stem
+            # A pending marker is a live recovery record. Leave the entire
+            # artifact set untouched until startup reconciliation determines
+            # whether its Store transaction committed.
+            if (directory / f".{base}.pending").exists():
+                continue
             for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
                 (directory / f"{base}{suffix}").unlink(missing_ok=True)
             (directory / f".{base}.complete").unlink(missing_ok=True)
