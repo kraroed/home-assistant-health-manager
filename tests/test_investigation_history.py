@@ -143,3 +143,20 @@ def test_investigation_history_tolerates_malformed_sort_timestamps_and_generatio
     )
     assert status_updated[0]["plan_id"] == "mqtt"
     assert status_updated[0]["status"] == "resolved"
+
+
+def test_investigation_helpers_tolerate_unhashable_persisted_status_values():
+    summary = HISTORY.summarize_investigations([
+        {"plan_id": "mqtt", "status": ["corrupt"]},
+        {"plan_id": "zha", "status": {"unexpected": "shape"}},
+        {"plan_id": "zwave", "status": "resolved"},
+    ])
+    assert summary["investigation_status_counts"]["resolved"] == 1
+    assert sum(summary["investigation_status_counts"].values()) == 1
+
+    try:
+        HISTORY.set_investigation_status([], "mqtt", ["resolved"], "now")
+    except ValueError as err:
+        assert "Unsupported investigation status" in str(err)
+    else:
+        raise AssertionError("Non-string statuses must be rejected")
