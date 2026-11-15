@@ -404,3 +404,51 @@ def test_reconcile_does_not_finalize_store_referenced_report_when_zip_is_missing
     assert not list(tmp_path.glob(f"{base}*"))
     assert not pending.exists()
     assert not (tmp_path / f".{base}.complete").exists()
+
+
+
+def test_report_reconciliation_retains_marker_when_artifact_cleanup_fails(tmp_path, monkeypatch):
+    base = "health_report_20261115T120000000000Z"
+    _make_report_artifacts(tmp_path, base)
+    marker = tmp_path / f".{base}.pending"
+    marker.touch()
+    original_unlink = Path.unlink
+
+    def fail_one_artifact(path, *args, **kwargs):
+        if path.name == f"{base}.txt":
+            raise OSError("simulated temporary filesystem failure")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_one_artifact)
+    REPORT._reconcile_report_transactions_sync(tmp_path, None)
+    assert marker.exists()
+    assert (tmp_path / f"{base}.txt").exists()
+
+    monkeypatch.setattr(Path, "unlink", original_unlink)
+    REPORT._reconcile_report_transactions_sync(tmp_path, None)
+    assert not marker.exists()
+    assert not list(tmp_path.glob(f"{base}*"))
+
+
+def test_focused_prompt_reconciliation_retains_marker_when_prompt_cleanup_fails(tmp_path, monkeypatch):
+    prompt = "focused_repair_mqtt_20261115T120000000000Z.md"
+    path = tmp_path / prompt
+    path.write_text("orphan prompt", encoding="utf-8")
+    marker = tmp_path / f".{prompt}.pending"
+    marker.touch()
+    original_unlink = Path.unlink
+
+    def fail_prompt(path, *args, **kwargs):
+        if path.name == prompt:
+            raise OSError("simulated temporary filesystem failure")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_prompt)
+    REPORT._reconcile_focused_prompt_transactions_sync(tmp_path, set())
+    assert path.exists()
+    assert marker.exists()
+
+    monkeypatch.setattr(Path, "unlink", original_unlink)
+    REPORT._reconcile_focused_prompt_transactions_sync(tmp_path, set())
+    assert not path.exists()
+    assert not marker.exists()
