@@ -234,3 +234,43 @@ def test_diagnostic_history_store_failure_does_not_mutate_live_schedule():
     assert "schedule = deepcopy(self.schedule)" in source
     assert "await self.store.async_save(schedule)" in source
     assert "self.schedule = schedule" in source
+
+
+
+def test_report_transaction_is_reconciled_at_startup_and_committed_after_store_save():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    setup = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_setup_schedule"
+    )
+    setup_calls = [
+        node.func.id if isinstance(node.func, ast.Name)
+        else node.func.attr if isinstance(node.func, ast.Attribute)
+        else None
+        for node in ast.walk(setup)
+        if isinstance(node, ast.Call)
+    ]
+    assert "async_reconcile_report_transactions" in setup_calls
+
+    report = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_generate_report_locked"
+    )
+    report_source = ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), report
+    )
+    assert 'schedule["last_report_path"] = path' in report_source
+    assert report_source.index("await self.store.async_save(schedule)") < report_source.index("await async_commit_report")
+
+
+def test_report_module_uses_pending_and_complete_transaction_markers():
+    source = (INTEGRATION / "report.py").read_text(encoding="utf-8")
+    assert 'marker_path.touch()' in source
+    assert 'f".{base}.pending"' in source
+    assert 'f".{base}.complete"' in source
+    assert "async_reconcile_report_transactions" in source
+    assert "committed_report_path" in source
