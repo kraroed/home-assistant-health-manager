@@ -303,3 +303,33 @@ def test_focused_prompt_transaction_is_reconciled_and_committed_after_store_save
         (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), method
     )
     assert source.index("await self.store.async_save(schedule)") < source.index("await async_commit_focused_prompt")
+
+
+
+def test_scheduled_report_advances_due_date_in_same_store_transaction():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    scheduled = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_scheduled_check"
+    )
+    scheduled_source = ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), scheduled
+    )
+    assert 'scheduled_period="next_monthly"' in scheduled_source
+    assert 'scheduled_period="next_weekly"' in scheduled_source
+    assert "self.store.async_save" not in scheduled_source
+
+    report = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_generate_report_locked"
+    )
+    report_source = ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), report
+    )
+    assert 'schedule["next_monthly"]' in report_source
+    assert 'schedule["next_weekly"]' in report_source
+    assert report_source.index('schedule["next_weekly"]') < report_source.index("await self.store.async_save(schedule)")
