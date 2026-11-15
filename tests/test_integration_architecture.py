@@ -274,3 +274,32 @@ def test_report_module_uses_pending_and_complete_transaction_markers():
     assert 'f".{base}.complete"' in source
     assert "async_reconcile_report_transactions" in source
     assert "committed_report_path" in source
+
+
+
+def test_focused_prompt_transaction_is_reconciled_and_committed_after_store_save():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    setup = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_setup_schedule"
+    )
+    assert any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "async_reconcile_focused_prompt_transactions"
+        for node in ast.walk(setup)
+    )
+
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_generate_focused_repair_prompt"
+    )
+    source = ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), method
+    )
+    assert source.index("await self.store.async_save(schedule)") < source.index("await async_commit_focused_prompt")
