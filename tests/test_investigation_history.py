@@ -83,3 +83,29 @@ def test_selected_investigation_handles_missing_or_stale_selection():
     assert HISTORY.build_selected_investigation(
         {"investigations": [], "repair_plan": {"items": []}}, "stale"
     ) == {"selected": None, "finding": None}
+
+
+
+def test_investigation_helpers_tolerate_malformed_stored_shapes():
+    assert HISTORY.summarize_investigations(None)["investigation_count"] == 0
+    assert HISTORY.build_investigation_options(None) == {}
+    assert HISTORY.record_investigation(
+        None,
+        {"plan_id": "mqtt", "title": "MQTT review"},
+        "/config/health_manager/reports/focused.md",
+        "2026-11-15T10:00:00+00:00",
+    )[0]["plan_id"] == "mqtt"
+    assert HISTORY.build_selected_investigation(
+        {"investigations": "invalid", "repair_plan": None}, "mqtt"
+    ) == {"selected": None, "finding": None}
+
+
+def test_selected_investigation_tolerates_malformed_repair_plan_items():
+    data = {
+        "investigations": [{"plan_id": "mqtt", "title": "MQTT review"}],
+        "repair_plan": {"items": None},
+    }
+    assert HISTORY.build_selected_investigation(data, "mqtt") == {
+        "selected": {"plan_id": "mqtt", "title": "MQTT review"},
+        "finding": None,
+    }
