@@ -3,11 +3,11 @@
 import re
 from collections import Counter
 
-LEVEL_RE = re.compile(r"\\b(CRITICAL|FATAL|ERROR|WARNING|WARN)\\b", re.I)
-TIMESTAMP_PREFIX = re.compile(r"^\\s*\\S+\\s+\\S+\\s+")
-LOGGER_RE = re.compile(r"\\([^)]*\\)\\s+\\[([A-Za-z_][A-Za-z0-9_.]*)\\]")
-CORE_COMPONENT_RE = re.compile(r"^homeassistant\\.components\\.([a-z0-9_]+)(?:\\.|$)")
-CUSTOM_COMPONENT_RE = re.compile(r"^custom_components\\.([a-z0-9_]+)(?:\\.|$)")
+LEVEL_RE = re.compile(r"\b(CRITICAL|FATAL|ERROR|WARNING|WARN)\b", re.I)
+TIMESTAMP_PREFIX = re.compile(r"^\s*\S+\s+\S+\s+")
+LOGGER_RE = re.compile(r"\([^)]*\)\s+\[([A-Za-z_][A-Za-z0-9_.]*)\]")
+CORE_COMPONENT_RE = re.compile(r"^homeassistant\.components\.([a-z0-9_]+)(?:\.|$)")
+CUSTOM_COMPONENT_RE = re.compile(r"^custom_components\.([a-z0-9_]+)(?:\.|$)")
 
 
 def _attributed_domain(line):
