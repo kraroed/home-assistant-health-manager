@@ -274,10 +274,11 @@ def test_retention_does_not_delete_pending_transaction_marker(tmp_path):
 
     _write_report(REPORT, tmp_path, retention_days=90)
 
-    # Pending markers are recovery signals; startup reconciliation, not
-    # ordinary retention, decides whether their transaction was committed.
+    # Pending markers are recovery signals; ordinary retention must not
+    # delete any part of the artifact set before startup reconciliation.
     assert pending.exists()
-    assert not list(tmp_path.glob(f"{base}*"))
+    assert all((tmp_path / f"{base}{suffix}").exists()
+               for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"))
 
 
 def test_reconcile_keeps_only_store_referenced_report_among_pending_transactions(tmp_path):
