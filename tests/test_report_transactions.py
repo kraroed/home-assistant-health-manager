@@ -385,3 +385,22 @@ def test_focused_prompt_retention_preserves_pending_transaction_until_reconcilia
 
     assert pending_prompt.read_text(encoding="utf-8") == "prompt being committed"
     assert marker.exists()
+
+
+
+def test_reconcile_does_not_finalize_store_referenced_report_when_zip_is_missing(tmp_path):
+    base = "health_report_20261115T120000000000Z"
+    # Simulate an incomplete artifact set whose ZIP (the Store's canonical
+    # reference) is missing even though other published files remain.
+    for suffix in (".json", ".txt", "_ai_repair_prompt.md"):
+        (tmp_path / f"{base}{suffix}").write_text("partial", encoding="utf-8")
+    pending = tmp_path / f".{base}.pending"
+    pending.touch()
+
+    REPORT._reconcile_report_transactions_sync(
+        tmp_path, str(tmp_path / f"{base}.zip")
+    )
+
+    assert not list(tmp_path.glob(f"{base}*"))
+    assert not pending.exists()
+    assert not (tmp_path / f".{base}.complete").exists()
