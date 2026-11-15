@@ -517,3 +517,55 @@ def test_coordinator_shutdown_unregisters_scheduled_callback():
     assert "self._schedule_unsub = None" in ast.get_source_segment(
         (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), shutdown
     )
+
+
+
+def test_focused_prompt_retention_uses_pretransaction_history_and_saves_before_live_commit():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_generate_focused_repair_prompt"
+    )
+    statements = method.body
+    preserved = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Name) and node.id == "preserved_prompt_paths"
+            for node in ast.walk(statement)
+        )
+    )
+    record = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "record_investigation"
+            for node in ast.walk(statement)
+        )
+    )
+    save = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "async_save"
+            for node in ast.walk(statement)
+        )
+    )
+    live_commit = next(
+        index for index, statement in enumerate(statements)
+        if isinstance(statement, ast.Assign)
+        and any(
+            isinstance(node, ast.Attribute)
+            and node.attr == "schedule"
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "self"
+            for node in ast.walk(statement)
+        )
+    )
+    assert preserved < record < save < live_commit
