@@ -130,6 +130,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
 
     async def _async_generate_report_locked(self, comprehensive=False, scheduled_period=None):
         schedule = deepcopy(self.schedule)
+        # A second interval callback may have queued while another scheduled
+        # report held the locks. Re-check due state after acquiring them.
+        if scheduled_period and not _is_due(schedule.get(scheduled_period), datetime.now(timezone.utc)):
+            return None
         snapshot = collect_snapshot(self.hass)
         change_history, change_summary = update_change_history(schedule.get('change_history', []), snapshot, snapshot['collected_at'])
         schedule['change_history'] = change_history
