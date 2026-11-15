@@ -191,31 +191,38 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         context = self.last_repair_context
         if not context:
             raise RuntimeError('Generate a diagnostic report before requesting a focused repair prompt.')
+        plan_item = next(
+            (item for item in context.get("repair_plan", {}).get("items", [])
+             if item.get("plan_id") == plan_id),
+            None,
+        )
+        if plan_item is None:
+            raise ValueError(f"Repair plan item not found: {plan_id}")
         prompt = build_focused_repair_prompt(context, plan_id)
         prompt_path = await write_focused_repair_prompt(self.hass, plan_id, prompt)
-        plan_item = next(
-            item for item in context.get("repair_plan", {}).get("items", [])
-            if item.get("plan_id") == plan_id
-        )
-        self.schedule["investigation_history"] = record_investigation(
-            self.schedule.get("investigation_history", []),
+        schedule = deepcopy(self.schedule)
+        schedule["investigation_history"] = record_investigation(
+            schedule.get("investigation_history", []),
             plan_item,
             prompt_path,
             datetime.now(timezone.utc).isoformat(),
         )
-        await self.store.async_save(self.schedule)
+        await self.store.async_save(schedule)
+        self.schedule = schedule
         await self.async_request_refresh()
         return prompt_path
 
     async def async_set_investigation_status(self, plan_id, status):
         """Record the user's tracking status; this never changes the system."""
-        self.schedule["investigation_history"] = set_investigation_status(
-            self.schedule.get("investigation_history", []),
+        schedule = deepcopy(self.schedule)
+        schedule["investigation_history"] = set_investigation_status(
+            schedule.get("investigation_history", []),
             plan_id,
             status,
             datetime.now(timezone.utc).isoformat(),
         )
-        await self.store.async_save(self.schedule)
+        await self.store.async_save(schedule)
+        self.schedule = schedule
         await self.async_request_refresh()
 
 
