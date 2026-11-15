@@ -34,6 +34,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.last_report_path = None
         self.last_prompt_path = None
         self.last_repair_context = None
+        self.selected_investigation_plan_id = None
         self._schedule_unsub = None
         self.hass.data[f"{DOMAIN}_retention_days"] = entry.options.get("retention_days", 90)
 
