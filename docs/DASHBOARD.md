@@ -41,6 +41,8 @@ cards:
         name: Active recurring issues
       - entity: sensor.prioritized_repair_plan_items
         name: Prioritized repair plan items
+      - entity: sensor.repair_investigations
+        name: Focused repair investigations
       - entity: select.home_assistant_health_manager_generate_focused_repair_prompt
         name: Generate focused AI investigation prompt
       - entity: sensor.diagnostic_coverage
@@ -116,3 +118,19 @@ After generating a diagnostic report, use the **Generate focused AI investigatio
 The selector is populated from the latest report. Generate or refresh a report if the list is empty or a finding has changed. An obsolete selection is rejected rather than silently mapped to another issue. Selecting an item only creates a local prompt; it does not modify Home Assistant configuration or perform repairs.
 
 For automations or scripts, the `home_assistant_health_manager.generate_focused_repair_prompt` service remains available with the exact `plan_id` from the repair-plan sensor attributes.
+
+
+## Track focused repair investigations
+
+The **Repair Investigations** sensor retains up to 50 focused-prompt records locally. Its attributes show the plan ID, finding title/severity, prompt path, first/last generation times, generation count, and your tracking status. Generating another prompt for the same plan item increments its count rather than creating duplicate history entries.
+
+Use the status service to update your own workflow label:
+
+```yaml
+action: home_assistant_health_manager.set_repair_investigation_status
+data:
+  plan_id: integration_mqtt
+  status: in_progress
+```
+
+Supported statuses are `prompt_generated`, `in_progress`, `resolved`, `needs_follow_up`, and `dismissed`. Use the exact plan ID from the Repair Investigations sensor attributes. A `resolved` label is only your tracking note; it does not verify that the underlying Home Assistant issue is fixed. Status changes never run repairs or modify integrations, entities, or configuration.
