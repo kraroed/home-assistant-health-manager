@@ -452,3 +452,51 @@ def test_focused_prompt_reconciliation_retains_marker_when_prompt_cleanup_fails(
     REPORT._reconcile_focused_prompt_transactions_sync(tmp_path, set())
     assert not path.exists()
     assert not marker.exists()
+
+
+
+def test_cancelled_report_cleanup_retains_marker_when_artifact_removal_fails(tmp_path, monkeypatch):
+    base = "health_report_cancelled_cleanup"
+    _make_report_artifacts(tmp_path, base)
+    marker = tmp_path / f".{base}.pending"
+    marker.touch()
+    original_unlink = Path.unlink
+
+    def fail_zip(path, *args, **kwargs):
+        if path.name == f"{base}.zip":
+            raise OSError("simulated cleanup failure")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_zip)
+    REPORT._remove_report_artifacts_sync(str(tmp_path / f"{base}.zip"))
+    assert marker.exists()
+    assert (tmp_path / f"{base}.zip").exists()
+
+    monkeypatch.setattr(Path, "unlink", original_unlink)
+    REPORT._remove_report_artifacts_sync(str(tmp_path / f"{base}.zip"))
+    assert not marker.exists()
+    assert not list(tmp_path.glob(f"{base}*"))
+
+
+def test_cancelled_focused_prompt_cleanup_retains_marker_when_removal_fails(tmp_path, monkeypatch):
+    prompt = "focused_repair_mqtt_cancelled_cleanup.md"
+    path = tmp_path / prompt
+    path.write_text("prompt", encoding="utf-8")
+    marker = tmp_path / f".{prompt}.pending"
+    marker.touch()
+    original_unlink = Path.unlink
+
+    def fail_prompt(candidate, *args, **kwargs):
+        if candidate.name == prompt:
+            raise OSError("simulated cleanup failure")
+        return original_unlink(candidate, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_prompt)
+    REPORT._remove_focused_prompt_artifacts_sync(str(path))
+    assert path.exists()
+    assert marker.exists()
+
+    monkeypatch.setattr(Path, "unlink", original_unlink)
+    REPORT._remove_focused_prompt_artifacts_sync(str(path))
+    assert not path.exists()
+    assert not marker.exists()
