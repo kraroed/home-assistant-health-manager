@@ -517,7 +517,7 @@ def test_coordinator_shutdown_unregisters_scheduled_callback():
     assert "self._schedule_unsub" in ast.get_source_segment(
         (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), shutdown
     )
-    assert calls.count("__call__") == 0
+    assert "_schedule_unsub" in calls
     assert "self._schedule_unsub()" in ast.get_source_segment(
         (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), shutdown
     )
