@@ -40,3 +40,26 @@ generate_focused_repair_prompt:
       required: true
       selector:
         text:
+
+set_repair_investigation_status:
+  name: Set repair investigation status
+  description: Update your local tracking label for a focused repair investigation. This does not mark a Home Assistant issue as technically fixed or change the system.
+  fields:
+    plan_id:
+      name: Repair plan item ID
+      description: Exact plan_id shown in the Repair Investigations sensor attributes.
+      required: true
+      selector:
+        text:
+    status:
+      name: Investigation status
+      description: Your tracking label for this investigation.
+      required: true
+      selector:
+        select:
+          options:
+            - prompt_generated
+            - in_progress
+            - resolved
+            - needs_follow_up
+            - dismissed
