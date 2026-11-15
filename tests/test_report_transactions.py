@@ -249,8 +249,10 @@ def test_retention_removes_every_expired_report_artifact_and_completion_marker(t
     import os
     import time
     old_time = time.time() - 400 * 24 * 60 * 60
-    for artifact in list(tmp_path.glob(f"{base}*")) + [complete]:
+    for artifact in tmp_path.glob(f"{base}*"):
         os.utime(artifact, (old_time, old_time))
+    # Completion markers are created after the Store save and are therefore
+    # newer than their report artifacts; retention still removes them.
 
     new_path = _write_report(REPORT, tmp_path, retention_days=90)
 
