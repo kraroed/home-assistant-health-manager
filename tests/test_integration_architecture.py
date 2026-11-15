@@ -136,7 +136,7 @@ def test_report_state_is_committed_only_after_report_write_and_store_save():
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
     ]
     assert any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "deepcopy" for node in ast.walk(method))
-    assert "write_report" in calls
+    assert any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "write_report" for node in ast.walk(method))
     assert "async_save" in calls
     save_index = next(
         index for index, statement in enumerate(method.body)
