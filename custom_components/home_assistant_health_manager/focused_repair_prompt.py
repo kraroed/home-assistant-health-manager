@@ -36,7 +36,29 @@ def build_focused_repair_prompt(context, plan_id):
         "related_log_evidence": [],
         "related_trend_evidence": [],
         "relevant_issue_history": [],
+        "general_diagnostic_evidence": {},
     }
+    if "unavailable_entities" in recommendation_ids:
+        focused_context["general_diagnostic_evidence"]["unavailable_entities"] = {
+            "count": snapshot.get("unavailable_entity_count"),
+            "counts_by_domain": snapshot.get("unavailable_counts_by_domain", {}),
+        }
+    if "unknown_entities" in recommendation_ids:
+        focused_context["general_diagnostic_evidence"]["unknown_entities"] = {
+            "count": snapshot.get("unknown_entity_count"),
+            "counts_by_domain": snapshot.get("unknown_counts_by_domain", {}),
+        }
+    if "failed_config_entries" in recommendation_ids:
+        focused_context["general_diagnostic_evidence"]["failed_config_entries"] = {
+            "count": snapshot.get("failed_config_entry_count"),
+            "domains": snapshot.get("failed_config_entry_domains", {}),
+            "setup_states": snapshot.get("config_entry_states", {}),
+        }
+    if "core_log_errors" in recommendation_ids or "repeated_warnings" in recommendation_ids:
+        focused_context["general_diagnostic_evidence"]["core_log"] = {
+            "level_counts": analysis.get("level_counts", {}),
+            "repeated_patterns": analysis.get("top_messages", [])[:10],
+        }
     if domain:
         inventory = snapshot.get("integration_inventory", {})
         focused_context["selected_integration"] = next(
