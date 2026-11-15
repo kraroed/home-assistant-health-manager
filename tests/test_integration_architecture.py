@@ -188,3 +188,49 @@ def test_report_artifacts_are_staged_before_publication_and_retention():
     assert "TemporaryDirectory" in source
     assert "os.replace(staged_path, final_path)" in source
     assert source.index("os.replace(staged_path, final_path)") < source.index("cutoff = now - timedelta")
+
+
+
+def test_all_schedule_writers_use_shared_state_lock():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method_names = {
+        "_async_update_data",
+        "async_generate_report",
+        "async_generate_focused_repair_prompt",
+        "async_set_investigation_status",
+        "_async_scheduled_check",
+    }
+    for method in (node for node in coordinator.body
+                   if isinstance(node, ast.AsyncFunctionDef) and node.name in method_names):
+        lock_blocks = [
+            node for node in ast.walk(method)
+            if isinstance(node, ast.AsyncWith)
+            and any(
+                isinstance(item.context_expr, ast.Attribute)
+                and item.context_expr.attr == "_state_lock"
+                for item in node.items
+            )
+        ]
+        assert lock_blocks, f"{method.name} must serialize schedule mutations"
+
+
+def test_diagnostic_history_store_failure_does_not_mutate_live_schedule():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_update_data"
+    )
+    source = ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), method
+    )
+    assert "schedule = deepcopy(self.schedule)" in source
+    assert "await self.store.async_save(schedule)" in source
+    assert "self.schedule = schedule" in source
