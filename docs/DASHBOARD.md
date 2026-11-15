@@ -87,3 +87,16 @@ The `Integration Trend Domains` sensor counts provider domains currently in an a
 Recurring issue sensors count problems that were detected, resolved, and later detected again. The Health Status sensor attributes include the bounded recurrence list with occurrence count and first/last-seen timestamps. Only currently active recurring issues create an additional advisory recommendation; resolved recurring issues remain visible as history. These recommendations never execute repairs.
 
 The `Prioritized Repair Plan Items` sensor counts the current report's deduplicated, severity-sorted plan. Its attributes expose each plan item, linked recommendation IDs, and related log/trend evidence. The Health Status sensor also includes the plan. The plan is populated when a diagnostic report is generated; it is advisory and never performs repairs.
+
+
+## Generate a focused investigation prompt
+
+After a report is generated, open the `Prioritized Repair Plan Items` sensor and copy the exact `plan_id` for the item you want to investigate. For example, if the selected item has `plan_id: integration_mqtt`, call the service:
+
+```yaml
+action: home_assistant_health_manager.generate_focused_repair_prompt
+data:
+  plan_id: integration_mqtt
+```
+
+Replace the example ID with the exact ID from your sensor attributes. Listen for the `home_assistant_health_manager_focused_repair_prompt_created` event; its `prompt_path` points to the Markdown file in `/config/health_manager/reports`. The service does not modify Home Assistant configuration or perform repairs.
