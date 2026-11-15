@@ -15,11 +15,24 @@ async def write_report(
 ):
     retention_days = hass.data.get(f"{DOMAIN}_retention_days", 90)
     directory = hass.config.path(REPORT_DIR)
-    return await asyncio.to_thread(
+    task = asyncio.create_task(asyncio.to_thread(
         _write_report_sync, directory, snapshot, analysis, sanitized_log,
         redaction_counts, recommendations, issue_history or {}, issue_summary or {},
         repair_prompt or "No AI repair prompt was generated.", compatibility or {}, change_summary or {}, retention_days
-    )
+    ))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        # Cancelling asyncio.to_thread does not stop its worker thread. Wait for
+        # publication to finish, then remove the uncommitted artifact set now
+        # rather than leaving cleanup solely to the next HA startup.
+        try:
+            report_path = await task
+        except Exception:
+            pass
+        else:
+            await asyncio.to_thread(_remove_report_artifacts_sync, report_path)
+        raise
 
 
 def _write_report_sync(
@@ -229,9 +242,21 @@ async def write_focused_repair_prompt(hass, plan_id, prompt):
     safe_id = "".join(char if char.isalnum() or char in "_-" else "_" for char in plan_id)[:80]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     retention_days = hass.data.get(f"{DOMAIN}_retention_days", 90)
-    return await asyncio.to_thread(
+    task = asyncio.create_task(asyncio.to_thread(
         _write_focused_prompt_sync, directory, safe_id, stamp, prompt, retention_days
-    )
+    ))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        # The worker may finish after its awaiting task is cancelled. Remove
+        # the prompt and pending marker so an uncommitted prompt is not orphaned.
+        try:
+            prompt_path = await task
+        except Exception:
+            pass
+        else:
+            await asyncio.to_thread(_remove_focused_prompt_artifacts_sync, prompt_path)
+        raise
 
 
 def _write_focused_prompt_sync(directory_path, safe_id, stamp, prompt, retention_days):
@@ -250,3 +275,32 @@ def _write_focused_prompt_sync(directory_path, safe_id, stamp, prompt, retention
             continue
     return str(path)
 
+
+
+def _remove_report_artifacts_sync(report_path):
+    """Remove an unpublished report set after its writer thread has finished."""
+    path = Path(report_path)
+    directory = path.parent
+    base = path.stem
+    for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
+        try:
+            (directory / f"{base}{suffix}").unlink(missing_ok=True)
+        except OSError:
+            continue
+    try:
+        (directory / f".{base}.pending").unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _remove_focused_prompt_artifacts_sync(prompt_path):
+    """Remove an unpublished focused prompt and its transaction marker."""
+    path = Path(prompt_path)
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        pass
+    try:
+        path.with_name(f".{path.name}.pending").unlink(missing_ok=True)
+    except OSError:
+        pass
