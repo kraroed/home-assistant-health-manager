@@ -4,6 +4,23 @@ MAX_INVESTIGATIONS = 50
 VALID_STATUSES = {"prompt_generated", "in_progress", "resolved", "needs_follow_up", "dismissed"}
 
 
+def _sort_timestamp(item):
+    """Return a comparable timestamp even when persisted history is malformed."""
+    value = item.get("last_updated")
+    return value if isinstance(value, str) else ""
+
+
+def _generation_count(item):
+    """Normalize an untrusted persisted generation counter."""
+    value = item.get("generation_count", 0)
+    if isinstance(value, bool):
+        return 0
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
 def record_investigation(history, plan_item, prompt_path, now):
     """Record prompt creation without retaining diagnostic evidence."""
     records = [dict(item) for item in history if isinstance(item, dict)] if isinstance(history, list) else []
@@ -17,7 +34,7 @@ def record_investigation(history, plan_item, prompt_path, now):
         existing["last_generated_at"] = now
         existing["last_updated"] = now
         existing["prompt_path"] = prompt_path
-        existing["generation_count"] = int(existing.get("generation_count", 0)) + 1
+        existing["generation_count"] = _generation_count(existing) + 1
         if existing.get("status") in {"resolved", "dismissed"}:
             existing["status"] = "prompt_generated"
     else:
@@ -32,7 +49,7 @@ def record_investigation(history, plan_item, prompt_path, now):
             "generation_count": 1,
             "prompt_path": prompt_path,
         })
-    records.sort(key=lambda item: item.get("last_updated", ""), reverse=True)
+    records.sort(key=_sort_timestamp, reverse=True)
     return records[:MAX_INVESTIGATIONS]
 
 
@@ -45,7 +62,7 @@ def set_investigation_status(history, plan_id, status, now):
         if item.get("plan_id") == plan_id:
             item["status"] = status
             item["last_updated"] = now
-            records.sort(key=lambda record: record.get("last_updated", ""), reverse=True)
+            records.sort(key=_sort_timestamp, reverse=True)
             return records[:MAX_INVESTIGATIONS]
     raise ValueError("No investigation history exists for that plan ID.")
 
@@ -69,7 +86,7 @@ def build_investigation_options(history):
     """Build readable dashboard choices mapped to stored investigation IDs."""
     options = {}
     records = [item for item in history if isinstance(item, dict)] if isinstance(history, list) else []
-    records.sort(key=lambda item: item.get("last_updated", ""), reverse=True)
+    records.sort(key=_sort_timestamp, reverse=True)
     for item in records[:MAX_INVESTIGATIONS]:
         plan_id = item.get("plan_id")
         if not isinstance(plan_id, str) or not plan_id:
