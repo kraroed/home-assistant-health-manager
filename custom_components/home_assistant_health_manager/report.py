@@ -188,6 +188,41 @@ def _commit_report_sync(directory, report_path):
         pending.replace(directory / f".{base}.complete")
 
 
+
+async def async_reconcile_focused_prompt_transactions(hass, investigation_history):
+    """Remove focused prompts left behind by an interrupted Store transaction."""
+    directory = Path(hass.config.path(REPORT_DIR))
+    committed_paths = {
+        Path(item["prompt_path"]).name
+        for item in investigation_history
+        if isinstance(item, dict) and isinstance(item.get("prompt_path"), str)
+    }
+    await asyncio.to_thread(_reconcile_focused_prompt_transactions_sync, directory, committed_paths)
+
+
+def _reconcile_focused_prompt_transactions_sync(directory, committed_paths):
+    if not directory.exists():
+        return
+    for marker in directory.glob(".focused_repair_*.md.pending"):
+        filename = marker.name[1:-len(".pending")]
+        if filename not in committed_paths:
+            try:
+                (directory / filename).unlink(missing_ok=True)
+            except OSError:
+                continue
+        try:
+            marker.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
+async def async_commit_focused_prompt(hass, prompt_path):
+    """Finalize a focused prompt after its investigation record is durable."""
+    path = Path(prompt_path)
+    marker = path.with_name(f".{path.name}.pending")
+    await asyncio.to_thread(marker.unlink, missing_ok=True)
+
+
 async def write_focused_repair_prompt(hass, plan_id, prompt):
     """Write one focused prompt locally without adding raw diagnostic data."""
     directory = hass.config.path(REPORT_DIR)
@@ -203,6 +238,8 @@ def _write_focused_prompt_sync(directory_path, safe_id, stamp, prompt, retention
     directory = Path(directory_path)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"focused_repair_{safe_id}_{stamp}.md"
+    marker = path.with_name(f".{path.name}.pending")
+    marker.touch()
     path.write_text(prompt, encoding="utf-8")
     cutoff = datetime.now(timezone.utc) - timedelta(days=max(7, min(int(retention_days), 365)))
     for old_file in directory.glob("focused_repair_*.md"):
