@@ -39,6 +39,8 @@ cards:
         name: Recurring issues
       - entity: sensor.active_recurring_issues
         name: Active recurring issues
+      - entity: sensor.prioritized_repair_plan_items
+        name: Prioritized repair plan items
       - entity: sensor.diagnostic_coverage
         name: Diagnostic coverage
       - entity: sensor.diagnostic_trend
@@ -83,3 +85,5 @@ The `Integration Attention Domains` sensor counts provider integrations with set
 The `Integration Trend Domains` sensor counts provider domains currently in an attention state. Its attributes show report-to-report counts, changes from the previous report, consecutive attention reports, and distinct attention episodes. A domain absent from a later inventory is marked not present rather than assumed resolved. History is local and bounded to 90 generated reports.
 
 Recurring issue sensors count problems that were detected, resolved, and later detected again. The Health Status sensor attributes include the bounded recurrence list with occurrence count and first/last-seen timestamps. Only currently active recurring issues create an additional advisory recommendation; resolved recurring issues remain visible as history. These recommendations never execute repairs.
+
+The `Prioritized Repair Plan Items` sensor counts the current report's deduplicated, severity-sorted plan. Its attributes expose each plan item, linked recommendation IDs, and related log/trend evidence. The Health Status sensor also includes the plan. The plan is populated when a diagnostic report is generated; it is advisory and never performs repairs.
