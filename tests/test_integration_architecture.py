@@ -531,41 +531,36 @@ def test_focused_prompt_retention_uses_pretransaction_history_and_saves_before_l
         if isinstance(node, ast.AsyncFunctionDef)
         and node.name == "async_generate_focused_repair_prompt"
     )
-    statements = method.body
+    nodes = list(ast.walk(method))
     preserved = next(
-        index for index, statement in enumerate(statements)
-        if any(
-            isinstance(node, ast.Name) and node.id == "preserved_prompt_paths"
-            for node in ast.walk(statement)
+        node for node in nodes
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "preserved_prompt_paths"
+            for target in node.targets
         )
     )
     record = next(
-        index for index, statement in enumerate(statements)
-        if any(
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id == "record_investigation"
-            for node in ast.walk(statement)
-        )
+        node for node in nodes
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "record_investigation"
     )
     save = next(
-        index for index, statement in enumerate(statements)
-        if any(
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "async_save"
-            for node in ast.walk(statement)
-        )
+        node for node in nodes
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "async_save"
     )
     live_commit = next(
-        index for index, statement in enumerate(statements)
-        if isinstance(statement, ast.Assign)
+        node for node in nodes
+        if isinstance(node, ast.Assign)
         and any(
-            isinstance(node, ast.Attribute)
-            and node.attr == "schedule"
-            and isinstance(node.value, ast.Name)
-            and node.value.id == "self"
-            for node in ast.walk(statement)
+            isinstance(target, ast.Attribute)
+            and target.attr == "schedule"
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "self"
+            for target in node.targets
         )
     )
-    assert preserved < record < save < live_commit
+    assert preserved.lineno < record.lineno < save.lineno < live_commit.lineno
