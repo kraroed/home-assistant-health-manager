@@ -202,7 +202,6 @@ def test_all_schedule_writers_use_shared_state_lock():
         "async_generate_report",
         "async_generate_focused_repair_prompt",
         "async_set_investigation_status",
-        "_async_scheduled_check",
     }
     for method in (node for node in coordinator.body
                    if isinstance(node, ast.AsyncFunctionDef) and node.name in method_names):
@@ -352,3 +351,22 @@ def test_coordinator_refresh_uses_one_locked_schedule_snapshot():
     assert "schedule_snapshot = deepcopy(self.schedule)" in source
     assert '"last_report_path": schedule_snapshot.get("last_report_path")' in source
     assert 'summarize_investigations(schedule_snapshot.get("investigation_history", []))' in source
+
+
+
+def test_scheduled_check_delegates_due_date_mutation_to_locked_report_transaction():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_scheduled_check"
+    )
+    source = ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), method
+    )
+    assert 'scheduled_period="next_monthly"' in source
+    assert 'scheduled_period="next_weekly"' in source
+    assert "self.schedule[" not in source
