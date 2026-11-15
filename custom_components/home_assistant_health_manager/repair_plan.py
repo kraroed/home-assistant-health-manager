@@ -15,6 +15,11 @@ def build_repair_plan(recommendations, integration_log_evidence=None, integratio
         if isinstance(item, dict) and item.get("id") != "no_rule_triggered"
     ]
     by_id = {item.get("id"): item for item in recommendations if isinstance(item.get("id"), str)}
+    recurring_bases = {
+        issue_id.removeprefix("recurring_issue_")
+        for issue_id in by_id
+        if issue_id.startswith("recurring_issue_")
+    }
     grouped = {}
 
     def group_key(item):
@@ -27,6 +32,8 @@ def build_repair_plan(recommendations, integration_log_evidence=None, integratio
             base_id = issue_id.removeprefix("recurring_issue_")
             if base_id in by_id:
                 return ("issue", base_id)
+        if issue_id in recurring_bases:
+            return ("issue", issue_id)
         return ("recommendation", issue_id)
 
     for item in recommendations:
