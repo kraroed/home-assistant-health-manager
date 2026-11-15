@@ -25,3 +25,8 @@ The integration stores issue lifecycle records and up to 90 aggregate report-tim
 ## Persisted-state recovery
 
 The coordinator validates the shape of its local schedule store during setup before registering its periodic callback. If the top-level stored value is not a dictionary, it starts from safe defaults. Invalid history containers and malformed history records are discarded individually, while valid records and unknown forward-compatible keys are preserved. Invalid cached repair-plan/compatibility objects and invalid report counters are reset to safe defaults. This is a recovery boundary for malformed local state, not a backup or migration mechanism; users should still keep normal Home Assistant backups.
+
+
+## Report publication recovery
+
+Report JSON, text, prompt, and ZIP artifacts are assembled in a temporary directory before publication. A hidden pending marker is created before the staged files are moved into the reports directory. The coordinator records the published ZIP path in the local Store and only then finalizes the marker. On startup, pending transactions are reconciled against that persisted path: a transaction referenced by the Store is finalized, while an unreferenced transaction and its partial artifacts are removed. Abandoned staging directories are also removed. Existing reports without transaction markers are left untouched. This closes the restart window between report publication and Store persistence; it does not replace normal backups.
