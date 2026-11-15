@@ -19,6 +19,7 @@ from .report import write_report, write_focused_repair_prompt
 from .repair_prompt import build_repair_prompt
 from .repair_plan import build_repair_plan
 from .focused_repair_prompt import build_focused_repair_prompt
+from .investigation_history import record_investigation, set_investigation_status, summarize_investigations
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule.setdefault("change_history", [])
         self.schedule.setdefault("trend_history", [])
         self.schedule.setdefault("integration_trend_history", [])
+        self.schedule.setdefault("investigation_history", [])
         await self.store.async_save(self.schedule)
         from homeassistant.helpers.event import async_track_time_interval
         self._schedule_unsub = async_track_time_interval(
@@ -97,6 +99,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "diagnostic_trend": summarize_trends(self.schedule.get("trend_history", [])),
                 "integration_trend_summary": summarize_integration_trends(self.schedule.get("integration_trend_history", [])),
                 "repair_plan": self.schedule.get("last_repair_plan", {}),
+                **summarize_investigations(self.schedule.get("investigation_history", [])),
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
@@ -183,7 +186,31 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         if not context:
             raise RuntimeError('Generate a diagnostic report before requesting a focused repair prompt.')
         prompt = build_focused_repair_prompt(context, plan_id)
-        return await write_focused_repair_prompt(self.hass, plan_id, prompt)
+        prompt_path = await write_focused_repair_prompt(self.hass, plan_id, prompt)
+        plan_item = next(
+            item for item in context.get("repair_plan", {}).get("items", [])
+            if item.get("plan_id") == plan_id
+        )
+        self.schedule["investigation_history"] = record_investigation(
+            self.schedule.get("investigation_history", []),
+            plan_item,
+            prompt_path,
+            datetime.now(timezone.utc).isoformat(),
+        )
+        await self.store.async_save(self.schedule)
+        await self.async_request_refresh()
+        return prompt_path
+
+    async def async_set_investigation_status(self, plan_id, status):
+        """Record the user's tracking status; this never changes the system."""
+        self.schedule["investigation_history"] = set_investigation_status(
+            self.schedule.get("investigation_history", []),
+            plan_id,
+            status,
+            datetime.now(timezone.utc).isoformat(),
+        )
+        await self.store.async_save(self.schedule)
+        await self.async_request_refresh()
 
 
 def _is_due(value, now):
