@@ -79,3 +79,22 @@ def build_investigation_options(history):
         label = f"{status} · {title[:130]} [{plan_id}]"
         options[label[:250]] = plan_id
     return options
+
+
+def build_selected_investigation(data, selected_plan_id):
+    """Return the selected history record and matching latest repair-plan finding."""
+    if not isinstance(data, dict) or not isinstance(selected_plan_id, str):
+        return {"selected": None, "finding": None}
+    history = data.get("investigations", [])
+    selected = next(
+        (dict(item) for item in history if isinstance(item, dict) and item.get("plan_id") == selected_plan_id),
+        None,
+    )
+    if selected is None:
+        return {"selected": None, "finding": None}
+    plan_items = data.get("repair_plan", {}).get("items", [])
+    finding = next(
+        (dict(item) for item in plan_items if isinstance(item, dict) and item.get("plan_id") == selected_plan_id),
+        None,
+    )
+    return {"selected": selected, "finding": finding}
