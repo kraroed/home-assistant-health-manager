@@ -201,16 +201,17 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         if plan_item is None:
             raise ValueError(f"Repair plan item not found: {plan_id}")
         prompt = build_focused_repair_prompt(context, plan_id)
-        prompt_path = await write_focused_repair_prompt(self.hass, plan_id, prompt)
-        schedule = deepcopy(self.schedule)
-        schedule["investigation_history"] = record_investigation(
-            schedule.get("investigation_history", []),
-            plan_item,
-            prompt_path,
-            datetime.now(timezone.utc).isoformat(),
-        )
-        await self.store.async_save(schedule)
-        self.schedule = schedule
+        async with self._state_lock:
+            prompt_path = await write_focused_repair_prompt(self.hass, plan_id, prompt)
+            schedule = deepcopy(self.schedule)
+            schedule["investigation_history"] = record_investigation(
+                schedule.get("investigation_history", []),
+                plan_item,
+                prompt_path,
+                datetime.now(timezone.utc).isoformat(),
+            )
+            await self.store.async_save(schedule)
+            self.schedule = schedule
         await self.async_request_refresh()
         return prompt_path
 
