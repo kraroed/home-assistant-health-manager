@@ -546,3 +546,40 @@ def test_reconcile_removes_stale_completion_marker_when_canonical_zip_is_missing
 
     assert not marker.exists()
     assert not (tmp_path / f"{base}.json").exists()
+
+
+def test_reconcile_preserves_completion_marker_when_orphan_cleanup_fails(tmp_path, monkeypatch):
+    base = "health_report_20261115T120000000000Z"
+    marker = tmp_path / f".{base}.complete"
+    marker.touch()
+    orphan = tmp_path / f"{base}.txt"
+    orphan.write_text("orphan summary", encoding="utf-8")
+    original_unlink = Path.unlink
+
+    def fail_orphan(path, *args, **kwargs):
+        if path.name == orphan.name:
+            raise OSError("simulated temporary filesystem failure")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_orphan)
+    REPORT._reconcile_report_transactions_sync(tmp_path, None)
+    assert marker.exists()
+    assert orphan.exists()
+
+    monkeypatch.setattr(Path, "unlink", original_unlink)
+    REPORT._reconcile_report_transactions_sync(tmp_path, None)
+    assert not marker.exists()
+    assert not orphan.exists()
+
+
+def test_reconcile_keeps_completion_marker_when_canonical_zip_exists(tmp_path):
+    base = "health_report_20261115T120000000000Z"
+    archive = tmp_path / f"{base}.zip"
+    archive.write_text("canonical report", encoding="utf-8")
+    marker = tmp_path / f".{base}.complete"
+    marker.touch()
+
+    REPORT._reconcile_report_transactions_sync(tmp_path, None)
+
+    assert archive.exists()
+    assert marker.exists()
