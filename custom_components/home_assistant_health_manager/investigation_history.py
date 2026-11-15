@@ -6,7 +6,7 @@ VALID_STATUSES = {"prompt_generated", "in_progress", "resolved", "needs_follow_u
 
 def record_investigation(history, plan_item, prompt_path, now):
     """Record prompt creation without retaining diagnostic evidence."""
-    records = [dict(item) for item in history if isinstance(item, dict)]
+    records = [dict(item) for item in history if isinstance(item, dict)] if isinstance(history, list) else []
     plan_id = plan_item.get("plan_id")
     if not isinstance(plan_id, str) or not plan_id:
         raise ValueError("A valid repair plan ID is required.")
@@ -52,7 +52,7 @@ def set_investigation_status(history, plan_id, status, now):
 
 def summarize_investigations(history):
     """Return bounded counts and records for dashboard/report presentation."""
-    records = [dict(item) for item in history if isinstance(item, dict)][:MAX_INVESTIGATIONS]
+    records = [dict(item) for item in history if isinstance(item, dict)][:MAX_INVESTIGATIONS] if isinstance(history, list) else []
     counts = {status: 0 for status in sorted(VALID_STATUSES)}
     for item in records:
         status = item.get("status")
@@ -68,7 +68,7 @@ def summarize_investigations(history):
 def build_investigation_options(history):
     """Build readable dashboard choices mapped to stored investigation IDs."""
     options = {}
-    records = [item for item in history if isinstance(item, dict)]
+    records = [item for item in history if isinstance(item, dict)] if isinstance(history, list) else []
     records.sort(key=lambda item: item.get("last_updated", ""), reverse=True)
     for item in records[:MAX_INVESTIGATIONS]:
         plan_id = item.get("plan_id")
@@ -86,13 +86,20 @@ def build_selected_investigation(data, selected_plan_id):
     if not isinstance(data, dict) or not isinstance(selected_plan_id, str):
         return {"selected": None, "finding": None}
     history = data.get("investigations", [])
+    if not isinstance(history, list):
+        history = []
     selected = next(
         (dict(item) for item in history if isinstance(item, dict) and item.get("plan_id") == selected_plan_id),
         None,
     )
     if selected is None:
         return {"selected": None, "finding": None}
-    plan_items = data.get("repair_plan", {}).get("items", [])
+    repair_plan = data.get("repair_plan")
+    if not isinstance(repair_plan, dict):
+        repair_plan = {}
+    plan_items = repair_plan.get("items", [])
+    if not isinstance(plan_items, list):
+        plan_items = []
     finding = next(
         (dict(item) for item in plan_items if isinstance(item, dict) and item.get("plan_id") == selected_plan_id),
         None,
