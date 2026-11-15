@@ -235,8 +235,15 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             if plan_item is None:
                 raise ValueError(f"Repair plan item not found: {plan_id}")
             prompt = build_focused_repair_prompt(context, plan_id)
-            prompt_path = await write_focused_repair_prompt(self.hass, plan_id, prompt)
             schedule = deepcopy(self.schedule)
+            preserved_prompt_paths = {
+                item.get("prompt_path")
+                for item in schedule.get("investigation_history", [])
+                if isinstance(item, dict) and isinstance(item.get("prompt_path"), str)
+            }
+            prompt_path = await write_focused_repair_prompt(
+                self.hass, plan_id, prompt, preserved_paths=preserved_prompt_paths
+            )
             schedule["investigation_history"] = record_investigation(
                 schedule.get("investigation_history", []),
                 plan_item,
