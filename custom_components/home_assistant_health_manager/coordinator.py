@@ -217,15 +217,16 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
 
     async def async_set_investigation_status(self, plan_id, status):
         """Record the user's tracking status; this never changes the system."""
-        schedule = deepcopy(self.schedule)
-        schedule["investigation_history"] = set_investigation_status(
-            schedule.get("investigation_history", []),
-            plan_id,
-            status,
-            datetime.now(timezone.utc).isoformat(),
-        )
-        await self.store.async_save(schedule)
-        self.schedule = schedule
+        async with self._state_lock:
+            schedule = deepcopy(self.schedule)
+            schedule["investigation_history"] = set_investigation_status(
+                schedule.get("investigation_history", []),
+                plan_id,
+                status,
+                datetime.now(timezone.utc).isoformat(),
+            )
+            await self.store.async_save(schedule)
+            self.schedule = schedule
         await self.async_request_refresh()
 
 
