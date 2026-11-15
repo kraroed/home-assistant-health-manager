@@ -97,7 +97,11 @@ cards:
       The investigation is in history, but its finding is not in the latest repair plan. The history and prompt file remain available.
       {% endif %}
       {% else %}
+      {% if state_attr('sensor.home_assistant_health_manager_selected_investigation', 'selection_stale') %}
+      The previously selected investigation is no longer in the retained history. Choose a current investigation in the **Investigation to Update** dropdown.
+      {% else %}
       Choose an investigation in the **Investigation to Update** dropdown to see its details here.
+      {% endif %}
       {% endif %}
   - type: markdown
     title: Repair investigation history
