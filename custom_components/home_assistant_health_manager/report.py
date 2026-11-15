@@ -140,10 +140,20 @@ def _write_report_sync(
         ):
             os.replace(staged_path, final_path)
     cutoff = now - timedelta(days=max(7, min(int(retention_days), 365)))
-    for old_file in list(directory.glob("health_report_*")) + list(directory.glob(".health_report_*.complete")):
+    # The ZIP is the canonical report artifact. Its completion marker is
+    # written only after the Store transaction commits, so its mtime is
+    # expected to be newer than the report files. Retention must remove the
+    # marker with the report set rather than age-checking it independently.
+    for zip_path in directory.glob("health_report_*.zip"):
         try:
-            if old_file.is_file() and datetime.fromtimestamp(old_file.stat().st_mtime, timezone.utc) < cutoff:
-                old_file.unlink()
+            if not zip_path.is_file() or datetime.fromtimestamp(
+                zip_path.stat().st_mtime, timezone.utc
+            ) >= cutoff:
+                continue
+            base = zip_path.stem
+            for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
+                (directory / f"{base}{suffix}").unlink(missing_ok=True)
+            (directory / f".{base}.complete").unlink(missing_ok=True)
         except OSError:
             continue
     return str(zip_path)
