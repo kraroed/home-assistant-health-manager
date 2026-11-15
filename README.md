@@ -115,3 +115,6 @@ The `Repair Investigations` sensor exposes a locally stored, bounded history of 
 
 
 The native dashboard also includes **Investigation to Update** and **Investigation Status** selectors. Choose a retained investigation, then choose its tracking label to update the local history without entering a plan ID or calling a service manually. The selected investigation is a temporary UI selection; its saved history and status persist locally. See [the dashboard guide](docs/DASHBOARD.md).
+
+
+The native dashboard includes a **Selected Investigation** sensor for a guided detail panel. After choosing an item from investigation history, the sensor exposes its saved tracking record and matching latest repair-plan details, including related recommendations, suggested next steps, and structured evidence when available. The details are informational only; no suggested action is executed.
