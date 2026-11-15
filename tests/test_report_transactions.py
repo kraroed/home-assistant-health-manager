@@ -500,3 +500,37 @@ def test_cancelled_focused_prompt_cleanup_retains_marker_when_removal_fails(tmp_
     REPORT._remove_focused_prompt_artifacts_sync(str(path))
     assert not path.exists()
     assert not marker.exists()
+
+
+def test_retention_keeps_canonical_zip_when_sidecar_cleanup_fails(tmp_path, monkeypatch):
+    import os
+    import time
+
+    base = "health_report_20200101T000000000000Z"
+    _make_report_artifacts(tmp_path, base)
+    complete = tmp_path / f".{base}.complete"
+    complete.touch()
+    old_time = time.time() - 400 * 24 * 60 * 60
+    for artifact in tmp_path.glob(f"{base}*"):
+        os.utime(artifact, (old_time, old_time))
+
+    original_unlink = Path.unlink
+
+    def fail_prompt(path, *args, **kwargs):
+        if path.name == f"{base}_ai_repair_prompt.md":
+            raise OSError("simulated sidecar cleanup failure")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_prompt)
+    _write_report(REPORT, tmp_path, retention_days=90)
+
+    # The canonical ZIP remains discoverable, allowing the next retention
+    # pass to retry the partially completed deletion.
+    assert (tmp_path / f"{base}.zip").exists()
+    assert (tmp_path / f"{base}_ai_repair_prompt.md").exists()
+
+    monkeypatch.setattr(Path, "unlink", original_unlink)
+    _write_report(REPORT, tmp_path, retention_days=90)
+
+    assert not list(tmp_path.glob(f"{base}*"))
+    assert not complete.exists()
