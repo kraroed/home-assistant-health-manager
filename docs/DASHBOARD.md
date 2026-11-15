@@ -43,6 +43,8 @@ cards:
         name: Prioritized repair plan items
       - entity: sensor.repair_investigations
         name: Focused repair investigations
+      - entity: sensor.home_assistant_health_manager_selected_investigation
+        name: Selected investigation details
       - entity: select.home_assistant_health_manager_generate_focused_repair_prompt
         name: Generate focused AI investigation prompt
       - entity: select.home_assistant_health_manager_investigation_to_update
@@ -55,6 +57,48 @@ cards:
         name: Diagnostic trend
       - entity: sensor.compatibility_status
         name: Compatibility status
+  - type: markdown
+    title: Selected investigation details
+    content: |
+      {% set selected = state_attr('sensor.home_assistant_health_manager_selected_investigation', 'selected') %}
+      {% set finding = state_attr('sensor.home_assistant_health_manager_selected_investigation', 'finding') %}
+      {% if selected %}
+      ## {{ selected.title }}
+
+      **Status:** {{ selected.status | replace('_', ' ') | title }}
+
+      **Severity:** {{ selected.severity | upper }}
+
+      **Plan ID:** `{{ selected.plan_id }}`
+
+      **Prompt generated:** {{ selected.last_generated_at }}
+
+      **Prompt generations:** {{ selected.generation_count }}
+
+      **Prompt file:** `{{ selected.prompt_path }}`
+
+      {% if finding %}
+      ### Current finding details
+
+      **Related recommendations:** {{ finding.recommendation_ids | join(', ') }}
+
+      **Suggested next steps**
+      {% for action in finding.suggested_actions %}
+      - {{ action }}
+      {% endfor %}
+
+      **Evidence**
+      {% for evidence in finding.evidence %}
+      - **{{ evidence.type | replace('_', ' ') | title }}:** {{ evidence }}
+      {% else %}
+      - No additional structured evidence is attached to this finding.
+      {% endfor %}
+      {% else %}
+      The investigation is in history, but its finding is not in the latest repair plan. The history and prompt file remain available.
+      {% endif %}
+      {% else %}
+      Choose an investigation in the **Investigation to Update** dropdown to see its details here.
+      {% endif %}
   - type: markdown
     title: Repair investigation history
     content: |
@@ -164,3 +208,6 @@ The Current diagnostics card includes two additional native dropdowns:
 2. **Investigation Status** — choose `prompt_generated`, `in_progress`, `needs_follow_up`, `resolved`, or `dismissed`. The selected investigation is updated immediately and the status dropdown reflects its saved value.
 
 Choose an investigation before changing its status. The selected investigation is an in-memory dashboard selection and resets when Home Assistant restarts; the investigation history and saved statuses remain stored locally. Changing a status only updates your tracking record. A `resolved` label is not a diagnostic verification that the underlying issue has been fixed.
+
+
+The **Selected Investigation** sensor exposes the chosen history record and, when still present in the latest repair plan, its current finding details: related recommendation IDs, suggested next steps, and structured evidence. The selection is session-only. If a finding is no longer in the latest repair plan, its retained history and prompt path remain visible and the detail card explains that current plan details are unavailable. This view is diagnostic context only; suggested actions are not executed.
