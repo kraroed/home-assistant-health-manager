@@ -17,7 +17,12 @@ from .integration_trends import summarize_integration_trends, update_integration
 from .log_analyzer import analyze_log
 from .recommendations import add_integration_trend_recommendations, add_recurring_issue_recommendations, build_recommendations
 from .redactor import redact_object, redact_text
-from .report import write_report, write_focused_repair_prompt
+from .report import (
+    async_commit_report,
+    async_reconcile_report_transactions,
+    write_report,
+    write_focused_repair_prompt,
+)
 from .repair_prompt import build_repair_prompt
 from .repair_plan import build_repair_plan
 from .focused_repair_prompt import build_focused_repair_prompt
@@ -46,6 +51,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     async def async_setup_schedule(self):
         stored_data = await self.store.async_load()
         self.schedule = normalize_schedule_data(stored_data)
+        await async_reconcile_report_transactions(
+            self.hass, self.schedule.get("last_report_path")
+        )
+        self.last_report_path = self.schedule.get("last_report_path")
         await self.store.async_save(self.schedule)
         from homeassistant.helpers.event import async_track_time_interval
         self._schedule_unsub = async_track_time_interval(
@@ -188,9 +197,15 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         schedule["last_compatibility"] = safe_compatibility
         schedule["last_assessment"] = now.isoformat()
         schedule["last_report"] = now.isoformat()
+        schedule["last_report_path"] = path
         schedule["report_count"] = schedule.get("report_count", 0) + 1
         await self.store.async_save(schedule)
         self.schedule = schedule
+        try:
+            await async_commit_report(self.hass, path)
+        except OSError:
+            # The durable Store reference lets startup finish this marker rename.
+            _LOGGER.exception("Report was saved, but its commit marker could not be finalized")
         self.last_repair_context = repair_context
         self.last_report_path = path
         self.last_prompt_path = path[:-4] + "_ai_repair_prompt.md" if path.endswith(".zip") else None
