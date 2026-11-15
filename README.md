@@ -97,3 +97,6 @@ Issue history distinguishes repeated observations during one uninterrupted activ
 ## Prioritized repair plan
 
 Each generated report includes a bounded, severity-sorted repair plan. It groups findings only when they share an exact provider-domain identity (for example, the domain inventory and its trend finding) or an explicit recurring-issue/base-issue identifier. General unavailable-entity, unknown-entity, failed-entry, and log-volume findings remain separate when overlap alone cannot establish a shared cause. Explicit component-logger counts and provider trend deltas/episodes are attached as related evidence, never treated as proof of causation. The JSON report, text summary, and copy-ready AI repair prompt include this plan. Every item remains advisory, requires explicit user approval, and has no automated action available; the plan is capped at 50 items and reports omissions.
+
+
+The `Prioritized Repair Plan Items` sensor exposes the number of items in the latest generated plan; its attributes provide the bounded plan details, and the Health Status sensor includes the same plan. It updates when a report is generated, not on every coordinator refresh. See [docs/DASHBOARD.md](docs/DASHBOARD.md) for the native Lovelace example.
