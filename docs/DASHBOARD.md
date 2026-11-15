@@ -55,6 +55,22 @@ cards:
         name: Diagnostic trend
       - entity: sensor.compatibility_status
         name: Compatibility status
+  - type: markdown
+    title: Repair investigation history
+    content: |
+      {% set investigations = state_attr('sensor.repair_investigations', 'investigations') or [] %}
+      {% if investigations %}
+      {% for item in investigations %}
+      **{{ item.title }}** ({{ item.severity | upper }}) — `{{ item.status }}`
+
+      - Last prompt: {{ as_timestamp(item.last_generated_at) | timestamp_custom('%Y-%m-%d %H:%M', true) if item.last_generated_at else 'Unknown' }}
+      - Prompt generations: {{ item.generation_count }}
+      - File: `{{ item.prompt_path }}`
+
+      {% endfor %}
+      {% else %}
+      No focused investigations have been generated yet.
+      {% endif %}
   - type: history-graph
     title: Issue counts
     hours_to_show: 168
