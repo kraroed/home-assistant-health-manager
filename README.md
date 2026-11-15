@@ -21,6 +21,7 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 - `home_assistant_health_manager.generate_report`
 - `home_assistant_health_manager.generate_ai_repair_prompt`
 - `home_assistant_health_manager.generate_focused_repair_prompt` (requires the exact `plan_id` from the latest repair-plan sensor attributes)
+- `home_assistant_health_manager.set_repair_investigation_status` (updates a user-maintained tracking label only)
 
 ## AI repair and validation prompt
 
@@ -87,7 +88,7 @@ Generated reports retain a bounded history of up to 90 aggregate trend samples. 
 
 ## Lovelace dashboard
 
-An optional native Lovelace dashboard example using Markdown, Entities, and History Graph cards is available in [docs/DASHBOARD.md](docs/DASHBOARD.md). It requires no custom frontend resource and only displays read-only diagnostic sensors.
+An optional native Lovelace dashboard example using Markdown, Entities, and History Graph cards is available in [docs/DASHBOARD.md](docs/DASHBOARD.md). It requires no custom frontend resource. Diagnostic sensors are read-only; the focused-prompt selector and investigation-status service are explicit user-triggered local tracking actions.
 
 
 ## Recurring issue detection
@@ -106,3 +107,8 @@ The `Prioritized Repair Plan Items` sensor exposes the number of items in the la
 ## Focused repair investigations
 
 After generating a diagnostic report, inspect the `Prioritized Repair Plan Items` sensor attributes and choose one item's exact `plan_id`. Call `home_assistant_health_manager.generate_focused_repair_prompt` with that ID. The service writes a separate Markdown prompt under `/config/health_manager/reports` and fires `home_assistant_health_manager_focused_repair_prompt_created` with the selected ID and prompt path. The focused prompt includes only that plan item, its linked recommendations, and matching provider-domain log/trend evidence where available; unrelated plan items and unrelated provider evidence are excluded. Stale IDs are rejected rather than silently selecting a different item. The prompt is local-only, follows the configured report retention period, and remains approval-gated. Generate a fresh report before selecting an item so the ID and evidence reflect the latest assessment.
+
+
+## Repair investigation history
+
+The `Repair Investigations` sensor exposes a locally stored, bounded history of up to 50 focused-prompt investigations. It records only the plan ID, finding title/severity, local prompt path, generation timestamps/count, and user-selected status; it does not retain the diagnostic evidence or raw logs in this history. Generating another prompt for the same plan item increments its generation count. The `set_repair_investigation_status` service supports `prompt_generated`, `in_progress`, `resolved`, `needs_follow_up`, and `dismissed`. These are personal workflow labels, not a technical verification of repair. Status updates never execute repairs or change Home Assistant configuration. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
