@@ -41,6 +41,7 @@ def normalize_schedule_data(value, now=None):
     if not isinstance(value.get("last_compatibility"), dict):
         value["last_compatibility"] = {}
 
+    value.setdefault("report_count", 0)
     report_count = value.get("report_count", 0)
     if isinstance(report_count, bool) or not isinstance(report_count, int) or report_count < 0:
         value["report_count"] = 0
