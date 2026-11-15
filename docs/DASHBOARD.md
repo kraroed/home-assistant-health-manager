@@ -41,6 +41,8 @@ cards:
         name: Active recurring issues
       - entity: sensor.prioritized_repair_plan_items
         name: Prioritized repair plan items
+      - entity: select.home_assistant_health_manager_generate_focused_repair_prompt
+        name: Generate focused AI investigation prompt
       - entity: sensor.diagnostic_coverage
         name: Diagnostic coverage
       - entity: sensor.diagnostic_trend
@@ -100,3 +102,17 @@ data:
 ```
 
 Replace the example ID with the exact ID from your sensor attributes. Listen for the `home_assistant_health_manager_focused_repair_prompt_created` event; its `prompt_path` points to the Markdown file in `/config/health_manager/reports`. The service does not modify Home Assistant configuration or perform repairs.
+
+
+## Generate a focused investigation prompt from the dashboard
+
+After generating a diagnostic report, use the **Generate focused AI investigation prompt** select entity in the Current diagnostics card:
+
+1. Open the dropdown.
+2. Choose the finding to investigate. Options show severity, title, and exact plan ID.
+3. Selecting an option immediately creates a separate Markdown prompt in `/config/health_manager/reports`.
+4. Listen for `home_assistant_health_manager_focused_repair_prompt_created` to receive the selected `plan_id` and `prompt_path`.
+
+The selector is populated from the latest report. Generate or refresh a report if the list is empty or a finding has changed. An obsolete selection is rejected rather than silently mapped to another issue. Selecting an item only creates a local prompt; it does not modify Home Assistant configuration or perform repairs.
+
+For automations or scripts, the `home_assistant_health_manager.generate_focused_repair_prompt` service remains available with the exact `plan_id` from the repair-plan sensor attributes.
