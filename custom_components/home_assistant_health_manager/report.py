@@ -55,6 +55,8 @@ def _write_report_sync(
     zip_path = directory / f"{base}.zip"
     prompt_path = directory / f"{base}_ai_repair_prompt.md"
 
+    marker_path = directory / f".{base}.pending"
+
     # Build every artifact in a private staging directory first. A failed
     # serialization or ZIP operation must not leave a seemingly complete
     # report set in the user's report directory.
@@ -113,6 +115,9 @@ def _write_report_sync(
             if sanitized_log is not None:
                 archive.writestr("logs/home_assistant_core_sanitized.log", sanitized_log)
 
+        # The marker lets startup distinguish an interrupted publication from
+        # a report whose Store transaction was committed.
+        marker_path.touch()
         # Publish only after all four artifacts have been created successfully.
         for staged_path, final_path in (
             (staged_json, json_path),
@@ -129,6 +134,58 @@ def _write_report_sync(
         except OSError:
             continue
     return str(zip_path)
+
+
+
+
+async def async_reconcile_report_transactions(hass, committed_report_path=None):
+    """Recover interrupted report publications after Home Assistant restarts."""
+    directory = Path(hass.config.path(REPORT_DIR))
+    await asyncio.to_thread(_reconcile_report_transactions_sync, directory, committed_report_path)
+
+
+def _reconcile_report_transactions_sync(directory, committed_report_path=None):
+    if not directory.exists():
+        return
+    committed = Path(committed_report_path).name if committed_report_path else None
+    for staging in directory.glob(".health_report_*"):
+        try:
+            if staging.is_dir():
+                import shutil
+                shutil.rmtree(staging, ignore_errors=True)
+        except OSError:
+            continue
+    for marker in directory.glob(".health_report_*.pending"):
+        base = marker.name[1:-len(".pending")]
+        zip_name = f"{base}.zip"
+        if zip_name == committed:
+            try:
+                marker.replace(directory / f".{base}.complete")
+            except OSError:
+                continue
+            continue
+        for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
+            try:
+                (directory / f"{base}{suffix}").unlink(missing_ok=True)
+            except OSError:
+                continue
+        try:
+            marker.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
+async def async_commit_report(hass, report_path):
+    """Mark a report transaction committed after its Store record is durable."""
+    directory = Path(hass.config.path(REPORT_DIR))
+    await asyncio.to_thread(_commit_report_sync, directory, report_path)
+
+
+def _commit_report_sync(directory, report_path):
+    base = Path(report_path).stem
+    pending = directory / f".{base}.pending"
+    if pending.exists():
+        pending.replace(directory / f".{base}.complete")
 
 
 async def write_focused_repair_prompt(hass, plan_id, prompt):
