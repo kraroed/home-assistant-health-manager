@@ -40,6 +40,7 @@ The prompt is generated locally. It excludes raw log lines, entity IDs, config-e
 - Failed config-entry domains, without collecting entry data/options.
 - Bounded tail of the default Core log, if readable.
 - Error/warning counts and repeated log-message patterns.
+- Conservative Core log attribution for entries whose logger explicitly begins with `homeassistant.components.<domain>` or `custom_components.<domain>`. Counts are grouped by the logger's domain and severity; generic loggers, free-text mentions, and other namespaces remain unattributed. This identifies the emitting logger namespace, not necessarily the root cause. No raw message text is added to the structured attribution summary.
 - Persistent issue lifecycle history: first/last detection, recurrence count, current/resolved status, and aggregate counts.
 - Bounded diagnostic change history: configured integration domains, aggregate setup-state changes, platform update signals, update-entity inventory changes, and total/unavailable/unknown entity counts with total, unavailable, and unknown breakdowns by domain across snapshots. This helps surface changes in entity inventory by domain without retaining individual entity identifiers. It stores aggregate counts, not entity IDs.
 - Conservative rule-based recommendations with evidence and suggested next steps.
