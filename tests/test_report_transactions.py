@@ -534,3 +534,18 @@ def test_retention_keeps_canonical_zip_when_sidecar_cleanup_fails(tmp_path, monk
 
     assert not list(tmp_path.glob(f"{base}*"))
     assert not complete.exists()
+
+
+def test_reconcile_removes_stale_completion_marker_when_canonical_zip_is_missing(tmp_path):
+    base = "health_report_20261115T120000000000Z"
+    marker = tmp_path / f".{base}.complete"
+    marker.touch()
+    (tmp_path / f"{base}.json").write_text("orphan metadata", encoding="utf-8")
+
+    REPORT._reconcile_report_transactions_sync(tmp_path, str(tmp_path / f"{base}.zip"))
+
+    assert not marker.exists()
+    # Reconciliation only removes the stale completion marker here. A
+    # non-pending sidecar is left for retention/manual cleanup rather than
+    # being mistaken for a transaction still awaiting recovery.
+    assert (tmp_path / f"{base}.json").exists()
