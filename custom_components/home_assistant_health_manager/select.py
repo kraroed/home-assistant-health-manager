@@ -89,7 +89,7 @@ class InvestigationHistorySelect(CoordinatorEntity, SelectEntity):
 
     @property
     def current_option(self):
-        self.options
+        _ = self.options
         selected_id = getattr(self.coordinator, "selected_investigation_plan_id", None)
         return next(
             (label for label, plan_id in self._option_to_plan_id.items() if plan_id == selected_id),
