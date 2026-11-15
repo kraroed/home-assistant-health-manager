@@ -127,7 +127,7 @@ def _write_report_sync(
         ):
             os.replace(staged_path, final_path)
     cutoff = now - timedelta(days=max(7, min(int(retention_days), 365)))
-    for old_file in directory.glob("health_report_*"):
+    for old_file in list(directory.glob("health_report_*")) + list(directory.glob(".health_report_*.complete")):
         try:
             if old_file.is_file() and datetime.fromtimestamp(old_file.stat().st_mtime, timezone.utc) < cutoff:
                 old_file.unlink()
