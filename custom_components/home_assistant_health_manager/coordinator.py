@@ -1,4 +1,5 @@
 import asyncio
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import logging
 
@@ -107,9 +108,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             return await self._async_generate_report_locked(comprehensive)
 
     async def _async_generate_report_locked(self, comprehensive=False):
+        schedule = deepcopy(self.schedule)
         snapshot = collect_snapshot(self.hass)
-        change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
-        self.schedule['change_history'] = change_history
+        change_history, change_summary = update_change_history(schedule.get('change_history', []), snapshot, snapshot['collected_at'])
+        schedule['change_history'] = change_history
         snapshot['diagnostic_change_history'] = change_summary
         raw_log, log_error = (None, None)
         core_log_status = "not_enabled"
@@ -127,25 +129,25 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         now = datetime.now(timezone.utc)
         compatibility = assess_compatibility(snapshot, analysis)
         trend_history, trend_summary = update_trend_history(
-            self.schedule.get("trend_history", []), snapshot, analysis, compatibility, now.isoformat()
+            schedule.get("trend_history", []), snapshot, analysis, compatibility, now.isoformat()
         )
-        self.schedule["trend_history"] = trend_history
+        schedule["trend_history"] = trend_history
         snapshot["diagnostic_trend"] = trend_summary
         integration_trend_history, integration_trend_summary = update_integration_trend_history(
-            self.schedule.get("integration_trend_history", []),
+            schedule.get("integration_trend_history", []),
             snapshot.get("integration_inventory", {}),
             now.isoformat(),
         )
-        self.schedule["integration_trend_history"] = integration_trend_history
+        schedule["integration_trend_history"] = integration_trend_history
         snapshot["integration_trend_summary"] = integration_trend_summary
         recommendations = build_recommendations(snapshot, analysis)
         recommendations = add_integration_trend_recommendations(recommendations, integration_trend_summary)
-        self.schedule["issue_history"] = update_issue_history(
-            self.schedule.get("issue_history", {}),
+        schedule["issue_history"] = update_issue_history(
+            schedule.get("issue_history", {}),
             recommendations,
             now.isoformat(),
         )
-        history_summary = summarize_issue_history(self.schedule["issue_history"])
+        history_summary = summarize_issue_history(schedule["issue_history"])
         recommendations = add_recurring_issue_recommendations(recommendations, history_summary)
         snapshot["issue_history_summary"] = history_summary
         snapshot["repair_plan"] = build_repair_plan(
@@ -153,13 +155,13 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             analysis.get("integration_log_evidence", {}),
             integration_trend_summary,
         )
-        self.schedule["last_repair_plan"] = snapshot["repair_plan"]
+        schedule["last_repair_plan"] = snapshot["repair_plan"]
         safe_snapshot, snapshot_counts = redact_object(snapshot)
         safe_compatibility, _ = redact_object(compatibility)
         safe_recommendations, _ = redact_object(recommendations)
         safe_analysis, _ = redact_object(analysis)
         safe_snapshot['compatibility_assessment'] = safe_compatibility
-        self.last_repair_context = {
+        repair_context = {
             'generated_at': now.isoformat(),
             'snapshot': safe_snapshot,
             'analysis': safe_analysis,
@@ -170,15 +172,17 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         path = await write_report(
             self.hass, safe_snapshot, analysis, sanitized_log,
             {"core_log": log_counts, "snapshot": snapshot_counts},
-            recommendations, self.schedule["issue_history"], history_summary, repair_prompt, safe_compatibility, change_summary,
+            recommendations, schedule["issue_history"], history_summary, repair_prompt, safe_compatibility, change_summary,
         )
-        self.schedule["last_compatibility"] = safe_compatibility
-        self.schedule["last_assessment"] = now.isoformat()
-        self.schedule["last_report"] = now.isoformat()
-        self.schedule["report_count"] = self.schedule.get("report_count", 0) + 1
+        schedule["last_compatibility"] = safe_compatibility
+        schedule["last_assessment"] = now.isoformat()
+        schedule["last_report"] = now.isoformat()
+        schedule["report_count"] = schedule.get("report_count", 0) + 1
+        await self.store.async_save(schedule)
+        self.schedule = schedule
+        self.last_repair_context = repair_context
         self.last_report_path = path
         self.last_prompt_path = path[:-4] + "_ai_repair_prompt.md" if path.endswith(".zip") else None
-        await self.store.async_save(self.schedule)
         self.async_update_listeners()
         return path
 
