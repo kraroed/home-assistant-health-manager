@@ -1,5 +1,7 @@
+import asyncio
 import importlib.util
 import sys
+import threading
 import types
 from pathlib import Path
 
@@ -161,3 +163,78 @@ def test_committed_report_survives_reconciliation_and_retention_cleanup(tmp_path
 
     assert Path(path).exists()
     assert Path(path).with_name(f".{Path(path).stem}.complete").exists()
+
+
+def test_cancelled_report_writer_removes_artifacts_after_worker_finishes(tmp_path, monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+    base = "health_report_cancelled"
+
+    def slow_writer(directory, *args):
+        directory = Path(directory)
+        for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
+            (directory / f"{base}{suffix}").write_text("partial", encoding="utf-8")
+        (directory / f".{base}.pending").touch()
+        started.set()
+        release.wait(timeout=5)
+        return str(directory / f"{base}.zip")
+
+    monkeypatch.setattr(REPORT, "_write_report_sync", slow_writer)
+    hass = types.SimpleNamespace(
+        data={}, config=types.SimpleNamespace(path=lambda value: str(tmp_path))
+    )
+
+    async def run():
+        task = asyncio.create_task(REPORT.write_report(
+            hass, {}, {}, None, {}, []
+        ))
+        assert await asyncio.to_thread(started.wait, 2)
+        task.cancel()
+        release.set()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        else:
+            raise AssertionError("expected cancellation")
+
+    asyncio.run(run())
+    assert not list(tmp_path.glob(f"{base}*"))
+    assert not (tmp_path / f".{base}.pending").exists()
+
+
+def test_cancelled_focused_prompt_writer_removes_artifacts_after_worker_finishes(tmp_path, monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_writer(directory, safe_id, stamp, prompt, retention_days):
+        directory = Path(directory)
+        path = directory / f"focused_repair_{safe_id}_{stamp}.md"
+        path.with_name(f".{path.name}.pending").touch()
+        path.write_text(prompt, encoding="utf-8")
+        started.set()
+        release.wait(timeout=5)
+        return str(path)
+
+    monkeypatch.setattr(REPORT, "_write_focused_prompt_sync", slow_writer)
+    hass = types.SimpleNamespace(
+        data={}, config=types.SimpleNamespace(path=lambda value: str(tmp_path))
+    )
+
+    async def run():
+        task = asyncio.create_task(REPORT.write_focused_repair_prompt(
+            hass, "mqtt", "Review this repair"
+        ))
+        assert await asyncio.to_thread(started.wait, 2)
+        task.cancel()
+        release.set()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        else:
+            raise AssertionError("expected cancellation")
+
+    asyncio.run(run())
+    assert not list(tmp_path.glob("focused_repair_*.md"))
+    assert not list(tmp_path.glob(".focused_repair_*.pending"))
