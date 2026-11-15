@@ -258,7 +258,7 @@ async def write_focused_repair_prompt(hass, plan_id, prompt):
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     retention_days = hass.data.get(f"{DOMAIN}_retention_days", 90)
     task = asyncio.create_task(asyncio.to_thread(
-        _write_focused_prompt_sync, directory, safe_id, stamp, prompt, retention_days
+        _write_focused_prompt_sync, directory, safe_id, stamp, prompt, retention_days, set()
     ))
     try:
         return await asyncio.shield(task)
@@ -274,7 +274,7 @@ async def write_focused_repair_prompt(hass, plan_id, prompt):
         raise
 
 
-def _write_focused_prompt_sync(directory_path, safe_id, stamp, prompt, retention_days):
+def _write_focused_prompt_sync(directory_path, safe_id, stamp, prompt, retention_days, preserved_paths=None):
     directory = Path(directory_path)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"focused_repair_{safe_id}_{stamp}.md"
@@ -282,9 +282,17 @@ def _write_focused_prompt_sync(directory_path, safe_id, stamp, prompt, retention
     marker.touch()
     path.write_text(prompt, encoding="utf-8")
     cutoff = datetime.now(timezone.utc) - timedelta(days=max(7, min(int(retention_days), 365)))
+    preserved_names = {
+        Path(value).name for value in (preserved_paths or set()) if isinstance(value, str)
+    }
     for old_file in directory.glob("focused_repair_*.md"):
         try:
-            if old_file.is_file() and datetime.fromtimestamp(old_file.stat().st_mtime, timezone.utc) < cutoff:
+            if (
+                old_file.name not in preserved_names
+                and old_file.is_file()
+                and datetime.fromtimestamp(old_file.stat().st_mtime, timezone.utc) < cutoff
+                and not old_file.with_name(f".{old_file.name}.pending").exists()
+            ):
                 old_file.unlink()
         except OSError:
             continue
