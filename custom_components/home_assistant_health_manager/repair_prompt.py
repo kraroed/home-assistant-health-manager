@@ -55,6 +55,12 @@ def build_repair_prompt(snapshot, analysis, recommendations, generated_at, compa
         "failed_config_entry_domains": sorted(snapshot.get("failed_config_entry_domains", {})),
         "config_entry_states": snapshot.get("config_entry_states", {}),
         "log_level_counts": analysis.get("level_counts", {}),
+        "integration_log_evidence": analysis.get("integration_log_evidence", {
+            "attribution_method": "not_available",
+            "attributed_entry_count": 0,
+            "unattributed_entry_count": 0,
+            "domains": [],
+        }),
         "repeated_log_patterns": analysis.get("top_messages", []),
         "compatibility_triage": compatibility or {},
         "diagnostic_change_history": snapshot.get("diagnostic_change_history", {}),
