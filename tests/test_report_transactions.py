@@ -53,3 +53,26 @@ def test_reconcile_finalizes_report_committed_before_restart(tmp_path):
     assert (tmp_path / f"{base}.zip").exists()
     assert (tmp_path / f".{base}.complete").exists()
     assert not (tmp_path / f".{base}.pending").exists()
+
+
+
+def test_reconcile_removes_focused_prompt_not_committed_to_store(tmp_path):
+    prompt = "focused_repair_mqtt_20261115T120000000000Z.md"
+    (tmp_path / prompt).write_text("prompt", encoding="utf-8")
+    (tmp_path / f".{prompt}.pending").touch()
+
+    REPORT._reconcile_focused_prompt_transactions_sync(tmp_path, set())
+
+    assert not (tmp_path / prompt).exists()
+    assert not (tmp_path / f".{prompt}.pending").exists()
+
+
+def test_reconcile_preserves_focused_prompt_committed_to_store(tmp_path):
+    prompt = "focused_repair_mqtt_20261115T120000000000Z.md"
+    (tmp_path / prompt).write_text("prompt", encoding="utf-8")
+    (tmp_path / f".{prompt}.pending").touch()
+
+    REPORT._reconcile_focused_prompt_transactions_sync(tmp_path, {prompt})
+
+    assert (tmp_path / prompt).read_text(encoding="utf-8") == "prompt"
+    assert not (tmp_path / f".{prompt}.pending").exists()
