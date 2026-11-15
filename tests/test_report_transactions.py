@@ -238,3 +238,41 @@ def test_cancelled_focused_prompt_writer_removes_artifacts_after_worker_finishes
     asyncio.run(run())
     assert not list(tmp_path.glob("focused_repair_*.md"))
     assert not list(tmp_path.glob(".focused_repair_*.pending"))
+
+
+
+def test_retention_removes_every_expired_report_artifact_and_completion_marker(tmp_path):
+    base = "health_report_20200101T000000000000Z"
+    _make_report_artifacts(tmp_path, base)
+    complete = tmp_path / f".{base}.complete"
+    complete.touch()
+    import os
+    import time
+    old_time = time.time() - 400 * 24 * 60 * 60
+    for artifact in list(tmp_path.glob(f"{base}*")) + [complete]:
+        os.utime(artifact, (old_time, old_time))
+
+    new_path = _write_report(REPORT, tmp_path, retention_days=90)
+
+    assert Path(new_path).exists()
+    assert not list(tmp_path.glob(f"{base}*"))
+    assert not complete.exists()
+
+
+def test_retention_does_not_delete_pending_transaction_marker(tmp_path):
+    base = "health_report_20200101T000000000000Z"
+    _make_report_artifacts(tmp_path, base)
+    pending = tmp_path / f".{base}.pending"
+    pending.touch()
+    import os
+    import time
+    old_time = time.time() - 400 * 24 * 60 * 60
+    for artifact in list(tmp_path.glob(f"{base}*")) + [pending]:
+        os.utime(artifact, (old_time, old_time))
+
+    _write_report(REPORT, tmp_path, retention_days=90)
+
+    # Pending markers are recovery signals; startup reconciliation, not
+    # ordinary retention, decides whether their transaction was committed.
+    assert pending.exists()
+    assert not list(tmp_path.glob(f"{base}*"))
