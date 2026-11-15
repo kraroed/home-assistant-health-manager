@@ -18,6 +18,7 @@ SENSORS = [
     ("recurring_issue_count", "Recurring Issues", "issues", SensorStateClass.MEASUREMENT),
     ("active_recurring_issue_count", "Active Recurring Issues", "issues", SensorStateClass.MEASUREMENT),
     ("repair_plan_items", "Prioritized Repair Plan Items", "items", SensorStateClass.MEASUREMENT),
+    ("repair_investigations", "Repair Investigations", "investigations", SensorStateClass.MEASUREMENT),
     ("core_update_status", "Core Update", None, None),
     ("supervisor_update_status", "Supervisor Update", None, None),
     ("operating_system_update_status", "Operating System Update", None, None),
@@ -59,6 +60,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("integration_trend_summary", {}).get("active_attention_domain_count", 0)
         if self.key == "repair_plan_items":
             return data.get("repair_plan", {}).get("item_count", 0)
+        if self.key == "repair_investigations":
+            return data.get("investigation_count", 0)
         if self.key == "diagnostic_change_events":
             return data.get("diagnostic_change_history", {}).get("change_event_count", 0)
         if self.key == "diagnostic_coverage":
@@ -95,6 +98,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "diagnostic_trend": data.get("diagnostic_trend", {}),
                 "integration_trend_summary": data.get("integration_trend_summary", {}),
                 "prioritized_repair_plan": data.get("repair_plan", {}),
+                "repair_investigations": data.get("investigations", []),
+                "investigation_status_counts": data.get("investigation_status_counts", {}),
                 "recurring_issues": data.get("recurring_issues", []),
                 "recurring_issue_count": data.get("recurring_issue_count", 0),
                 "active_recurring_issue_count": data.get("active_recurring_issue_count", 0),
@@ -114,6 +119,12 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("integration_trend_summary", {})
         if self.key == "repair_plan_items":
             return data.get("repair_plan", {})
+        if self.key == "repair_investigations":
+            return {
+                "investigations": data.get("investigations", []),
+                "status_counts": data.get("investigation_status_counts", {}),
+                "retained_limit": 50,
+            }
         if self.key == "integration_attention_domains":
             return {
                 "domains": data.get("integration_inventory", {}).get("attention_domains", []),
