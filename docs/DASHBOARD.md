@@ -45,6 +45,10 @@ cards:
         name: Focused repair investigations
       - entity: select.home_assistant_health_manager_generate_focused_repair_prompt
         name: Generate focused AI investigation prompt
+      - entity: select.home_assistant_health_manager_investigation_to_update
+        name: Investigation to update
+      - entity: select.home_assistant_health_manager_investigation_status
+        name: Investigation status
       - entity: sensor.diagnostic_coverage
         name: Diagnostic coverage
       - entity: sensor.diagnostic_trend
@@ -134,3 +138,13 @@ data:
 ```
 
 Supported statuses are `prompt_generated`, `in_progress`, `resolved`, `needs_follow_up`, and `dismissed`. Use the exact plan ID from the Repair Investigations sensor attributes. A `resolved` label is only your tracking note; it does not verify that the underlying Home Assistant issue is fixed. Status changes never run repairs or modify integrations, entities, or configuration.
+
+
+### Update an investigation from the dashboard
+
+The Current diagnostics card includes two additional native dropdowns:
+
+1. **Investigation to Update** — choose an item from the retained investigation history. The option shows its current status, title, and plan ID.
+2. **Investigation Status** — choose `prompt_generated`, `in_progress`, `needs_follow_up`, `resolved`, or `dismissed`. The selected investigation is updated immediately and the status dropdown reflects its saved value.
+
+Choose an investigation before changing its status. The selected investigation is an in-memory dashboard selection and resets when Home Assistant restarts; the investigation history and saved statuses remain stored locally. Changing a status only updates your tracking record. A `resolved` label is not a diagnostic verification that the underlying issue has been fixed.
