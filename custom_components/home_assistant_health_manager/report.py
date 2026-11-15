@@ -115,15 +115,23 @@ async def write_focused_repair_prompt(hass, plan_id, prompt):
     directory = hass.config.path(REPORT_DIR)
     safe_id = "".join(char if char.isalnum() or char in "_-" else "_" for char in plan_id)[:80]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    retention_days = hass.data.get("home_assistant_health_manager_retention_days", 90)
     return await asyncio.to_thread(
-        _write_focused_prompt_sync, directory, safe_id, stamp, prompt
+        _write_focused_prompt_sync, directory, safe_id, stamp, prompt, retention_days
     )
 
 
-def _write_focused_prompt_sync(directory_path, safe_id, stamp, prompt):
+def _write_focused_prompt_sync(directory_path, safe_id, stamp, prompt, retention_days):
     directory = Path(directory_path)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"focused_repair_{safe_id}_{stamp}.md"
     path.write_text(prompt, encoding="utf-8")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max(7, min(int(retention_days), 365)))
+    for old_file in directory.glob("focused_repair_*.md"):
+        try:
+            if old_file.is_file() and datetime.fromtimestamp(old_file.stat().st_mtime, timezone.utc) < cutoff:
+                old_file.unlink()
+        except OSError:
+            continue
     return str(path)
 
