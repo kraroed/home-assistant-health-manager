@@ -370,3 +370,37 @@ def test_scheduled_check_delegates_due_date_mutation_to_locked_report_transactio
     assert 'scheduled_period="next_monthly"' in source
     assert 'scheduled_period="next_weekly"' in source
     assert "self.schedule[" not in source
+
+
+
+def test_scheduled_report_rechecks_due_state_after_serialization_lock():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_generate_report_locked"
+    )
+    statements = method.body
+    guard_index = next(
+        index for index, statement in enumerate(statements)
+        if isinstance(statement, ast.If)
+        and any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_is_due"
+            for node in ast.walk(statement)
+        )
+    )
+    collection_index = next(
+        index for index, statement in enumerate(statements)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "collect_snapshot"
+            for node in ast.walk(statement)
+        )
+    )
+    assert guard_index < collection_index
