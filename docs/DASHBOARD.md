@@ -79,7 +79,7 @@ cards:
 - The compatibility sensor is a limited triage signal, not a promise that an upgrade is safe.
 - A low or partial coverage result means some sources were unavailable. It must not be interpreted as proof of a healthy system.
 
-The card uses only read-only sensors. It does not invoke repair, update, restart, or other control actions.
+The diagnostic sensors are read-only. The focused-prompt select is an explicit user-triggered action that only writes a local Markdown prompt and fires an event; it does not invoke repair, update, restart, or configuration changes.
 
 
 The `Integration Attention Domains` sensor counts provider integrations with setup errors/retries or unavailable/unknown registered entities. Its attributes on the sensor and Health Status entity show a bounded, severity-ranked domain list. This is a triage correlation, not proof of a shared root cause.
