@@ -564,3 +564,56 @@ def test_focused_prompt_retention_uses_pretransaction_history_and_saves_before_l
         )
     )
     assert preserved.lineno < record.lineno < save.lineno < live_commit.lineno
+
+
+def test_investigation_status_is_not_committed_to_live_schedule_before_store_save():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_set_investigation_status"
+    )
+    nodes = list(ast.walk(method))
+    candidate_copy = next(
+        node for node in nodes
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "deepcopy"
+    )
+    history_update = next(
+        node for node in nodes
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "set_investigation_status"
+    )
+    store_save = next(
+        node for node in nodes
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "async_save"
+    )
+    live_commit = next(
+        node for node in nodes
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Attribute)
+            and target.attr == "schedule"
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "self"
+            for target in node.targets
+        )
+    )
+    assert candidate_copy.lineno < history_update.lineno < store_save.lineno < live_commit.lineno
+    assert any(
+        isinstance(node, ast.AsyncWith)
+        and any(
+            isinstance(item.context_expr, ast.Attribute)
+            and item.context_expr.attr == "_state_lock"
+            for item in node.items
+        )
+        for node in ast.walk(method)
+    )
