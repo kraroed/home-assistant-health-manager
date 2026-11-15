@@ -15,9 +15,10 @@ from .integration_trends import summarize_integration_trends, update_integration
 from .log_analyzer import analyze_log
 from .recommendations import add_integration_trend_recommendations, add_recurring_issue_recommendations, build_recommendations
 from .redactor import redact_object, redact_text
-from .report import write_report
+from .report import write_report, write_focused_repair_prompt
 from .repair_prompt import build_repair_prompt
 from .repair_plan import build_repair_plan
+from .focused_repair_prompt import build_focused_repair_prompt
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -150,6 +151,15 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         safe_snapshot, snapshot_counts = redact_object(snapshot)
         safe_compatibility, _ = redact_object(compatibility)
         safe_recommendations, _ = redact_object(recommendations)
+        safe_analysis, _ = redact_object(analysis)
+        safe_snapshot['compatibility_assessment'] = safe_compatibility
+        self.schedule['last_repair_context'] = {
+            'generated_at': now.isoformat(),
+            'snapshot': safe_snapshot,
+            'analysis': safe_analysis,
+            'recommendations': safe_recommendations,
+            'repair_plan': safe_snapshot.get('repair_plan', {}),
+        }
         repair_prompt = build_repair_prompt(safe_snapshot, analysis, safe_recommendations, now.isoformat(), safe_compatibility)
         path = await write_report(
             self.hass, safe_snapshot, analysis, sanitized_log,
@@ -165,6 +175,14 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         await self.store.async_save(self.schedule)
         self.async_update_listeners()
         return path
+
+    async def async_generate_focused_repair_prompt(self, plan_id):
+        """Generate a focused prompt for one item from the latest report."""
+        context = self.schedule.get('last_repair_context')
+        if not context:
+            raise RuntimeError('Generate a diagnostic report before requesting a focused repair prompt.')
+        prompt = build_focused_repair_prompt(context, plan_id)
+        return await write_focused_repair_prompt(self.hass, plan_id, prompt)
 
 
 def _is_due(value, now):
