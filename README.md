@@ -112,3 +112,6 @@ After generating a diagnostic report, inspect the `Prioritized Repair Plan Items
 ## Repair investigation history
 
 The `Repair Investigations` sensor exposes a locally stored, bounded history of up to 50 focused-prompt investigations. It records only the plan ID, finding title/severity, local prompt path, generation timestamps/count, and user-selected status; it does not retain the diagnostic evidence or raw logs in this history. Generating another prompt for the same plan item increments its generation count. The `set_repair_investigation_status` service supports `prompt_generated`, `in_progress`, `resolved`, `needs_follow_up`, and `dismissed`. These are personal workflow labels, not a technical verification of repair. Status updates never execute repairs or change Home Assistant configuration. See [docs/DASHBOARD.md](docs/DASHBOARD.md).
+
+
+The native dashboard also includes **Investigation to Update** and **Investigation Status** selectors. Choose a retained investigation, then choose its tracking label to update the local history without entering a plan ID or calling a service manually. The selected investigation is a temporary UI selection; its saved history and status persist locally. See [the dashboard guide](docs/DASHBOARD.md).
