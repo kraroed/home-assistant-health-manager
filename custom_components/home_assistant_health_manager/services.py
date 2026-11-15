@@ -43,12 +43,27 @@ async def async_setup_services(hass):
             "prompt_path": prompt_path,
         })
 
+    async def set_repair_investigation_status(call: ServiceCall):
+        coordinator = _get_coordinator(hass)
+        plan_id = call.data["plan_id"]
+        status = call.data["status"]
+        await coordinator.async_set_investigation_status(plan_id, status)
+        hass.bus.async_fire(f"{DOMAIN}_repair_investigation_updated", {
+            "plan_id": plan_id,
+            "status": status,
+        })
+
     schema = vol.Schema({vol.Optional("comprehensive", default=False): bool})
     focused_schema = vol.Schema({vol.Required("plan_id"): str})
+    investigation_status_schema = vol.Schema({
+        vol.Required("plan_id"): str,
+        vol.Required("status"): vol.In(["prompt_generated", "in_progress", "resolved", "needs_follow_up", "dismissed"]),
+    })
     hass.services.async_register(DOMAIN, "run_diagnostics", run_diagnostics, schema=schema)
     hass.services.async_register(DOMAIN, "generate_report", generate_report, schema=schema)
     hass.services.async_register(DOMAIN, "generate_ai_repair_prompt", generate_ai_repair_prompt, schema=schema)
     hass.services.async_register(DOMAIN, "generate_focused_repair_prompt", generate_focused_repair_prompt, schema=focused_schema)
+    hass.services.async_register(DOMAIN, "set_repair_investigation_status", set_repair_investigation_status, schema=investigation_status_schema)
 
 
 def _get_coordinator(hass):
