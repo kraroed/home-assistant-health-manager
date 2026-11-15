@@ -156,9 +156,13 @@ def _write_report_sync(
             # whether its Store transaction committed.
             if (directory / f".{base}.pending").exists():
                 continue
-            for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
-                (directory / f"{base}{suffix}").unlink(missing_ok=True)
+            # Remove the completion marker and noncanonical sidecars first.
+            # Keep the canonical ZIP until every other deletion succeeds so a
+            # transient filesystem error leaves an artifact retention can find
+            # and retry on the next report generation.
             (directory / f".{base}.complete").unlink(missing_ok=True)
+            for suffix in (".json", ".txt", "_ai_repair_prompt.md", ".zip"):
+                (directory / f"{base}{suffix}").unlink(missing_ok=True)
         except OSError:
             continue
     return str(zip_path)
