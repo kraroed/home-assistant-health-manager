@@ -333,3 +333,22 @@ def test_scheduled_report_advances_due_date_in_same_store_transaction():
     assert 'schedule["next_monthly"]' in report_source
     assert 'schedule["next_weekly"]' in report_source
     assert report_source.index('schedule["next_weekly"]') < report_source.index("await self.store.async_save(schedule)")
+
+
+
+def test_coordinator_refresh_uses_one_locked_schedule_snapshot():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_update_data"
+    )
+    source = ast.get_source_segment(
+        (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), method
+    )
+    assert "schedule_snapshot = deepcopy(self.schedule)" in source
+    assert '"last_report_path": schedule_snapshot.get("last_report_path")' in source
+    assert 'summarize_investigations(schedule_snapshot.get("investigation_history", []))' in source
