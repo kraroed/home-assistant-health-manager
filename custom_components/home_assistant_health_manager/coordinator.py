@@ -78,10 +78,11 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             # event loop; only blocking filesystem work belongs in the executor.
             snapshot = collect_snapshot(self.hass)
             snapshot["collection_coverage"] = build_collection_coverage(snapshot)
-            change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
-            if change_history != self.schedule.get('change_history', []):
-                self.schedule['change_history'] = change_history
-                await self.store.async_save(self.schedule)
+            async with self._state_lock:
+                change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
+                if change_history != self.schedule.get('change_history', []):
+                    self.schedule['change_history'] = change_history
+                    await self.store.async_save(self.schedule)
             history_summary = summarize_issue_history(self.schedule.get("issue_history", {}))
             return {
                 **snapshot,
