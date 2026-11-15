@@ -186,12 +186,16 @@ def _reconcile_report_transactions_sync(directory, committed_report_path=None):
     for marker in directory.glob(".health_report_*.pending"):
         base = marker.name[1:-len(".pending")]
         zip_name = f"{base}.zip"
-        if zip_name == committed:
+        if zip_name == committed and (directory / zip_name).is_file():
             try:
                 marker.replace(directory / f".{base}.complete")
             except OSError:
                 continue
             continue
+        # A Store reference is not enough to finalize a transaction if its
+        # canonical ZIP is missing. This can happen after external deletion or
+        # filesystem damage; remove leftover partial artifacts rather than
+        # marking a report complete when its primary artifact is unavailable.
         for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
             try:
                 (directory / f"{base}{suffix}").unlink(missing_ok=True)
