@@ -135,9 +135,17 @@ class InvestigationStatusSelect(CoordinatorEntity, SelectEntity):
 
     @property
     def extra_state_attributes(self):
+        selected_id = getattr(self.coordinator, "selected_investigation_plan_id", None)
+        history = (self.coordinator.data or {}).get("investigations", [])
+        selection_exists = any(
+            item.get("plan_id") == selected_id
+            for item in history
+            if isinstance(item, dict)
+        )
         return {
-            "selected_plan_id": getattr(self.coordinator, "selected_investigation_plan_id", None),
-            "selection_required": getattr(self.coordinator, "selected_investigation_plan_id", None) is None,
+            "selected_plan_id": selected_id,
+            "selection_required": not selection_exists,
+            "selection_stale": selected_id is not None and not selection_exists,
             "note": "This changes only your local tracking label; it does not verify or perform a repair.",
         }
 
