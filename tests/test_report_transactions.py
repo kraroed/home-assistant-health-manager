@@ -278,3 +278,39 @@ def test_retention_does_not_delete_pending_transaction_marker(tmp_path):
     # ordinary retention, decides whether their transaction was committed.
     assert pending.exists()
     assert not list(tmp_path.glob(f"{base}*"))
+
+
+def test_reconcile_keeps_only_store_referenced_report_among_pending_transactions(tmp_path):
+    committed_base = "health_report_20261115T120000000000Z"
+    abandoned_base = "health_report_20261115T120100000000Z"
+    _make_report_artifacts(tmp_path, committed_base)
+    _make_report_artifacts(tmp_path, abandoned_base)
+    committed_pending = tmp_path / f".{committed_base}.pending"
+    abandoned_pending = tmp_path / f".{abandoned_base}.pending"
+    committed_pending.touch()
+    abandoned_pending.touch()
+
+    REPORT._reconcile_report_transactions_sync(
+        tmp_path, str(tmp_path / f"{committed_base}.zip")
+    )
+
+    assert (tmp_path / f"{committed_base}.zip").exists()
+    assert (tmp_path / f".{committed_base}.complete").exists()
+    assert not committed_pending.exists()
+    assert not list(tmp_path.glob(f"{abandoned_base}*"))
+    assert not abandoned_pending.exists()
+
+
+def test_reconcile_does_not_commit_report_when_only_a_different_artifact_is_referenced(tmp_path):
+    base = "health_report_20261115T120000000000Z"
+    _make_report_artifacts(tmp_path, base)
+    pending = tmp_path / f".{base}.pending"
+    pending.touch()
+
+    REPORT._reconcile_report_transactions_sync(
+        tmp_path, str(tmp_path / f"{base}.json")
+    )
+
+    assert not list(tmp_path.glob(f"{base}*"))
+    assert not pending.exists()
+    assert not (tmp_path / f".{base}.complete").exists()
