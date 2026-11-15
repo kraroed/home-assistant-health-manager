@@ -29,8 +29,12 @@ def normalize_schedule_data(value, now=None):
         "integration_trend_history",
         "investigation_history",
     ):
-        if not isinstance(value.get(key), list):
-            value[key] = []
+        stored_list = value.get(key)
+        value[key] = (
+            [item for item in stored_list if isinstance(item, dict)]
+            if isinstance(stored_list, list)
+            else []
+        )
 
     if not isinstance(value.get("last_repair_plan"), dict):
         value["last_repair_plan"] = {}
