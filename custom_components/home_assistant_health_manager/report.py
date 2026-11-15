@@ -1,5 +1,7 @@
 import asyncio
 import json
+import os
+import tempfile
 import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -52,54 +54,73 @@ def _write_report_sync(
     txt_path = directory / f"{base}.txt"
     zip_path = directory / f"{base}.zip"
     prompt_path = directory / f"{base}_ai_repair_prompt.md"
-    json_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    summary = [
-        "Home Assistant Health Manager report",
-        f"Generated: {payload['generated_at']}",
-        f"Assessment: {analysis.get('assessment_type', 'diagnostic')}",
-        f"Home Assistant Core version: {snapshot.get('home_assistant_version', 'unknown')}",
-        f"Platform update inventory: {snapshot.get('platform_updates', {})}",
-        f"Update entity inventory: {snapshot.get('update_entity_inventory', {})}",
-        f"Compatibility triage: {compatibility.get('overall_status', 'not_assessed')}",
-        f"Compatibility scope: {compatibility.get('scope_note', '')}",
-        f"Entities: {snapshot.get('entity_count', 0)}",
-        f"Entity counts by domain: {snapshot.get('entity_counts_by_domain', {})}",
-        f"Unavailable entities: {snapshot.get('unavailable_entity_count', 0)}",
-        f"Unknown entities: {snapshot.get('unknown_entity_count', 0)}",
-        f"Failed integrations: {snapshot.get('failed_config_entry_count', 0)}",
-        f"Failed integration domains: {snapshot.get('failed_config_entry_domains', {})}",
-        f"Integration setup states: {snapshot.get('config_entry_states', {})}",
-        f"Configured integration inventory: {snapshot.get('integration_inventory', {})}",
-        f"Integration domains needing attention: {snapshot.get('integration_inventory', {}).get('attention_domains', [])}",
-        f"Log levels: {analysis.get('level_counts', {})}",
-        f"Integration log evidence: {analysis.get('integration_log_evidence', {})}",
-        f"Recommendations: {len(recommendations)}",
-        f"Prioritized repair plan: {snapshot.get('repair_plan', {})}",
-        f"Tracked issues: {issue_summary.get('tracked_issue_count', 0)}",
-        f"Active tracked issues: {issue_summary.get('active_tracked_issue_count', 0)}",
-        f"Resolved tracked issues: {issue_summary.get('resolved_tracked_issue_count', 0)}",
-        f"Recurring issues: {issue_summary.get('recurring_issue_count', 0)}",
-        f"Active recurring issues: {issue_summary.get('active_recurring_issue_count', 0)}",
-        f"Recurring issue details: {issue_summary.get('recurring_issues', [])}",
-        "",
-        f"Diagnostic change history: {change_summary}",
-        f"Diagnostic collection coverage: {snapshot.get('collection_coverage', {})}",
-        f"Diagnostic trend: {snapshot.get('diagnostic_trend', {})}",
-        f"Integration trend summary: {snapshot.get('integration_trend_summary', {})}",
-        "",
-        "LOCAL-ONLY REPORT. Manual review is required before sharing.",
-        f"Redaction counts: {redaction_counts}",
-    ]
-    for item in recommendations:
-        summary.extend(["", f"[{item['severity'].upper()}] {item['title']}", item["detail"], f"Suggested next step: {item['suggested_action']}"])
-    txt_path.write_text("\n".join(summary), encoding="utf-8")
-    prompt_path.write_text(repair_prompt, encoding="utf-8")
-    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.write(json_path, arcname="health_report.json")
-        archive.write(txt_path, arcname="summary.txt")
-        archive.write(prompt_path, arcname="ai_repair_prompt.md")
-        if sanitized_log is not None:
-            archive.writestr("logs/home_assistant_core_sanitized.log", sanitized_log)
+
+    # Build every artifact in a private staging directory first. A failed
+    # serialization or ZIP operation must not leave a seemingly complete
+    # report set in the user's report directory.
+    with tempfile.TemporaryDirectory(prefix=".health_report_", dir=directory) as staging:
+        staged = Path(staging)
+        staged_json = staged / json_path.name
+        staged_txt = staged / txt_path.name
+        staged_zip = staged / zip_path.name
+        staged_prompt = staged / prompt_path.name
+        staged_json.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        summary = [
+            "Home Assistant Health Manager report",
+            f"Generated: {payload['generated_at']}",
+            f"Assessment: {analysis.get('assessment_type', 'diagnostic')}",
+            f"Home Assistant Core version: {snapshot.get('home_assistant_version', 'unknown')}",
+            f"Platform update inventory: {snapshot.get('platform_updates', {})}",
+            f"Update entity inventory: {snapshot.get('update_entity_inventory', {})}",
+            f"Compatibility triage: {compatibility.get('overall_status', 'not_assessed')}",
+            f"Compatibility scope: {compatibility.get('scope_note', '')}",
+            f"Entities: {snapshot.get('entity_count', 0)}",
+            f"Entity counts by domain: {snapshot.get('entity_counts_by_domain', {})}",
+            f"Unavailable entities: {snapshot.get('unavailable_entity_count', 0)}",
+            f"Unknown entities: {snapshot.get('unknown_entity_count', 0)}",
+            f"Failed integrations: {snapshot.get('failed_config_entry_count', 0)}",
+            f"Failed integration domains: {snapshot.get('failed_config_entry_domains', {})}",
+            f"Integration setup states: {snapshot.get('config_entry_states', {})}",
+            f"Configured integration inventory: {snapshot.get('integration_inventory', {})}",
+            f"Integration domains needing attention: {snapshot.get('integration_inventory', {}).get('attention_domains', [])}",
+            f"Log levels: {analysis.get('level_counts', {})}",
+            f"Integration log evidence: {analysis.get('integration_log_evidence', {})}",
+            f"Recommendations: {len(recommendations)}",
+            f"Prioritized repair plan: {snapshot.get('repair_plan', {})}",
+            f"Tracked issues: {issue_summary.get('tracked_issue_count', 0)}",
+            f"Active tracked issues: {issue_summary.get('active_tracked_issue_count', 0)}",
+            f"Resolved tracked issues: {issue_summary.get('resolved_tracked_issue_count', 0)}",
+            f"Recurring issues: {issue_summary.get('recurring_issue_count', 0)}",
+            f"Active recurring issues: {issue_summary.get('active_recurring_issue_count', 0)}",
+            f"Recurring issue details: {issue_summary.get('recurring_issues', [])}",
+            "",
+            f"Diagnostic change history: {change_summary}",
+            f"Diagnostic collection coverage: {snapshot.get('collection_coverage', {})}",
+            f"Diagnostic trend: {snapshot.get('diagnostic_trend', {})}",
+            f"Integration trend summary: {snapshot.get('integration_trend_summary', {})}",
+            "",
+            "LOCAL-ONLY REPORT. Manual review is required before sharing.",
+            f"Redaction counts: {redaction_counts}",
+        ]
+        for item in recommendations:
+            summary.extend(["", f"[{item['severity'].upper()}] {item['title']}", item["detail"], f"Suggested next step: {item['suggested_action']}"])
+        staged_txt.write_text("\\n".join(summary), encoding="utf-8")
+        staged_prompt.write_text(repair_prompt, encoding="utf-8")
+        with zipfile.ZipFile(staged_zip, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.write(staged_json, arcname="health_report.json")
+            archive.write(staged_txt, arcname="summary.txt")
+            archive.write(staged_prompt, arcname="ai_repair_prompt.md")
+            if sanitized_log is not None:
+                archive.writestr("logs/home_assistant_core_sanitized.log", sanitized_log)
+
+        # Publish only after all four artifacts have been created successfully.
+        for staged_path, final_path in (
+            (staged_json, json_path),
+            (staged_txt, txt_path),
+            (staged_prompt, prompt_path),
+            (staged_zip, zip_path),
+        ):
+            os.replace(staged_path, final_path)
     cutoff = now - timedelta(days=max(7, min(int(retention_days), 365)))
     for old_file in directory.glob("health_report_*"):
         try:
