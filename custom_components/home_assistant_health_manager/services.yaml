@@ -29,3 +29,14 @@ generate_ai_repair_prompt:
       required: false
       selector:
         boolean:
+
+generate_focused_repair_prompt:
+  name: Generate focused repair prompt
+  description: Create a copy-ready AI investigation prompt for one item in the latest prioritized repair plan. Generate a diagnostic report first.
+  fields:
+    plan_id:
+      name: Repair plan item ID
+      description: Exact plan_id from the Prioritized Repair Plan Items sensor attributes.
+      required: true
+      selector:
+        text:
