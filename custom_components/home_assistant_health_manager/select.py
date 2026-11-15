@@ -4,6 +4,7 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .focused_repair_prompt import build_repair_plan_options
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -29,17 +30,8 @@ class RepairPlanSelect(CoordinatorEntity, SelectEntity):
     @property
     def options(self):
         items = (self.coordinator.data or {}).get("repair_plan", {}).get("items", [])
-        mapping = {}
-        for item in items:
-            plan_id = item.get("plan_id")
-            if not isinstance(plan_id, str) or not plan_id:
-                continue
-            severity = str(item.get("severity", "unknown")).upper()
-            title = str(item.get("title", plan_id)).replace("\n", " ").strip()
-            label = f"{severity} · {title} [{plan_id}]"
-            mapping[label[:250]] = plan_id
-        self._option_to_plan_id = mapping
-        return list(mapping)
+        self._option_to_plan_id = build_repair_plan_options(items)
+        return list(self._option_to_plan_id)
 
     @property
     def extra_state_attributes(self):
