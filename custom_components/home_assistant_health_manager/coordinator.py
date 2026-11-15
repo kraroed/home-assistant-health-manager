@@ -94,6 +94,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "diagnostic_change_history": change_summary,
                 "diagnostic_trend": summarize_trends(self.schedule.get("trend_history", [])),
                 "integration_trend_summary": summarize_integration_trends(self.schedule.get("integration_trend_history", [])),
+                "repair_plan": self.schedule.get("last_repair_plan", {}),
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
@@ -145,6 +146,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             analysis.get("integration_log_evidence", {}),
             integration_trend_summary,
         )
+        self.schedule["last_repair_plan"] = snapshot["repair_plan"]
         safe_snapshot, snapshot_counts = redact_object(snapshot)
         safe_compatibility, _ = redact_object(compatibility)
         safe_recommendations, _ = redact_object(recommendations)
