@@ -251,14 +251,15 @@ async def async_commit_focused_prompt(hass, prompt_path):
     await asyncio.to_thread(marker.unlink, missing_ok=True)
 
 
-async def write_focused_repair_prompt(hass, plan_id, prompt):
+async def write_focused_repair_prompt(hass, plan_id, prompt, preserved_paths=None):
     """Write one focused prompt locally without adding raw diagnostic data."""
     directory = hass.config.path(REPORT_DIR)
     safe_id = "".join(char if char.isalnum() or char in "_-" else "_" for char in plan_id)[:80]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     retention_days = hass.data.get(f"{DOMAIN}_retention_days", 90)
     task = asyncio.create_task(asyncio.to_thread(
-        _write_focused_prompt_sync, directory, safe_id, stamp, prompt, retention_days, set()
+        _write_focused_prompt_sync, directory, safe_id, stamp, prompt, retention_days,
+        preserved_paths or set()
     ))
     try:
         return await asyncio.shield(task)
