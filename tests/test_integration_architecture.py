@@ -468,35 +468,28 @@ def test_focused_prompt_live_schedule_is_committed_only_after_store_save():
         if isinstance(node, ast.AsyncFunctionDef)
         and node.name == "async_generate_focused_repair_prompt"
     )
-    statements = method.body
     store_save = next(
-        index for index, statement in enumerate(statements)
-        if any(
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "async_save"
-            for node in ast.walk(statement)
-        )
+        node for node in ast.walk(method)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "async_save"
     )
     schedule_commit = next(
-        index for index, statement in enumerate(statements)
-        if isinstance(statement, ast.Assign)
+        node for node in ast.walk(method)
+        if isinstance(node, ast.Assign)
         and any(
             isinstance(target, ast.Attribute)
             and target.attr == "schedule"
-            for target in statement.targets
+            for target in node.targets
         )
     )
     marker_commit = next(
-        index for index, statement in enumerate(statements)
-        if any(
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id == "async_commit_focused_prompt"
-            for node in ast.walk(statement)
-        )
+        node for node in ast.walk(method)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "async_commit_focused_prompt"
     )
-    assert store_save < schedule_commit < marker_commit
+    assert store_save.lineno < schedule_commit.lineno < marker_commit.lineno
 
 
 def test_coordinator_shutdown_unregisters_scheduled_callback():
