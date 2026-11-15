@@ -4,14 +4,14 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .const import REPORT_DIR
+from .const import DOMAIN, REPORT_DIR
 
 
 async def write_report(
     hass, snapshot, analysis, sanitized_log, redaction_counts, recommendations,
     issue_history=None, issue_summary=None, repair_prompt=None, compatibility=None, change_summary=None,
 ):
-    retention_days = hass.data.get("home_assistant_health_manager_retention_days", 90)
+    retention_days = hass.data.get(f"{DOMAIN}_retention_days", 90)
     directory = hass.config.path(REPORT_DIR)
     return await asyncio.to_thread(
         _write_report_sync, directory, snapshot, analysis, sanitized_log,
