@@ -115,7 +115,7 @@ async def write_focused_repair_prompt(hass, plan_id, prompt):
     directory = hass.config.path(REPORT_DIR)
     safe_id = "".join(char if char.isalnum() or char in "_-" else "_" for char in plan_id)[:80]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    retention_days = hass.data.get("home_assistant_health_manager_retention_days", 90)
+    retention_days = hass.data.get(f"{DOMAIN}_retention_days", 90)
     return await asyncio.to_thread(
         _write_focused_prompt_sync, directory, safe_id, stamp, prompt, retention_days
     )
