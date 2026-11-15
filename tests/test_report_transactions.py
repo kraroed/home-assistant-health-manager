@@ -359,3 +359,29 @@ def test_focused_prompt_retention_removes_expired_unreferenced_prompt(tmp_path):
 
     assert not old_prompt.exists()
     assert len(list(tmp_path.glob("focused_repair_*.md"))) == 1
+
+
+
+def test_focused_prompt_retention_preserves_pending_transaction_until_reconciliation(tmp_path):
+    import os
+    import time
+
+    pending_prompt = tmp_path / "focused_repair_mqtt_20200101T000000000000Z.md"
+    pending_prompt.write_text("prompt being committed", encoding="utf-8")
+    marker = pending_prompt.with_name(f".{pending_prompt.name}.pending")
+    marker.touch()
+    old_time = time.time() - 400 * 24 * 60 * 60
+    os.utime(pending_prompt, (old_time, old_time))
+    os.utime(marker, (old_time, old_time))
+
+    REPORT._write_focused_prompt_sync(
+        tmp_path,
+        "zigbee",
+        "20261115T120000000000Z",
+        "new prompt",
+        90,
+        set(),
+    )
+
+    assert pending_prompt.read_text(encoding="utf-8") == "prompt being committed"
+    assert marker.exists()
