@@ -117,3 +117,74 @@ def test_scheduled_report_uses_imported_timedelta_and_report_generation_is_seria
         and node.func.attr == "_async_generate_report_locked"
         for node in ast.walk(report_method)
     )
+
+
+
+def test_report_state_is_committed_only_after_report_write_and_store_save():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_generate_report_locked"
+    )
+    calls = [
+        node.func.attr
+        for node in ast.walk(method)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    ]
+    assert "deepcopy" in calls
+    assert "write_report" in calls
+    assert "async_save" in calls
+    save_index = next(
+        index for index, statement in enumerate(method.body)
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "async_save"
+            for node in ast.walk(statement)
+        )
+    )
+    state_commit_index = next(
+        index for index, statement in enumerate(method.body)
+        if isinstance(statement, ast.Assign)
+        and any(
+            isinstance(target, ast.Attribute)
+            and target.attr == "schedule"
+            for target in statement.targets
+        )
+    )
+    assert save_index < state_commit_index
+
+
+def test_focused_prompt_rejects_unknown_plan_before_writing():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_generate_focused_repair_prompt"
+    )
+    calls = [
+        node.func.id if isinstance(node.func, ast.Name)
+        else node.func.attr if isinstance(node.func, ast.Attribute)
+        else None
+        for node in ast.walk(method)
+        if isinstance(node, ast.Call)
+    ]
+    assert calls.index("write_focused_repair_prompt") > calls.index("next")
+    assert "ValueError" in [
+        node.id for node in ast.walk(method) if isinstance(node, ast.Name)
+    ]
+
+
+def test_report_artifacts_are_staged_before_publication_and_retention():
+    source = (INTEGRATION / "report.py").read_text(encoding="utf-8")
+    assert "TemporaryDirectory" in source
+    assert "os.replace(staged_path, final_path)" in source
+    assert source.index("os.replace(staged_path, final_path)") < source.index("cutoff = now - timedelta")
