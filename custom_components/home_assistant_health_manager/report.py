@@ -214,6 +214,18 @@ def _reconcile_report_transactions_sync(directory, committed_report_path=None):
             except OSError:
                 continue
 
+    # Completion markers can outlive their canonical ZIP after external
+    # deletion or filesystem damage. They are not useful recovery records
+    # without that artifact, so remove them; retain on error for a later retry.
+    for marker in directory.glob(".health_report_*.complete"):
+        base = marker.name[1:-len(".complete")]
+        if (directory / f"{base}.zip").is_file():
+            continue
+        try:
+            marker.unlink(missing_ok=True)
+        except OSError:
+            continue
+
 
 async def async_commit_report(hass, report_path):
     """Mark a report transaction committed after its Store record is durable."""
