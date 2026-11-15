@@ -20,6 +20,7 @@ from .repair_prompt import build_repair_prompt
 from .repair_plan import build_repair_plan
 from .focused_repair_prompt import build_focused_repair_prompt
 from .investigation_history import record_investigation, set_investigation_status, summarize_investigations
+from .storage import normalize_schedule_data
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,15 +40,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.hass.data[f"{DOMAIN}_retention_days"] = entry.options.get("retention_days", 90)
 
     async def async_setup_schedule(self):
-        self.schedule = await self.store.async_load() or {}
-        now = datetime.now(timezone.utc)
-        self.schedule.setdefault("next_weekly", (now + timedelta(days=7)).isoformat())
-        self.schedule.setdefault("next_monthly", (now + timedelta(days=30)).isoformat())
-        self.schedule.setdefault("issue_history", {})
-        self.schedule.setdefault("change_history", [])
-        self.schedule.setdefault("trend_history", [])
-        self.schedule.setdefault("integration_trend_history", [])
-        self.schedule.setdefault("investigation_history", [])
+        stored_data = await self.store.async_load()
+        self.schedule = normalize_schedule_data(stored_data)
         await self.store.async_save(self.schedule)
         from homeassistant.helpers.event import async_track_time_interval
         self._schedule_unsub = async_track_time_interval(
