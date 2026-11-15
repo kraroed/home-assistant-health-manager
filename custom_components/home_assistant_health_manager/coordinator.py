@@ -57,7 +57,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             self.hass, self.schedule.get("last_report_path")
         )
         await async_reconcile_focused_prompt_transactions(
-            self.hass, schedule_snapshot.get("investigation_history", [])
+            self.hass, self.schedule.get("investigation_history", [])
         )
         self.last_report_path = self.schedule.get("last_report_path")
         await self.store.async_save(self.schedule)
@@ -112,7 +112,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "diagnostic_trend": summarize_trends(schedule_snapshot.get("trend_history", [])),
                 "integration_trend_summary": summarize_integration_trends(schedule_snapshot.get("integration_trend_history", [])),
                 "repair_plan": schedule_snapshot.get("last_repair_plan", {}),
-                **summarize_investigations(self.schedule.get("investigation_history", [])),
+                **summarize_investigations(schedule_snapshot.get("investigation_history", [])),
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
