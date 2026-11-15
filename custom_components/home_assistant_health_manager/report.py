@@ -108,3 +108,22 @@ def _write_report_sync(
         except OSError:
             continue
     return str(zip_path)
+
+
+async def write_focused_repair_prompt(hass, plan_id, prompt):
+    """Write one focused prompt locally without adding raw diagnostic data."""
+    directory = hass.config.path(REPORT_DIR)
+    safe_id = "".join(char if char.isalnum() or char in "_-" else "_" for char in plan_id)[:80]
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    return await asyncio.to_thread(
+        _write_focused_prompt_sync, directory, safe_id, stamp, prompt
+    )
+
+
+def _write_focused_prompt_sync(directory_path, safe_id, stamp, prompt):
+    directory = Path(directory_path)
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"focused_repair_{safe_id}_{stamp}.md"
+    path.write_text(prompt, encoding="utf-8")
+    return str(path)
+
