@@ -76,3 +76,88 @@ def test_reconcile_preserves_focused_prompt_committed_to_store(tmp_path):
 
     assert (tmp_path / prompt).read_text(encoding="utf-8") == "prompt"
     assert not (tmp_path / f".{prompt}.pending").exists()
+
+
+
+def _write_report(REPORT, directory, **overrides):
+    values = {
+        "directory_path": directory,
+        "snapshot": {"collected_at": "2026-11-15T12:00:00+00:00", "entity_count": 1},
+        "analysis": {"assessment_type": "weekly_diagnostic", "level_counts": {}},
+        "sanitized_log": None,
+        "redaction_counts": {},
+        "recommendations": [],
+        "issue_history": {},
+        "issue_summary": {},
+        "repair_prompt": "Review diagnostics carefully.",
+        "compatibility": {},
+        "change_summary": {},
+        "retention_days": 90,
+    }
+    values.update(overrides)
+    return REPORT._write_report_sync(**values)
+
+
+def test_report_staging_failure_leaves_no_published_artifacts_or_marker(tmp_path, monkeypatch):
+    def fail_zip(*args, **kwargs):
+        raise OSError("simulated ZIP write failure")
+
+    monkeypatch.setattr(REPORT.zipfile, "ZipFile", fail_zip)
+
+    try:
+        _write_report(REPORT, tmp_path)
+    except OSError as err:
+        assert "simulated ZIP write failure" in str(err)
+    else:
+        raise AssertionError("expected ZIP write failure")
+
+    assert not list(tmp_path.glob("health_report_*"))
+    assert not list(tmp_path.glob(".health_report_*.pending"))
+    assert not list(tmp_path.glob(".health_report_*"))
+
+
+def test_partial_publication_is_removed_during_reconciliation(tmp_path, monkeypatch):
+    original_replace = REPORT.os.replace
+    calls = {"count": 0}
+
+    def fail_during_publish(source, destination):
+        calls["count"] += 1
+        if calls["count"] == 3:
+            raise OSError("simulated publication interruption")
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(REPORT.os, "replace", fail_during_publish)
+
+    try:
+        _write_report(REPORT, tmp_path)
+    except OSError as err:
+        assert "simulated publication interruption" in str(err)
+    else:
+        raise AssertionError("expected publication failure")
+
+    pending = list(tmp_path.glob(".health_report_*.pending"))
+    assert len(pending) == 1
+    assert list(tmp_path.glob("health_report_*"))
+
+    REPORT._reconcile_report_transactions_sync(tmp_path, None)
+
+    assert not list(tmp_path.glob("health_report_*"))
+    assert not list(tmp_path.glob(".health_report_*.pending"))
+
+
+def test_committed_report_survives_reconciliation_and_retention_cleanup(tmp_path):
+    old = tmp_path / "health_report_20200101T000000000000Z.zip"
+    old.write_text("old", encoding="utf-8")
+    import os
+    import time
+    old_time = time.time() - 400 * 24 * 60 * 60
+    os.utime(old, (old_time, old_time))
+
+    path = _write_report(REPORT, tmp_path, retention_days=90)
+    assert Path(path).exists()
+    assert not old.exists()
+
+    REPORT._reconcile_report_transactions_sync(tmp_path, path)
+
+    assert Path(path).exists()
+    assert Path(path).with_name(f".{Path(path).stem}.complete").exists()
