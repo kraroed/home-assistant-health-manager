@@ -68,7 +68,12 @@ def selector_module(monkeypatch):
 
     history = importlib.import_module(f"{package_name}.investigation_history")
     module = importlib.import_module(f"{package_name}.select")
-    return module, history
+    try:
+        yield module, history
+    finally:
+        for name in list(sys.modules):
+            if name == package_name or name.startswith(f"{package_name}."):
+                sys.modules.pop(name, None)
 
 
 class FakeEntry:
