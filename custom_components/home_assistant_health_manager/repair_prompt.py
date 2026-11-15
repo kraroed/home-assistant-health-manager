@@ -69,6 +69,7 @@ def build_repair_prompt(snapshot, analysis, recommendations, generated_at, compa
         "integration_trend_summary": snapshot.get("integration_trend_summary", {}),
         "issue_history_summary": snapshot.get("issue_history_summary", {}),
         "findings": findings,
+        "prioritized_repair_plan": snapshot.get("repair_plan", {}),
     }
     return """# Home Assistant Maintenance Repair & Validation Request
 
@@ -93,6 +94,8 @@ Act as a careful Home Assistant maintenance engineer. Guide me through investiga
 
 - Confirm the live state and whether each finding is still reproducible.
 - Build a compatibility picture for this exact installation and its installed integrations/add-ons. Use the domain inventory as a checklist, not as proof of source or version; verify the source and installed version independently.
+- Use the supplied prioritized repair plan as a triage aid. It groups only exact shared domain or issue identities; general aggregate findings remain separate unless the evidence establishes a safe identity match.
+- Treat attached logger and trend data as related evidence, not proof of root cause. A logger namespace identifies the emitter, not necessarily the cause.
 - Rank repairs by severity, confidence, user impact, and risk.
 - Present the first repair with official sources, prerequisites, backup/rollback, exact steps, and validation criteria.
 - Wait for my approval before making or guiding any change that alters the system.
