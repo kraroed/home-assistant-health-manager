@@ -545,7 +545,4 @@ def test_reconcile_removes_stale_completion_marker_when_canonical_zip_is_missing
     REPORT._reconcile_report_transactions_sync(tmp_path, str(tmp_path / f"{base}.zip"))
 
     assert not marker.exists()
-    # Reconciliation only removes the stale completion marker here. A
-    # non-pending sidecar is left for retention/manual cleanup rather than
-    # being mistaken for a transaction still awaiting recovery.
-    assert (tmp_path / f"{base}.json").exists()
+    assert not (tmp_path / f"{base}.json").exists()
