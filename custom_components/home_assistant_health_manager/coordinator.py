@@ -75,19 +75,9 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         now = datetime.now(timezone.utc)
         try:
             if self.entry.options.get("monthly_reviews", True) and _is_due(self.schedule.get("next_monthly"), now):
-                await self.async_generate_report(comprehensive=True)
-                async with self._state_lock:
-                    schedule = deepcopy(self.schedule)
-                    schedule["next_monthly"] = (now + timedelta(days=30)).isoformat()
-                    await self.store.async_save(schedule)
-                    self.schedule = schedule
+                await self.async_generate_report(comprehensive=True, scheduled_period="next_monthly")
             elif self.entry.options.get("weekly_reports", True) and _is_due(self.schedule.get("next_weekly"), now):
-                await self.async_generate_report(comprehensive=False)
-                async with self._state_lock:
-                    schedule = deepcopy(self.schedule)
-                    schedule["next_weekly"] = (now + timedelta(days=7)).isoformat()
-                    await self.store.async_save(schedule)
-                    self.schedule = schedule
+                await self.async_generate_report(comprehensive=False, scheduled_period="next_weekly")
             await self.async_request_refresh()
         except Exception:
             _LOGGER.exception("Scheduled health review failed")
@@ -126,13 +116,13 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
 
-    async def async_generate_report(self, comprehensive=False):
+    async def async_generate_report(self, comprehensive=False, scheduled_period=None):
         """Serialize report generation so schedule history cannot race."""
         async with self._report_lock:
             async with self._state_lock:
-                return await self._async_generate_report_locked(comprehensive)
+                return await self._async_generate_report_locked(comprehensive, scheduled_period)
 
-    async def _async_generate_report_locked(self, comprehensive=False):
+    async def _async_generate_report_locked(self, comprehensive=False, scheduled_period=None):
         schedule = deepcopy(self.schedule)
         snapshot = collect_snapshot(self.hass)
         change_history, change_summary = update_change_history(schedule.get('change_history', []), snapshot, snapshot['collected_at'])
@@ -203,6 +193,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         schedule["last_assessment"] = now.isoformat()
         schedule["last_report"] = now.isoformat()
         schedule["last_report_path"] = path
+        if scheduled_period == "next_monthly":
+            schedule["next_monthly"] = (now + timedelta(days=30)).isoformat()
+        elif scheduled_period == "next_weekly":
+            schedule["next_weekly"] = (now + timedelta(days=7)).isoformat()
         schedule["report_count"] = schedule.get("report_count", 0) + 1
         await self.store.async_save(schedule)
         self.schedule = schedule
