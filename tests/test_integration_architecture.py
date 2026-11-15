@@ -617,3 +617,47 @@ def test_investigation_status_is_not_committed_to_live_schedule_before_store_sav
         )
         for node in ast.walk(method)
     )
+
+
+def test_startup_recovers_persisted_artifacts_before_registering_schedule():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_setup_schedule"
+    )
+    calls = [
+        node.func.attr if isinstance(node.func, ast.Attribute)
+        else node.func.id if isinstance(node.func, ast.Name)
+        else None
+        for node in ast.walk(method)
+        if isinstance(node, ast.Call)
+    ]
+    for required in (
+        "async_load",
+        "normalize_schedule_data",
+        "async_reconcile_report_transactions",
+        "async_reconcile_focused_prompt_transactions",
+        "async_save",
+        "async_track_time_interval",
+    ):
+        assert required in calls
+
+    def first_line(name):
+        return min(
+            node.lineno for node in ast.walk(method)
+            if isinstance(node, ast.Call)
+            and (
+                (isinstance(node.func, ast.Attribute) and node.func.attr == name)
+                or (isinstance(node.func, ast.Name) and node.func.id == name)
+            )
+        )
+
+    assert first_line("async_load") < first_line("normalize_schedule_data")
+    assert first_line("normalize_schedule_data") < first_line("async_reconcile_report_transactions")
+    assert first_line("async_reconcile_report_transactions") < first_line("async_reconcile_focused_prompt_transactions")
+    assert first_line("async_reconcile_focused_prompt_transactions") < first_line("async_save")
+    assert first_line("async_save") < first_line("async_track_time_interval")
