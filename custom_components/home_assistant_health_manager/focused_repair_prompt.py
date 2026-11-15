@@ -3,6 +3,21 @@
 import json
 
 
+
+def build_repair_plan_options(items):
+    """Return readable, unique select labels mapped to exact plan IDs."""
+    options = {}
+    for item in items:
+        plan_id = item.get("plan_id")
+        if not isinstance(plan_id, str) or not plan_id:
+            continue
+        severity = str(item.get("severity", "unknown")).upper()
+        title = " ".join(str(item.get("title", plan_id)).split())
+        label = f"{severity} · {title[:140]} [{plan_id}]"
+        options[label[:250]] = plan_id
+    return options
+
+
 def build_focused_repair_prompt(context, plan_id):
     """Build a prompt containing only one selected plan item and matching findings."""
     plan = context.get("repair_plan", {})
