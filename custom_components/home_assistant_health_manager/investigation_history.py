@@ -63,3 +63,19 @@ def summarize_investigations(history):
         "investigation_status_counts": counts,
         "investigations": records,
     }
+
+
+def build_investigation_options(history):
+    """Build readable dashboard choices mapped to stored investigation IDs."""
+    options = {}
+    records = [item for item in history if isinstance(item, dict)]
+    records.sort(key=lambda item: item.get("last_updated", ""), reverse=True)
+    for item in records[:MAX_INVESTIGATIONS]:
+        plan_id = item.get("plan_id")
+        if not isinstance(plan_id, str) or not plan_id:
+            continue
+        status = str(item.get("status", "unknown")).replace("_", " ").title()
+        title = " ".join(str(item.get("title", plan_id)).split())
+        label = f"{status} · {title[:130]} [{plan_id}]"
+        options[label[:250]] = plan_id
+    return options
