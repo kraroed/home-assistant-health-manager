@@ -29,4 +29,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.data.get(DOMAIN):
         hass.services.async_remove(DOMAIN, "run_diagnostics")
         hass.services.async_remove(DOMAIN, "generate_report")
+        hass.services.async_remove(DOMAIN, "generate_ai_repair_prompt")
+        hass.services.async_remove(DOMAIN, "generate_focused_repair_prompt")
     return unloaded
