@@ -29,9 +29,16 @@ class RepairPlanSelect(CoordinatorEntity, SelectEntity):
 
     @property
     def options(self):
+        if self.coordinator.last_repair_context is None:
+            self._option_to_plan_id = {}
+            return []
         items = (self.coordinator.data or {}).get("repair_plan", {}).get("items", [])
         self._option_to_plan_id = build_repair_plan_options(items)
         return list(self._option_to_plan_id)
+
+    @property
+    def current_option(self):
+        return self._attr_current_option if self._attr_current_option in self.options else None
 
     @property
     def extra_state_attributes(self):
