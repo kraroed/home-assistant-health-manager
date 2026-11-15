@@ -196,15 +196,19 @@ def _reconcile_report_transactions_sync(directory, committed_report_path=None):
         # canonical ZIP is missing. This can happen after external deletion or
         # filesystem damage; remove leftover partial artifacts rather than
         # marking a report complete when its primary artifact is unavailable.
+        cleanup_complete = True
         for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
             try:
                 (directory / f"{base}{suffix}").unlink(missing_ok=True)
             except OSError:
+                cleanup_complete = False
+        # Keep the recovery marker if any artifact could not be removed. A
+        # later startup can retry cleanup instead of losing track of an orphan.
+        if cleanup_complete:
+            try:
+                marker.unlink(missing_ok=True)
+            except OSError:
                 continue
-        try:
-            marker.unlink(missing_ok=True)
-        except OSError:
-            continue
 
 
 async def async_commit_report(hass, report_path):
@@ -241,6 +245,7 @@ def _reconcile_focused_prompt_transactions_sync(directory, committed_paths):
             try:
                 (directory / filename).unlink(missing_ok=True)
             except OSError:
+                # Retain the marker so a later startup can retry this cleanup.
                 continue
         try:
             marker.unlink(missing_ok=True)
