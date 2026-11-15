@@ -144,13 +144,13 @@ def _write_report_sync(
     # written only after the Store transaction commits, so its mtime is
     # expected to be newer than the report files. Retention must remove the
     # marker with the report set rather than age-checking it independently.
-    for zip_path in directory.glob("health_report_*.zip"):
+    for report_zip in directory.glob("health_report_*.zip"):
         try:
-            if not zip_path.is_file() or datetime.fromtimestamp(
-                zip_path.stat().st_mtime, timezone.utc
+            if not report_zip.is_file() or datetime.fromtimestamp(
+                report_zip.stat().st_mtime, timezone.utc
             ) >= cutoff:
                 continue
-            base = zip_path.stem
+            base = report_zip.stem
             for suffix in (".json", ".txt", ".zip", "_ai_repair_prompt.md"):
                 (directory / f"{base}{suffix}").unlink(missing_ok=True)
             (directory / f".{base}.complete").unlink(missing_ok=True)
