@@ -115,3 +115,31 @@ def test_selected_investigation_tolerates_malformed_repair_plan_items():
         "selected": {"plan_id": "mqtt", "title": "MQTT review"},
         "finding": None,
     }
+
+
+def test_investigation_history_tolerates_malformed_sort_timestamps_and_generation_counts():
+    history = [
+        {"plan_id": "mqtt", "last_updated": None, "generation_count": "not-a-number"},
+        {"plan_id": "zha", "last_updated": "2026-11-15T10:00:00+00:00", "generation_count": 2},
+        {"plan_id": "zwave", "last_updated": 123, "generation_count": None},
+    ]
+
+    updated = HISTORY.record_investigation(
+        history,
+        {"plan_id": "mqtt", "title": "MQTT review"},
+        "/config/health_manager/reports/mqtt.md",
+        "2026-11-15T12:00:00+00:00",
+    )
+    assert updated[0]["plan_id"] == "mqtt"
+    assert updated[0]["generation_count"] == 1
+    assert updated[1]["plan_id"] == "zha"
+    assert updated[2]["plan_id"] == "zwave"
+
+    status_updated = HISTORY.set_investigation_status(
+        [{"plan_id": "mqtt", "last_updated": None}, {"plan_id": "zha", "last_updated": 123}],
+        "mqtt",
+        "resolved",
+        "2026-11-15T13:00:00+00:00",
+    )
+    assert status_updated[0]["plan_id"] == "mqtt"
+    assert status_updated[0]["status"] == "resolved"
