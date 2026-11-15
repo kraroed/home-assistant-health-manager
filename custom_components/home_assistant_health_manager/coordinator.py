@@ -40,6 +40,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.selected_investigation_plan_id = None
         self._schedule_unsub = None
         self._report_lock = asyncio.Lock()
+        self._state_lock = asyncio.Lock()
         self.hass.data[f"{DOMAIN}_retention_days"] = entry.options.get("retention_days", 90)
 
     async def async_setup_schedule(self):
@@ -105,7 +106,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     async def async_generate_report(self, comprehensive=False):
         """Serialize report generation so schedule history cannot race."""
         async with self._report_lock:
-            return await self._async_generate_report_locked(comprehensive)
+            async with self._state_lock:
+                return await self._async_generate_report_locked(comprehensive)
 
     async def _async_generate_report_locked(self, comprehensive=False):
         schedule = deepcopy(self.schedule)
