@@ -133,11 +133,12 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "retained_limit": 50,
             }
         if self.key == "selected_investigation":
+            selected_id = self.coordinator.selected_investigation_plan_id
+            selected_data = build_selected_investigation(data, selected_id)
             return {
-                **build_selected_investigation(
-                    data, self.coordinator.selected_investigation_plan_id
-                ),
-                "selection_required": self.coordinator.selected_investigation_plan_id is None,
+                **selected_data,
+                "selection_required": selected_data["selected"] is None,
+                "selection_stale": selected_id is not None and selected_data["selected"] is None,
                 "scope_note": "Finding details come from the latest generated repair plan. Investigation status is a user tracking label, not verification.",
             }
         if self.key == "integration_attention_domains":
