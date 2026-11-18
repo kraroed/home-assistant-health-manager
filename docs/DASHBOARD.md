@@ -44,8 +44,6 @@ cards:
         name: Unknown entities (raw)
       - entity: sensor.actionable_unknown_entities
         name: Actionable unknown entities
-      - entity: sensor.actionable_unknown_entities
-        name: Actionable unknown entities
       - entity: sensor.failed_integrations
         name: Failed integrations
       - entity: sensor.integration_attention_domains
