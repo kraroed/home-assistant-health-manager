@@ -41,6 +41,33 @@ def test_provider_domain_finding_uses_bounded_inventory_evidence():
     assert finding["automated_action_available"] is False
 
 
+def test_expected_unknown_buttons_do_not_create_unknown_entity_finding():
+    result = RECOMMENDATIONS.build_recommendations(
+        {
+            "failed_config_entry_count": 0,
+            "unavailable_entity_count": 0,
+            "unknown_entity_count": 124,
+            "actionable_unknown_entity_count": 0,
+        },
+        {"level_counts": {}},
+    )
+    assert all(item["id"] != "unknown_entities" for item in result)
+
+
+def test_actionable_unknown_count_drives_unknown_entity_finding():
+    result = RECOMMENDATIONS.build_recommendations(
+        {
+            "failed_config_entry_count": 0,
+            "unavailable_entity_count": 0,
+            "unknown_entity_count": 158,
+            "actionable_unknown_entity_count": 34,
+        },
+        {"level_counts": {}},
+    )
+    finding = next(item for item in result if item["id"] == "unknown_entities")
+    assert "34 entities" in finding["detail"]
+
+
 def test_clean_snapshot_is_not_claimed_to_be_issue_free():
     result = RECOMMENDATIONS.build_recommendations(
         {"failed_config_entry_count": 0, "unavailable_entity_count": 0, "unknown_entity_count": 0},
