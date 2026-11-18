@@ -26,7 +26,7 @@ def collect_integration_inventory(entries, entity_registry=None, states=()):
     states_by_id = {
         getattr(state, "entity_id", None): (
             getattr(state, "state", None),
-            getattr(state, "domain", None),
+            getattr(state, "domain", str(getattr(state, "entity_id", "")).split(".", 1)[0]),
         )
         for state in states
         if isinstance(getattr(state, "entity_id", None), str)
@@ -123,7 +123,9 @@ def collect_integration_inventory(entries, entity_registry=None, states=()):
             "Groups config-entry setup states and registered entity state counts by "
             "the integration platform that provides each entity. Entity IDs and "
             "config-entry identities are used only for in-memory matching and are "
-            "not retained. Domains are not classified as Core, HACS, or manually "
+            "not retained. Unknown button states are retained in raw counts but excluded "
+            "from actionable unknown counts because button entities are stateless actions. "
+            "Domains are not classified as Core, HACS, or manually "
             "installed, and integration versions, entry titles, data, and options "
             "are not collected. Entity counts include only registered entities "
             "with a current state."
