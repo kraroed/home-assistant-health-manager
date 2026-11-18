@@ -24,7 +24,10 @@ def collect_integration_inventory(entries, entity_registry=None, states=()):
         grouped[domain][str(state_value or "unknown")] += 1
 
     states_by_id = {
-        getattr(state, "entity_id", None): getattr(state, "state", None)
+        getattr(state, "entity_id", None): (
+            getattr(state, "state", None),
+            getattr(state, "domain", None),
+        )
         for state in states
         if isinstance(getattr(state, "entity_id", None), str)
     }
@@ -35,11 +38,15 @@ def collect_integration_inventory(entries, entity_registry=None, states=()):
         if not isinstance(domain, str) or not domain or entity_id not in states_by_id:
             continue
         entity_counts[domain]["entity_count"] += 1
-        state = states_by_id[entity_id]
+        state, entity_domain = states_by_id[entity_id]
         if state == "unavailable":
             entity_counts[domain]["unavailable_entity_count"] += 1
         elif state == "unknown":
-            entity_counts[domain]["unknown_entity_count"] += 1
+            entity_counts[domain]["raw_unknown_entity_count"] += 1
+            # The entity domain, not its provider integration, determines
+            # whether an unknown state is expected for a stateless action.
+            if entity_domain != "button":
+                entity_counts[domain]["actionable_unknown_entity_count"] += 1
 
     all_domains = sorted(set(grouped) | set(entity_counts))
     included_domains = all_domains[:MAX_INTEGRATION_DOMAINS]
@@ -53,7 +60,8 @@ def collect_integration_inventory(entries, entity_registry=None, states=()):
             "setup_states": setup_states,
             "entity_count": entity_summary.get("entity_count", 0),
             "unavailable_entity_count": entity_summary.get("unavailable_entity_count", 0),
-            "unknown_entity_count": entity_summary.get("unknown_entity_count", 0),
+            "unknown_entity_count": entity_summary.get("raw_unknown_entity_count", 0),
+            "actionable_unknown_entity_count": entity_summary.get("actionable_unknown_entity_count", 0),
             "origin": "not_classified",
         })
 
@@ -71,7 +79,7 @@ def collect_integration_inventory(entries, entity_registry=None, states=()):
             signals.append("setup_retry")
         if item["unavailable_entity_count"]:
             signals.append("unavailable_entities")
-        if item["unknown_entity_count"]:
+        if item["actionable_unknown_entity_count"]:
             signals.append("unknown_entities")
         if not signals:
             continue
@@ -89,11 +97,12 @@ def collect_integration_inventory(entries, entity_registry=None, states=()):
             "entity_count": item["entity_count"],
             "unavailable_entity_count": item["unavailable_entity_count"],
             "unknown_entity_count": item["unknown_entity_count"],
+            "actionable_unknown_entity_count": item["actionable_unknown_entity_count"],
         })
     attention_domains.sort(
         key=lambda item: (
             {"high": 0, "medium": 1, "low": 2}.get(item["severity"], 3),
-            -(item["unavailable_entity_count"] + item["unknown_entity_count"]),
+            -(item["unavailable_entity_count"] + item["actionable_unknown_entity_count"]),
             item["domain"],
         )
     )
