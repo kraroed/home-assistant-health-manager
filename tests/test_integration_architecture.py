@@ -661,3 +661,39 @@ def test_startup_recovers_persisted_artifacts_before_registering_schedule():
     assert first_line("async_reconcile_report_transactions") < first_line("async_reconcile_focused_prompt_transactions")
     assert first_line("async_reconcile_focused_prompt_transactions") < first_line("async_save")
     assert first_line("async_save") < first_line("async_track_time_interval")
+
+
+def test_snapshot_uses_supported_home_assistant_core_version_constant():
+    collector = _parse(INTEGRATION / "collector.py")
+    imports_core_version = any(
+        isinstance(node, ast.ImportFrom)
+        and node.module == "homeassistant.const"
+        and any(
+            alias.name == "__version__"
+            and alias.asname == "HOME_ASSISTANT_VERSION"
+            for alias in node.names
+        )
+        for node in collector.body
+    )
+    assert imports_core_version
+    assert "hass.config.version" not in (
+        INTEGRATION / "collector.py"
+    ).read_text(encoding="utf-8")
+    snapshot = next(
+        node for node in collector.body
+        if isinstance(node, ast.FunctionDef) and node.name == "collect_snapshot"
+    )
+    assert any(
+        isinstance(node, ast.Dict)
+        and any(
+            isinstance(key, ast.Constant)
+            and key.value == "home_assistant_version"
+            for key in node.keys
+        )
+        and any(
+            isinstance(value, ast.Name)
+            and value.id == "HOME_ASSISTANT_VERSION"
+            for value in node.values
+        )
+        for node in ast.walk(snapshot)
+    )
