@@ -427,9 +427,25 @@ Relevant logs/evidence:
 Next action:
 ```
 
-## Release-readiness gate
+## Beta testing release gate
 
-Do not declare the integration runtime-tested or release-ready until:
+The beta exists specifically to enable controlled installation and live testing. Do not require live HA OS test results before publishing this clearly labeled pre-release; those results are the purpose of the beta.
+
+Before publishing `0.1.0-beta.1`, verify:
+
+1. The manifest version is exactly `0.1.0-beta.1` and the Git tag uses the same value.
+2. The release is explicitly marked **pre-release** in GitHub.
+3. The release notes identify this as an initial testing beta and state that live HA OS validation is outstanding.
+4. The latest GitHub Actions run passes all Python tests, hassfest, and HACS validation on the exact tagged commit.
+5. The HACS brand icon, README, license, manifest, and `hacs.json` are present.
+6. The repository contains this installation checklist and the test instance has a full backup before installation.
+7. No unresolved release-blocking defect is known. In particular, report artifacts must be readable and the privacy warning must remain prominent.
+
+A successful beta release does not mean runtime validation is complete or that the integration is suitable for unattended production use.
+
+## Stable release gate
+
+Do not declare the integration runtime-tested or ready for a stable release until:
 
 1. Installation and setup pass on a real HA OS instance.
 2. First diagnostic report and all artifacts are generated and readable.
@@ -439,6 +455,6 @@ Do not declare the integration runtime-tested or release-ready until:
 6. Ordinary startup recovery preserves valid reports.
 7. Retention and fault-injection behavior are verified in a disposable instance.
 8. No unresolved high-severity integration errors remain.
-9. GitHub Actions validation passes on the exact release commit.
+9. GitHub Actions validation passes on the exact stable release commit.
 
 A successful CI run alone is not live Home Assistant OS validation.
