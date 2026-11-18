@@ -45,28 +45,38 @@ Record the exact commit tested. Recheck the Actions page if testing a later revi
 
 Stop if backup creation fails or you cannot restore the system.
 
-## 2. Install using HACS and restart
+## 2. Install from the Home Assistant Marketplace and restart
 
 **Test type:** Safe on production with the backup above.
+
+The current Home Assistant interface uses **Settings → Marketplace** (the successor to the older HACS interface).
 
 Repository URL:
 
 `https://github.com/kraroed/home-assistant-health-manager`
 
-1. Open HACS and add the repository as a custom repository, category **Integration**, using the custom-repository control available in the installed HACS UI.
-2. Find Home Assistant Health Manager and download/install it.
-3. Restart Home Assistant normally.
-4. Wait for startup to finish.
+1. Open **Settings → Marketplace**.
+2. If prompted, connect your GitHub account. The Marketplace needs this connection to add and update custom repositories.
+3. In the upper-right corner, select **Add from link**.
+4. Enter the repository URL above under **GitHub link**, then select **Add**. If the Marketplace cannot identify the content type automatically, choose **Integration**.
+5. Open the Home Assistant Health Manager repository page.
+6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.1`; pre-releases are not offered by default.
+7. Select **Install**, verify the version shown is `0.1.0-beta.1`, and confirm.
+8. Follow the Marketplace prompt if a restart is required. Otherwise, restart Home Assistant normally before adding the integration.
+9. Wait for startup to finish.
 
-- [ ] HACS accepts the repository.
+- [ ] Marketplace accepts the custom repository.
+- [ ] Repository is identified as an integration.
+- [ ] Pre-release switch is enabled.
+- [ ] Install dialog offers `0.1.0-beta.1`.
 - [ ] Integration installation completes.
 - [ ] Home Assistant starts normally.
 - [ ] No new import/setup errors for `home_assistant_health_manager` appear.
-- [ ] HACS shows the integration as installed.
+- [ ] Marketplace shows the integration as installed.
 
-**Expected:** The integration can be imported and initialized without startup errors.
+**Expected:** The beta can be installed through the current Marketplace UI and imported without startup errors.
 
-If HACS UI labels differ, follow the current HACS interface; do not infer that a failed search means the repository is invalid.
+If the pre-release version does not appear immediately after publishing, refresh the repository information or allow time for Marketplace's release metadata to update. Do not install the default-branch commit as a substitute for verifying the tagged beta.
 
 ## 3. Add the integration and review options
 
