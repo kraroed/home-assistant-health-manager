@@ -36,7 +36,8 @@ def test_groups_config_entry_states_by_integration_domain():
          "entity_count": 0, "unavailable_entity_count": 0, "unknown_entity_count": 0,
          "actionable_unknown_entity_count": 0, "origin": "not_classified"},
         {"domain": "zha", "config_entry_count": 2, "setup_states": {"loaded": 1, "setup_error": 1},
-         "entity_count": 0, "unavailable_entity_count": 0, "unknown_entity_count": 0, "origin": "not_classified"},
+         "entity_count": 0, "unavailable_entity_count": 0, "unknown_entity_count": 0,
+         "actionable_unknown_entity_count": 0, "origin": "not_classified"},
     ]
     assert result["origin_classification"] == "not_attempted"
 
@@ -62,6 +63,12 @@ def test_attributes_registered_entity_states_to_provider_integration():
     ]
     assert result["attention_domains"][0]["domain"] == "mqtt"
     assert result["attention_domains"][1]["domain"] == "zha"
+
+
+def test_button_domain_is_the_only_expected_unknown_domain():
+    assert INVENTORY.is_actionable_unknown_domain("sensor") is True
+    assert INVENTORY.is_actionable_unknown_domain("binary_sensor") is True
+    assert INVENTORY.is_actionable_unknown_domain("button") is False
 
 
 def test_unknown_stateless_buttons_are_raw_but_not_actionable():
