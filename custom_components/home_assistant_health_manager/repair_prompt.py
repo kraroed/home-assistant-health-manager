@@ -106,7 +106,7 @@ Act as a careful Home Assistant maintenance engineer. Guide me through investiga
 
 ## Diagnostic context
 
-The following is a bounded summary generated locally by Home Assistant Health Manager. It intentionally excludes raw log lines, entity IDs, config-entry IDs, config-entry titles, configuration contents, and secrets. Update entity titles and release summaries are bounded and redacted best-effort; review them before sharing. It may be incomplete or stale; verify against the live system. Integration domain names are included so you can identify relevant projects, but origin and installed versions are not inferred.
+The following is a bounded summary generated locally by Home Assistant Health Manager. It intentionally excludes raw log lines, entity IDs, config-entry IDs, config-entry titles, configuration contents, and secrets. Update entity titles and release summaries are bounded and redacted best-effort; review them before sharing. It may be incomplete or stale; verify against the live system. Integration domain names are included so you can identify relevant projects, but origin and installed versions are not inferred. Raw unknown counts include stateless button entities; actionable unknown counts exclude buttons because an unknown state is expected for stateless actions. Treat historical trend comparisons across this classification change with caution.
 
 ```json
 """ + json.dumps(context, indent=2, sort_keys=True) + """
