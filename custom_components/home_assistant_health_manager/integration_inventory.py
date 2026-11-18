@@ -6,6 +6,11 @@ MAX_INTEGRATION_DOMAINS = 250
 MAX_ATTENTION_DOMAINS = 20
 
 
+def is_actionable_unknown_domain(entity_domain):
+    """Return whether an unknown state is unexpected for this entity domain."""
+    return entity_domain != "button"
+
+
 def collect_integration_inventory(entries, entity_registry=None, states=()):
     """Summarize setup and entity health by providing integration domain.
 
@@ -45,7 +50,7 @@ def collect_integration_inventory(entries, entity_registry=None, states=()):
             entity_counts[domain]["raw_unknown_entity_count"] += 1
             # The entity domain, not its provider integration, determines
             # whether an unknown state is expected for a stateless action.
-            if entity_domain != "button":
+            if is_actionable_unknown_domain(entity_domain):
                 entity_counts[domain]["actionable_unknown_entity_count"] += 1
 
     all_domains = sorted(set(grouped) | set(entity_counts))
