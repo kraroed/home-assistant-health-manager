@@ -119,7 +119,7 @@ def _write_report_sync(
         ]
         for item in recommendations:
             summary.extend(["", f"[{item['severity'].upper()}] {item['title']}", item["detail"], f"Suggested next step: {item['suggested_action']}"])
-        staged_txt.write_text("\\n".join(summary), encoding="utf-8")
+        staged_txt.write_text("\n".join(summary), encoding="utf-8")
         staged_prompt.write_text(repair_prompt, encoding="utf-8")
         with zipfile.ZipFile(staged_zip, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             archive.write(staged_json, arcname="health_report.json")
