@@ -4,7 +4,7 @@ def build_recommendations(snapshot, analysis):
     failed = snapshot.get("failed_config_entry_count", 0)
     failed_domains = snapshot.get("failed_config_entry_domains", {})
     unavailable = snapshot.get("unavailable_entity_count", 0)
-    unknown = snapshot.get("unknown_entity_count", 0)
+    unknown = snapshot.get("actionable_unknown_entity_count", snapshot.get("unknown_entity_count", 0))
     levels = analysis.get("level_counts", {})
     errors = levels.get("ERROR", 0) + levels.get("CRITICAL", 0) + levels.get("FATAL", 0)
     warnings = levels.get("WARNING", 0)
@@ -74,8 +74,9 @@ def build_recommendations(snapshot, analysis):
             detail_parts.append(f"{setup_retries} config entry setup retries")
         if domain.get("unavailable_entity_count", 0):
             detail_parts.append(f"{domain['unavailable_entity_count']} unavailable registered entities")
-        if domain.get("unknown_entity_count", 0):
-            detail_parts.append(f"{domain['unknown_entity_count']} unknown registered entities")
+        actionable_unknown = domain.get("actionable_unknown_entity_count", domain.get("unknown_entity_count", 0))
+        if actionable_unknown:
+            detail_parts.append(f"{actionable_unknown} actionable unknown registered entities")
         items.append({
             "id": f"integration_domain_{domain_name}",
             "severity": domain.get("severity", "low"),

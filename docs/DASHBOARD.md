@@ -8,17 +8,30 @@ Add a **Manual card** to a dashboard and paste the YAML below. If Home Assistant
 type: vertical-stack
 cards:
   - type: markdown
-    title: Home Assistant Health
+    title: Home Assistant Health — At a Glance
     content: |
       ## {{ states('sensor.health_status') | title }}
 
+      **Active issues:** {{ states('sensor.active_issues') }}
+      **Unavailable:** {{ states('sensor.unavailable_entities') }}
+      **Unknown (actionable / raw):** {{ states('sensor.actionable_unknown_entities') }} / {{ states('sensor.unknown_entities') }}
+      **Failed integrations:** {{ states('sensor.failed_integrations') }}
+
+      **Platform updates:** Core {{ states('sensor.core_update') | replace('_', ' ') }}, Supervisor {{ states('sensor.supervisor_update') | replace('_', ' ') }}, OS {{ states('sensor.operating_system_update') | replace('_', ' ') }}
+
       **Diagnostic trend:** {{ states('sensor.diagnostic_trend') | replace('_', ' ') | title }}
-
       **Diagnostic coverage:** {{ states('sensor.diagnostic_coverage') }}%
-
       **Compatibility:** {{ states('sensor.compatibility_status') | replace('_', ' ') | title }}
 
-      _Coverage describes collected diagnostic sources; it is not a health score._
+      {% set attention = state_attr('sensor.health_status', 'integration_attention_domains') or [] %}
+      **Integration attention areas**
+      {% for item in attention[:5] %}
+      - **{{ item.domain }}** ({{ item.severity | upper }}) — {{ item.unavailable_entity_count }} unavailable, {{ item.actionable_unknown_entity_count }} actionable unknown
+      {% else %}
+      - No integration attention areas were reported
+      {% endfor %}
+
+      _Raw unknown counts include stateless buttons. Actionable unknown counts exclude buttons. Coverage describes collected diagnostic sources; it is not a health score._
   - type: entities
     title: Current diagnostics
     show_header_toggle: false
@@ -28,7 +41,9 @@ cards:
       - entity: sensor.unavailable_entities
         name: Unavailable entities
       - entity: sensor.unknown_entities
-        name: Unknown entities
+        name: Unknown entities (raw)
+      - entity: sensor.actionable_unknown_entities
+        name: Actionable unknown entities
       - entity: sensor.failed_integrations
         name: Failed integrations
       - entity: sensor.integration_attention_domains
@@ -129,7 +144,9 @@ cards:
       - entity: sensor.unavailable_entities
         name: Unavailable
       - entity: sensor.unknown_entities
-        name: Unknown
+        name: Unknown (raw)
+      - entity: sensor.actionable_unknown_entities
+        name: Actionable unknown
       - entity: sensor.failed_integrations
         name: Failed integrations
   - type: history-graph
@@ -152,7 +169,9 @@ cards:
 The diagnostic sensors are read-only. The focused-prompt select is an explicit user-triggered action that only writes a local Markdown prompt and fires an event; it does not invoke repair, update, restart, or configuration changes.
 
 
-The `Integration Attention Domains` sensor counts provider integrations with setup errors/retries or unavailable/unknown registered entities. Its attributes on the sensor and Health Status entity show a bounded, severity-ranked domain list. This is a triage correlation, not proof of a shared root cause.
+The `Unknown Entities` sensor is the raw count and includes all unknown states. The `Actionable Unknown Entities` sensor excludes `button` entities because buttons are stateless actions and an unknown state is expected. Overall health status, active issues, recommendations, and integration attention use actionable unknown counts; raw counts remain visible for transparency. Other unknown entity domains remain actionable and should be reviewed in context.
+
+The `Integration Attention Domains` sensor counts provider integrations with setup errors/retries, unavailable registered entities, or actionable unknown registered entities. Its attributes on the sensor and Health Status entity show a bounded, severity-ranked domain list. Raw unknown counts are retained separately. This is a triage correlation, not proof of a shared root cause.
 
 The `Integration Trend Domains` sensor counts provider domains currently in an attention state. Its attributes show report-to-report counts, changes from the previous report, consecutive attention reports, and distinct attention episodes. A domain absent from a later inventory is marked not present rather than assumed resolved. History is local and bounded to 90 generated reports.
 

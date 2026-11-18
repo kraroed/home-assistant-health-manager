@@ -58,8 +58,10 @@ def _snapshot_signature(snapshot):
             "entity_count": max(0, snapshot.get("entity_count", 0)) if isinstance(snapshot.get("entity_count"), int) else 0,
             "unavailable_entity_count": max(0, snapshot.get("unavailable_entity_count", 0)) if isinstance(snapshot.get("unavailable_entity_count"), int) else 0,
             "unknown_entity_count": max(0, snapshot.get("unknown_entity_count", 0)) if isinstance(snapshot.get("unknown_entity_count"), int) else 0,
+            "actionable_unknown_entity_count": max(0, snapshot.get("actionable_unknown_entity_count", snapshot.get("unknown_entity_count", 0))) if isinstance(snapshot.get("actionable_unknown_entity_count", snapshot.get("unknown_entity_count", 0)), int) else 0,
             "unavailable_by_domain": _bounded_counts(snapshot.get("unavailable_counts_by_domain", {})),
             "unknown_by_domain": _bounded_counts(snapshot.get("unknown_counts_by_domain", {})),
+            "actionable_unknown_by_domain": _bounded_counts(snapshot.get("actionable_unknown_counts_by_domain", snapshot.get("unknown_counts_by_domain", {}))),
             "entity_counts_by_domain": _bounded_counts(snapshot.get("entity_counts_by_domain", {})),
         },
     }

@@ -102,8 +102,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             return {
                 **snapshot,
                 **history_summary,
-                "status": "attention" if snapshot["unavailable_entity_count"] or snapshot["unknown_entity_count"] or snapshot["failed_config_entry_count"] else "healthy",
-                "active_issues": snapshot["unavailable_entity_count"] + snapshot["unknown_entity_count"] + snapshot["failed_config_entry_count"],
+                "status": "attention" if snapshot["unavailable_entity_count"] or snapshot["actionable_unknown_entity_count"] or snapshot["failed_config_entry_count"] else "healthy",
+                "active_issues": snapshot["unavailable_entity_count"] + snapshot["actionable_unknown_entity_count"] + snapshot["failed_config_entry_count"],
                 "last_assessment": schedule_snapshot.get("last_assessment"),
                 "last_report": schedule_snapshot.get("last_report"),
                 "report_count": schedule_snapshot.get("report_count", 0),

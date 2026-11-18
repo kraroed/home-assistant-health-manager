@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import __version__ as HOME_ASSISTANT_VERSION
 from homeassistant.helpers import entity_registry as er
 
-from .integration_inventory import collect_integration_inventory
+from .integration_inventory import collect_integration_inventory, is_actionable_unknown_domain
 from .update_inventory import collect_platform_updates
 from .update_entity_inventory import collect_update_entity_inventory
 
@@ -16,6 +16,8 @@ def collect_snapshot(hass):
     states = list(hass.states.async_all())
     unavailable = [state for state in states if state.state == "unavailable"]
     unknown = [state for state in states if state.state == "unknown"]
+    # Button entities are stateless actions; an unknown state is expected.
+    actionable_unknown = [state for state in unknown if is_actionable_unknown_domain(state.domain)]
     entries = hass.config_entries.async_entries()
     entity_registry = er.async_get(hass)
     failed_entries = [
@@ -32,8 +34,11 @@ def collect_snapshot(hass):
         "entity_count": len(states),
         "unavailable_entity_count": len(unavailable),
         "unknown_entity_count": len(unknown),
+        "actionable_unknown_entity_count": len(actionable_unknown),
+        "expected_unknown_entity_count": len(unknown) - len(actionable_unknown),
         "unavailable_counts_by_domain": dict(Counter(state.domain for state in unavailable)),
         "unknown_counts_by_domain": dict(Counter(state.domain for state in unknown)),
+        "actionable_unknown_counts_by_domain": dict(Counter(state.domain for state in actionable_unknown)),
         "entity_counts_by_domain": dict(Counter(state.domain for state in states)),
         "config_entry_count": len(entries),
         "config_entries_by_domain": dict(Counter(entry.domain for entry in entries)),

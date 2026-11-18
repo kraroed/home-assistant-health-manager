@@ -111,6 +111,23 @@ def test_domain_inventory_truncation_is_reported():
     assert summary["inventory_truncated"] is True
 
 
+def test_legacy_unknown_counts_do_not_produce_cross_classification_delta():
+    legacy = {
+        "timestamp": "2026-11-01T00:00:00Z",
+        "domains": [{
+            "domain": "mqtt", "config_entry_count": 1,
+            "setup_error_count": 0, "setup_retry_count": 0,
+            "entity_count": 10, "unavailable_entity_count": 0,
+            "unknown_entity_count": 3, "attention": True,
+            "signals": ["unknown_entities"],
+        }],
+    }
+    _, summary = TRENDS.update_integration_trend_history(
+        [legacy], inventory(unknown=0), "2026-11-08T00:00:00Z"
+    )
+    assert summary["domains"][0]["deltas_from_previous_report"]["unknown_entity_count"] is None
+
+
 def test_missing_inventory_gap_does_not_create_false_recurrence():
     history, _ = TRENDS.update_integration_trend_history(
         [], inventory(unavailable=2), "2026-11-01T00:00:00Z"
