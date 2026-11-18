@@ -9,6 +9,7 @@ SENSORS = [
     ("active_issues", "Active Issues", "issues", SensorStateClass.MEASUREMENT),
     ("unavailable_entity_count", "Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
     ("unknown_entity_count", "Unknown Entities", "entities", SensorStateClass.MEASUREMENT),
+    ("actionable_unknown_entity_count", "Actionable Unknown Entities", "entities", SensorStateClass.MEASUREMENT),
     ("failed_config_entry_count", "Failed Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("config_entry_count", "Configured Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("integration_attention_domains", "Integration Attention Domains", "integrations", SensorStateClass.MEASUREMENT),
@@ -114,6 +115,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "entity_counts_by_domain": data.get("entity_counts_by_domain", {}),
                 "unavailable_entity_count": data.get("unavailable_entity_count"),
                 "unknown_entity_count": data.get("unknown_entity_count"),
+                "actionable_unknown_entity_count": data.get("actionable_unknown_entity_count"),
+                "expected_unknown_entity_count": data.get("expected_unknown_entity_count"),
                 "failed_config_entry_count": data.get("failed_config_entry_count"),
                 "failed_config_entry_domains": data.get("failed_config_entry_domains", {}),
                 "config_entry_states": data.get("config_entry_states", {}),
@@ -121,6 +124,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "integration_attention_domains": data.get("integration_inventory", {}).get("attention_domains", []),
                 "unavailable_counts_by_domain": data.get("unavailable_counts_by_domain", {}),
                 "unknown_counts_by_domain": data.get("unknown_counts_by_domain", {}),
+                "actionable_unknown_counts_by_domain": data.get("actionable_unknown_counts_by_domain", {}),
             }
         if self.key == "integration_trend_domains":
             return data.get("integration_trend_summary", {})
