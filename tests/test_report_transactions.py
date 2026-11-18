@@ -583,3 +583,16 @@ def test_reconcile_keeps_completion_marker_when_canonical_zip_exists(tmp_path):
 
     assert archive.exists()
     assert marker.exists()
+
+
+
+def test_report_summary_uses_real_line_breaks_and_matches_zip_copy(tmp_path):
+    report_path = _write_report(REPORT, tmp_path)
+    summary_path = Path(report_path).with_suffix(".txt")
+    summary = summary_path.read_text(encoding="utf-8")
+
+    assert "\n" in summary
+    assert "\\n" not in summary
+    assert summary.startswith("Home Assistant Health Manager report\n")
+    with REPORT.zipfile.ZipFile(report_path) as archive:
+        assert archive.read("summary.txt").decode("utf-8") == summary
