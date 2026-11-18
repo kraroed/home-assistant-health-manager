@@ -1,6 +1,6 @@
 # Home Assistant Health Manager 0.1.0-beta.1
 
-**Initial HACS testing beta — pre-release.**
+**Initial Home Assistant Marketplace testing beta — pre-release (HACS-compatible repository).**
 
 This beta is intended to let the maintainer install the integration through HACS and begin controlled Home Assistant OS testing. It is not a stable release and has not yet completed live HA OS runtime validation.
 
@@ -29,4 +29,4 @@ Repository unit tests, Home Assistant hassfest, and HACS validation pass on the 
 
 ## Testing
 
-Install this pre-release through HACS using the repository's custom-repository flow, then follow the controlled HA OS checklist. Take and verify a full backup before installing on a system containing important data. Run destructive fault-injection tests only in a disposable HA OS instance.
+Add this repository from Settings → Marketplace → Add from link, enable its Pre-release switch, and install `0.1.0-beta.1`. Then follow the controlled HA OS checklist. Take and verify a full backup before installing on a system containing important data. Run destructive fault-injection tests only in a disposable HA OS instance.
