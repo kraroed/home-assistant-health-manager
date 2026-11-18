@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import __version__ as HOME_ASSISTANT_VERSION
 from homeassistant.helpers import entity_registry as er
 
-from .integration_inventory import collect_integration_inventory
+from .integration_inventory import collect_integration_inventory, is_actionable_unknown_domain
 from .update_inventory import collect_platform_updates
 from .update_entity_inventory import collect_update_entity_inventory
 
@@ -17,7 +17,7 @@ def collect_snapshot(hass):
     unavailable = [state for state in states if state.state == "unavailable"]
     unknown = [state for state in states if state.state == "unknown"]
     # Button entities are stateless actions; an unknown state is expected.
-    actionable_unknown = [state for state in unknown if state.domain != "button"]
+    actionable_unknown = [state for state in unknown if is_actionable_unknown_domain(state.domain)]
     entries = hass.config_entries.async_entries()
     entity_registry = er.async_get(hass)
     failed_entries = [
