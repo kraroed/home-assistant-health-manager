@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import __version__ as HOME_ASSISTANT_VERSION
 from homeassistant.helpers import entity_registry as er
 
 from .integration_inventory import collect_integration_inventory
@@ -24,7 +25,7 @@ def collect_snapshot(hass):
     entry_states = Counter(entry.state.value for entry in entries)
     return {
         "collected_at": datetime.now(timezone.utc).isoformat(),
-        "home_assistant_version": hass.config.version,
+        "home_assistant_version": HOME_ASSISTANT_VERSION,
         "platform_updates": collect_platform_updates(states),
         "update_entity_inventory": collect_update_entity_inventory(states, entity_registry, hass.config_entries),
         "integration_inventory": collect_integration_inventory(entries, entity_registry, states),
