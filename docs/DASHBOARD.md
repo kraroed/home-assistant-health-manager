@@ -8,17 +8,30 @@ Add a **Manual card** to a dashboard and paste the YAML below. If Home Assistant
 type: vertical-stack
 cards:
   - type: markdown
-    title: Home Assistant Health
+    title: Home Assistant Health — At a Glance
     content: |
       ## {{ states('sensor.health_status') | title }}
 
+      **Active issues:** {{ states('sensor.active_issues') }}
+      **Unavailable:** {{ states('sensor.unavailable_entities') }}
+      **Unknown (actionable / raw):** {{ states('sensor.actionable_unknown_entities') }} / {{ states('sensor.unknown_entities') }}
+      **Failed integrations:** {{ states('sensor.failed_integrations') }}
+
+      **Platform updates:** Core {{ states('sensor.core_update') | replace('_', ' ') }}, Supervisor {{ states('sensor.supervisor_update') | replace('_', ' ') }}, OS {{ states('sensor.operating_system_update') | replace('_', ' ') }}
+
       **Diagnostic trend:** {{ states('sensor.diagnostic_trend') | replace('_', ' ') | title }}
-
       **Diagnostic coverage:** {{ states('sensor.diagnostic_coverage') }}%
-
       **Compatibility:** {{ states('sensor.compatibility_status') | replace('_', ' ') | title }}
 
-      _Coverage describes collected diagnostic sources; it is not a health score._
+      {% set attention = state_attr('sensor.health_status', 'integration_attention_domains') or [] %}
+      **Integration attention areas**
+      {% for item in attention[:5] %}
+      - **{{ item.domain }}** ({{ item.severity | upper }}) — {{ item.unavailable_entity_count }} unavailable, {{ item.actionable_unknown_entity_count }} actionable unknown
+      {% else %}
+      - No integration attention areas were reported
+      {% endfor %}
+
+      _Raw unknown counts include stateless buttons. Actionable unknown counts exclude buttons. Coverage describes collected diagnostic sources; it is not a health score._
   - type: entities
     title: Current diagnostics
     show_header_toggle: false
@@ -29,6 +42,8 @@ cards:
         name: Unavailable entities
       - entity: sensor.unknown_entities
         name: Unknown entities (raw)
+      - entity: sensor.actionable_unknown_entities
+        name: Actionable unknown entities
       - entity: sensor.actionable_unknown_entities
         name: Actionable unknown entities
       - entity: sensor.failed_integrations
