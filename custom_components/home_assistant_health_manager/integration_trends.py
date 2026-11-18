@@ -14,7 +14,10 @@ def _domain_sample(item):
     setup_errors = _count(setup.get("setup_error", 0))
     setup_retries = _count(setup.get("setup_retry", 0))
     unavailable = _count(item.get("unavailable_entity_count", 0))
-    unknown = _count(item.get("unknown_entity_count", 0))
+    # Older persisted samples used unknown_entity_count for all unknowns.
+    # New inventory data separates expected stateless actions from actionable states.
+    unknown = _count(item.get("actionable_unknown_entity_count", item.get("unknown_entity_count", 0)))
+    raw_unknown = _count(item.get("unknown_entity_count", unknown))
     signals = []
     if setup_errors:
         signals.append("setup_error")
@@ -32,6 +35,7 @@ def _domain_sample(item):
         "entity_count": _count(item.get("entity_count", 0)),
         "unavailable_entity_count": unavailable,
         "unknown_entity_count": unknown,
+        "raw_unknown_entity_count": raw_unknown,
         "attention": bool(signals),
         "signals": signals,
     }
