@@ -35,6 +35,7 @@ def _domain_sample(item):
         "entity_count": _count(item.get("entity_count", 0)),
         "unavailable_entity_count": unavailable,
         "unknown_entity_count": unknown,
+        "actionable_unknown_entity_count": unknown,
         "raw_unknown_entity_count": raw_unknown,
         "attention": bool(signals),
         "signals": signals,
@@ -123,7 +124,13 @@ def summarize_integration_trends(history):
             "unavailable_entity_count", "unknown_entity_count",
         ):
             if current is not None and prior is not None:
-                deltas[metric] = current.get(metric, 0) - prior.get(metric, 0)
+                # Before actionable counts were introduced, historical unknown
+                # values included stateless buttons. Do not report a misleading
+                # delta across the classification boundary.
+                if metric == "unknown_entity_count" and "actionable_unknown_entity_count" not in prior:
+                    deltas[metric] = None
+                else:
+                    deltas[metric] = current.get(metric, 0) - prior.get(metric, 0)
             else:
                 deltas[metric] = None
         summaries.append({
@@ -135,6 +142,7 @@ def summarize_integration_trends(history):
                 for metric in (
                     "config_entry_count", "setup_error_count", "setup_retry_count",
                     "entity_count", "unavailable_entity_count", "unknown_entity_count",
+                    "actionable_unknown_entity_count",
                 )
             } if current else {},
             "deltas_from_previous_report": deltas,
