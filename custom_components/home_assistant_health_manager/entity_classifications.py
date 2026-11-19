@@ -171,3 +171,17 @@ def get_review_due_entities(stored, *, now=None):
         if current >= reviewed_at + timedelta(days=int(interval)):
             due.append(entity_id)
     return sorted(due)
+
+
+def mark_classifications_reviewed(stored, entity_ids, *, now=None):
+    """Confirm one or more classifications without changing their meaning."""
+    data = normalize_classifications(stored)
+    timestamp = _now_iso(now)
+    for entity_id in set(entity_ids):
+        record = data["entities"].get(entity_id)
+        if record is None:
+            continue
+        record["last_reviewed"] = timestamp
+        record["review_due"] = False
+        record.pop("review_due_reason", None)
+    return data
