@@ -64,6 +64,10 @@ async def async_setup_services(hass):
             call.data["interval"]
         )
 
+    async def review_entity_classifications_service(call: ServiceCall):
+        coordinator = _get_coordinator(hass)
+        await coordinator.async_review_entity_classifications(call.data["entity_ids"])
+
     async def set_repair_investigation_status(call: ServiceCall):
         coordinator = _get_coordinator(hass)
         plan_id = call.data["plan_id"]
@@ -92,6 +96,9 @@ async def async_setup_services(hass):
     review_interval_schema = vol.Schema({
         vol.Required("interval"): vol.In(["manual", "30", "60", "90"]),
     })
+    review_classifications_schema = vol.Schema({
+        vol.Required("entity_ids"): vol.All([str], vol.Length(min=1)),
+    })
     investigation_status_schema = vol.Schema({
         vol.Required("plan_id"): str,
         vol.Required("status"): vol.In(["prompt_generated", "in_progress", "resolved", "needs_follow_up", "dismissed"]),
@@ -104,6 +111,7 @@ async def async_setup_services(hass):
     hass.services.async_register(DOMAIN, "set_entity_classification", set_entity_classification_service, schema=classification_schema)
     hass.services.async_register(DOMAIN, "remove_entity_classification", remove_entity_classification_service, schema=remove_classification_schema)
     hass.services.async_register(DOMAIN, "set_classification_review_interval", set_classification_review_interval_service, schema=review_interval_schema)
+    hass.services.async_register(DOMAIN, "review_entity_classifications", review_entity_classifications_service, schema=review_classifications_schema)
 
 
 def _get_coordinator(hass):
