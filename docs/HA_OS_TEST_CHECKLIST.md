@@ -122,7 +122,7 @@ data:
 
 The other diagnostic entry point is `home_assistant_health_manager.run_diagnostics`. The service definitions are in `services.yaml`.
 
-Search Developer Tools → States for entities belonging to the integration. The current code defines 24 sensors and 3 select entities. Entity IDs may be prefixed differently by Home Assistant; verify actual IDs rather than assuming dashboard examples are exact.
+Search Developer Tools → States for entities belonging to the integration. The current code defines 31 sensors, 7 select entities, 2 text entities, and 2 button entities. Verify the actual entities created by Home Assistant rather than assuming IDs. Entity IDs may be prefixed differently by Home Assistant; verify actual IDs rather than assuming dashboard examples are exact.
 
 Sensor names to look for include:
 
@@ -144,7 +144,10 @@ Select entities:
 - Investigation Status
 
 - [ ] Expected sensor entities are created.
-- [ ] All three select entities are created.
+- [ ] All seven select entities are created.
+- [ ] Both classification text entities are created.
+- [ ] Both classification action buttons are created.
+- [ ] `sensor.health_overview` is created and mirrors the current overall health state.
 - [ ] Numeric sensors expose sensible numeric values.
 - [ ] Text sensors expose understandable states.
 - [ ] Relevant attributes are present.
@@ -307,7 +310,38 @@ Follow [docs/DASHBOARD.md](https://github.com/kraroed/home-assistant-health-mana
 
 **Expected:** Dashboard works using the actual entity IDs in this installation.
 
-## 12. Disposable-instance fault-injection tests
+## 12. Consolidated health overview and persistent entity classifications
+
+**Test type:** Safe on production after taking the backup described above. Use a test entity for classification-control checks; do not alter the user's established classifications merely to test the UI.
+
+### Consolidated overview
+
+- [ ] `sensor.health_overview` displays `healthy` or `attention` consistently with `sensor.health_status`.
+- [ ] Overview attributes include active issue count, raw and actionable unknown/unavailable counts, failed/configured integration counts, platform update details, classification review queue, diagnostic coverage, compatibility, trends, and report metadata.
+- [ ] Raw unknown and unavailable totals remain visible and are not reduced by classifications.
+- [ ] Individual diagnostic sensors continue to work independently.
+- [ ] The dashboard's Health metrics — live values card renders current values together.
+
+### Classification workflow
+
+- [ ] Classification records persist after a normal Home Assistant restart.
+- [ ] Entering an existing entity ID loads its saved classification and reason when one exists.
+- [ ] Entering a valid but not-yet-classified entity ID allows a new classification to be created.
+- [ ] Applying a classification requires a non-empty explanation.
+- [ ] All four values are available: `actionable`, `expected`, `setup_in_progress`, and `seasonal`.
+- [ ] Applying a new classification updates the stored reason and clears stale review triggers.
+- [ ] Removing a classification removes only the saved metadata and does not delete or modify the Home Assistant entity.
+- [ ] Confirming a review updates its review timestamp without changing the classification or reason.
+- [ ] Review interval selector supports `manual`, `30`, `60`, and `90`.
+- [ ] Manual cadence still permits event-triggered review when an entity disappears, returns, changes source, or has a qualifying availability change.
+- [ ] Multiple outstanding review reasons remain visible together.
+- [ ] Optional persistent notifications remain disabled by default.
+- [ ] When notifications are enabled, an unchanged due-entity set does not repeatedly notify; clearing the due set dismisses the notification.
+- [ ] Existing user classifications are not automatically changed.
+
+**Expected:** The overview gives a reliable single-place summary, while classifications remain explicit user-owned metadata and raw inventory metrics remain intact.
+
+## 13. Disposable-instance fault-injection tests
 
 **Test type:** Disposable HA OS test instance only. Never run these tests on production.
 
@@ -332,7 +366,7 @@ The repository contains unit tests for these transaction cases in `tests/test_re
 
 **Expected:** Committed artifacts survive, abandoned artifacts are cleaned up, and transient cleanup failures preserve retry markers.
 
-## 13. Logs and troubleshooting evidence
+## 14. Logs and troubleshooting evidence
 
 If a test fails, capture:
 
@@ -348,7 +382,7 @@ Search logs for `home_assistant_health_manager`. Review import errors, config-en
 
 Redact credentials, private URLs, and personal information before sharing logs.
 
-## 14. Upgrade, uninstall, and reinstall
+## 15. Upgrade, uninstall, and reinstall
 
 **Test type:** Prefer disposable instance. If performed on production, take a fresh full backup first.
 
@@ -370,7 +404,7 @@ Uninstall/reinstall:
 
 Do not manually delete `/config/health_manager` on production to test removal.
 
-## 15. Results record
+## 16. Results record
 
 Copy and complete this block:
 
@@ -393,7 +427,10 @@ INSTALLATION
 
 DIAGNOSTICS
 [ ] Expected sensors created
-[ ] Three select entities created
+[ ] Seven select entities created
+[ ] Two text entities created
+[ ] Two button entities created
+[ ] Health Overview sensor verified
 [ ] First report generated
 [ ] JSON inspected
 [ ] TXT inspected
