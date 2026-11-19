@@ -89,10 +89,12 @@ def remove_entity_classification(stored, entity_id):
     return data
 
 
-def mark_entity_observations(stored, present_entity_ids, *, now=None):
-    """Track disappearance/return without deleting or reclassifying records."""
+def mark_entity_observations(stored, present_entity_ids, *, entity_sources=None, entity_states=None, now=None):
+    """Track presence, source identity and availability transitions for review."""
     data = normalize_classifications(stored)
     present = set(present_entity_ids)
+    sources = entity_sources or {}
+    states = entity_states or {}
     timestamp = _now_iso(now)
     for entity_id, record in data["entities"].items():
         if entity_id in present:
@@ -104,13 +106,35 @@ def mark_entity_observations(stored, present_entity_ids, *, now=None):
                 record["review_due_reason"] = "entity_returned"
             elif not record.get("last_seen"):
                 record["last_seen"] = timestamp
+            source = sources.get(entity_id, {})
+            if isinstance(source, dict):
+                for field in ("source_domain", "source_unique_id"):
+                    observed = source.get(field)
+                    previous = record.get(field)
+                    if observed is not None and previous is None:
+                        record[field] = observed
+                    elif observed is not None and previous != observed:
+                        record["previous_" + field] = previous
+                        record[field] = observed
+                        record["review_due"] = True
+                        record["review_due_reason"] = "source_changed"
+                        record["source_changed_at"] = timestamp
+            current_state = states.get(entity_id)
+            if current_state is not None:
+                previous_state = record.get("last_observed_state")
+                if previous_state is not None and previous_state != current_state:
+                    if previous_state in {"unknown", "unavailable"} or current_state in {"unknown", "unavailable"}:
+                        record["review_due"] = True
+                        record["review_due_reason"] = "availability_changed"
+                        record["availability_changed_at"] = timestamp
+                        record["previous_observed_state"] = previous_state
+                record["last_observed_state"] = current_state
         elif not record.get("entity_missing"):
             record["entity_missing"] = True
             record["missing_since"] = timestamp
             record["review_due"] = True
             record["review_due_reason"] = "entity_missing"
     return data
-
 
 def set_review_interval(stored, interval):
     """Set the user's classification review cadence."""
