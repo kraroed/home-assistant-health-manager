@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 
 from homeassistant.helpers.storage import Store
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .collector import collect_snapshot, read_core_log
@@ -116,11 +117,24 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             self.entity_classifications = updated
         self.async_update_listeners()
 
-    async def async_update_classification_observations(self, entity_ids):
-        """Record entity presence while retaining classifications for absences."""
+    async def async_update_classification_observations(self, states):
+        """Record presence, registry source and availability for classified entities."""
+        entity_registry = er.async_get(self.hass)
+        present_ids = {state.entity_id for state in states}
+        entity_sources = {}
+        entity_states = {}
+        for state in states:
+            entity_states[state.entity_id] = state.state
+            registry_entry = entity_registry.async_get(state.entity_id)
+            if registry_entry is not None:
+                entity_sources[state.entity_id] = {
+                    "source_domain": registry_entry.platform,
+                    "source_unique_id": registry_entry.unique_id,
+                }
         async with self._state_lock:
             updated = mark_entity_observations(
-                self.entity_classifications, entity_ids
+                self.entity_classifications, present_ids,
+                entity_sources=entity_sources, entity_states=entity_states,
             )
             if updated != self.entity_classifications:
                 await self.classification_store.async_save(updated)
@@ -146,8 +160,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         try:
             # Home Assistant's async state/config-entry APIs must stay on the
             # event loop; only blocking filesystem work belongs in the executor.
-            present_entity_ids = {state.entity_id for state in self.hass.states.async_all()}
-            await self.async_update_classification_observations(present_entity_ids)
+            current_states = list(self.hass.states.async_all())
+            await self.async_update_classification_observations(current_states)
             snapshot = collect_snapshot(self.hass, self.entity_classifications)
             snapshot["collection_coverage"] = build_collection_coverage(snapshot)
             async with self._state_lock:
@@ -185,6 +199,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     async def async_generate_report(self, comprehensive=False, scheduled_period=None):
         """Serialize report generation so schedule history cannot race."""
         async with self._report_lock:
+            current_states = list(self.hass.states.async_all())
+            await self.async_update_classification_observations(current_states)
             async with self._state_lock:
                 return await self._async_generate_report_locked(comprehensive, scheduled_period)
 
@@ -194,8 +210,6 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         # report held the locks. Re-check due state after acquiring them.
         if scheduled_period and not _is_due(schedule.get(scheduled_period), datetime.now(timezone.utc)):
             return None
-        present_entity_ids = {state.entity_id for state in self.hass.states.async_all()}
-        await self.async_update_classification_observations(present_entity_ids)
         snapshot = collect_snapshot(self.hass, self.entity_classifications)
         change_history, change_summary = update_change_history(schedule.get('change_history', []), snapshot, snapshot['collected_at'])
         schedule['change_history'] = change_history
