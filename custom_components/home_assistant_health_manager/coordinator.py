@@ -103,6 +103,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             await self.classification_store.async_save(updated)
             self.entity_classifications = updated
         self.async_update_listeners()
+        await self.async_notify_classification_reviews()
 
     async def async_remove_entity_classification(self, entity_id):
         """Remove only the explicitly selected entity classification."""
@@ -113,6 +114,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             await self.classification_store.async_save(updated)
             self.entity_classifications = updated
         self.async_update_listeners()
+        await self.async_notify_classification_reviews()
 
     async def async_set_classification_review_interval(self, interval):
         """Persist the user's classification review cadence."""
@@ -121,6 +123,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             await self.classification_store.async_save(updated)
             self.entity_classifications = updated
         self.async_update_listeners()
+        await self.async_notify_classification_reviews()
 
     async def async_review_entity_classifications(self, entity_ids):
         """Confirm selected classifications without changing their values."""
@@ -132,6 +135,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 await self.classification_store.async_save(updated)
                 self.entity_classifications = updated
         self.async_update_listeners()
+        await self.async_notify_classification_reviews()
 
     async def async_update_classification_observations(self, states):
         """Record presence, registry source and availability for classified entities."""
@@ -221,6 +225,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             # event loop; only blocking filesystem work belongs in the executor.
             current_states = list(self.hass.states.async_all())
             await self.async_update_classification_observations(current_states)
+            await self.async_notify_classification_reviews()
             snapshot = collect_snapshot(self.hass, self.entity_classifications)
             snapshot["collection_coverage"] = build_collection_coverage(snapshot)
             async with self._state_lock:
