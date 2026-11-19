@@ -37,6 +37,7 @@ class HealthManagerOptionsFlow(config_entries.OptionsFlowWithReload):
             vol.Optional("weekly_reports", default=options.get("weekly_reports", True)): bool,
             vol.Optional("monthly_reviews", default=options.get("monthly_reviews", True)): bool,
             vol.Optional("include_core_log", default=options.get("include_core_log", True)): bool,
+            vol.Optional("classification_review_notifications", default=options.get("classification_review_notifications", False)): bool,
             vol.Optional("retention_days", default=options.get("retention_days", 90)): vol.All(int, vol.Range(min=7, max=365)),
         })
         return self.async_show_form(step_id="init", data_schema=schema)
