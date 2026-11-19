@@ -63,7 +63,7 @@ Repository URL:
 3. In the upper-right corner, select **Add from link**.
 4. Enter the repository URL above under **GitHub link**, then select **Add**. If the Marketplace cannot identify the content type automatically, choose **Integration**.
 5. Open the Home Assistant Health Manager repository page.
-6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.1`; pre-releases are not offered by default.
+6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.4`; pre-releases are not offered by default.
 7. Select **Install**, verify the version shown is `0.1.0-beta.4`, and confirm.
 8. Follow the Marketplace prompt if a restart is required. Otherwise, restart Home Assistant normally before adding the integration.
 9. Wait for startup to finish.
@@ -71,7 +71,7 @@ Repository URL:
 - [ ] Marketplace accepts the custom repository.
 - [ ] Repository is identified as an integration.
 - [ ] Pre-release switch is enabled.
-- [ ] Install dialog offers `0.1.0-beta.1`.
+- [ ] Install dialog offers `0.1.0-beta.4`.
 - [ ] Integration installation completes.
 - [ ] Home Assistant starts normally.
 - [ ] No new import/setup errors for `home_assistant_health_manager` appear.
@@ -482,15 +482,15 @@ Next action:
 
 The beta exists specifically to enable controlled installation and live testing. Do not require live HA OS test results before publishing this clearly labeled pre-release; those results are the purpose of the beta.
 
-Before publishing `0.1.0-beta.1`, verify:
+Before publishing `0.1.0-beta.4`, verify:
 
-1. The manifest version is exactly `0.1.0-beta.1` and the Git tag uses the same value.
-2. The release is explicitly marked **pre-release** in GitHub.
-3. The release notes identify this as an initial testing beta and state that live HA OS validation is outstanding.
-4. The latest GitHub Actions run passes all Python tests, hassfest, and HACS validation on the exact tagged commit.
+1. The manifest version is exactly `0.1.0-beta.4` and the Git tag uses the same value.
+2. The GitHub release is explicitly marked **pre-release**.
+3. The release notes identify this as a feature beta and state that live HA OS validation is outstanding.
+4. The latest GitHub Actions run passes Python syntax and unit tests, hassfest, and HACS validation on the exact tagged commit.
 5. The HACS brand icon, README, license, manifest, and `hacs.json` are present.
-6. The repository contains this installation checklist and the test instance has a full backup before installation.
-7. No unresolved release-blocking defect is known. In particular, report artifacts must be readable and the privacy warning must remain prominent.
+6. The repository contains this installation checklist; create a full HA OS backup before installing the beta.
+7. No unresolved release-blocking defect is known from code review and automated validation. Live installation, report artifacts, classification controls, and dashboard behavior are verified after publishing the beta, with a backup in place.
 
 A successful beta release does not mean runtime validation is complete or that the integration is suitable for unattended production use.
 
