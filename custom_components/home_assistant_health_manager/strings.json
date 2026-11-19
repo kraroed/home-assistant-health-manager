@@ -19,6 +19,7 @@
           "weekly_reports": "Enable weekly reports",
           "monthly_reviews": "Enable monthly comprehensive reviews",
           "include_core_log": "Include sanitized Core log",
+          "classification_review_notifications": "Enable entity classification review notifications",
           "retention_days": "Report retention (days)"
         }
       }

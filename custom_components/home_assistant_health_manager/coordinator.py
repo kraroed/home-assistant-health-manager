@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 
 from homeassistant.helpers.storage import Store
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .collector import collect_snapshot, read_core_log
@@ -30,6 +31,14 @@ from .repair_plan import build_repair_plan
 from .focused_repair_prompt import build_focused_repair_prompt
 from .investigation_history import record_investigation, set_investigation_status, summarize_investigations
 from .storage import normalize_schedule_data
+from .entity_classifications import (
+    normalize_classifications,
+    set_entity_classification,
+    remove_entity_classification,
+    mark_entity_observations,
+    set_review_interval,
+    mark_classifications_reviewed,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,11 +49,17 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.hass = hass
         self.entry = entry
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
+        # Keep user classifications isolated from diagnostic/report history.
+        self.classification_store = Store(hass, 1, f'{DOMAIN}_entity_classifications')
+        self.entity_classifications = normalize_classifications({})
         self.schedule = {}
         self.last_report_path = None
         self.last_prompt_path = None
         self.last_repair_context = None
         self.selected_investigation_plan_id = None
+        self.selected_entity_classification_id = None
+        self.selected_entity_classification = None
+        self.selected_entity_classification_reason = ""
         self._schedule_unsub = None
         self._report_lock = asyncio.Lock()
         self._state_lock = asyncio.Lock()
@@ -53,12 +68,17 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     async def async_setup_schedule(self):
         stored_data = await self.store.async_load()
         self.schedule = normalize_schedule_data(stored_data)
+        stored_classifications = await self.classification_store.async_load()
+        self.entity_classifications = normalize_classifications(stored_classifications)
         await async_reconcile_report_transactions(
             self.hass, self.schedule.get("last_report_path")
         )
         await async_reconcile_focused_prompt_transactions(
             self.hass, self.schedule.get("investigation_history", [])
         )
+        if self.entity_classifications != stored_classifications:
+            await self.classification_store.async_save(self.entity_classifications)
+
         self.last_report_path = self.schedule.get("last_report_path")
         if self.last_report_path and self.last_report_path.endswith(".zip"):
             self.last_prompt_path = self.last_report_path[:-4] + "_ai_repair_prompt.md"
@@ -68,6 +88,120 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             self.hass, self._async_scheduled_check, SCHEDULE_INTERVAL
         )
 
+    async def async_set_entity_classification(
+        self, entity_id, classification, reason, **metadata
+    ):
+        """Persist one explicit user classification independently of reports."""
+        async with self._state_lock:
+            updated = set_entity_classification(
+                self.entity_classifications,
+                entity_id,
+                classification,
+                reason,
+                **metadata,
+            )
+            await self.classification_store.async_save(updated)
+            self.entity_classifications = updated
+        self.async_update_listeners()
+        await self.async_notify_classification_reviews()
+
+    async def async_remove_entity_classification(self, entity_id):
+        """Remove only the explicitly selected entity classification."""
+        async with self._state_lock:
+            updated = remove_entity_classification(
+                self.entity_classifications, entity_id
+            )
+            await self.classification_store.async_save(updated)
+            self.entity_classifications = updated
+        self.async_update_listeners()
+        await self.async_notify_classification_reviews()
+
+    async def async_set_classification_review_interval(self, interval):
+        """Persist the user's classification review cadence."""
+        async with self._state_lock:
+            updated = set_review_interval(self.entity_classifications, interval)
+            await self.classification_store.async_save(updated)
+            self.entity_classifications = updated
+        self.async_update_listeners()
+        await self.async_notify_classification_reviews()
+
+    async def async_review_entity_classifications(self, entity_ids):
+        """Confirm selected classifications without changing their values."""
+        async with self._state_lock:
+            updated = mark_classifications_reviewed(
+                self.entity_classifications, entity_ids
+            )
+            if updated != self.entity_classifications:
+                await self.classification_store.async_save(updated)
+                self.entity_classifications = updated
+        self.async_update_listeners()
+        await self.async_notify_classification_reviews()
+
+    async def async_update_classification_observations(self, states):
+        """Record presence, registry source and availability for classified entities."""
+        entity_registry = er.async_get(self.hass)
+        present_ids = {state.entity_id for state in states}
+        entity_sources = {}
+        entity_states = {}
+        for state in states:
+            entity_states[state.entity_id] = state.state
+            registry_entry = entity_registry.async_get(state.entity_id)
+            if registry_entry is not None:
+                entity_sources[state.entity_id] = {
+                    "source_domain": registry_entry.platform,
+                    "source_unique_id": registry_entry.unique_id,
+                }
+        async with self._state_lock:
+            updated = mark_entity_observations(
+                self.entity_classifications, present_ids,
+                entity_sources=entity_sources, entity_states=entity_states,
+            )
+            if updated != self.entity_classifications:
+                await self.classification_store.async_save(updated)
+                self.entity_classifications = updated
+
+    async def async_notify_classification_reviews(self):
+        """Create one persistent notification per changed due-review set, when enabled."""
+        from homeassistant.components import persistent_notification
+        if not self.entry.options.get("classification_review_notifications", False):
+            async with self._state_lock:
+                if self.entity_classifications.get("last_review_notification_fingerprint") is not None:
+                    updated = deepcopy(self.entity_classifications)
+                    updated["last_review_notification_fingerprint"] = None
+                    await self.classification_store.async_save(updated)
+                    self.entity_classifications = updated
+            persistent_notification.async_dismiss(
+                self.hass, f"{DOMAIN}_classification_review_due"
+            )
+            return
+        from .entity_classifications import get_review_due_entities
+        due = get_review_due_entities(self.entity_classifications)
+        notification_id = f"{DOMAIN}_classification_review_due"
+        fingerprint = "|".join(due)
+        async with self._state_lock:
+            previous = self.entity_classifications.get("last_review_notification_fingerprint")
+            if not due:
+                if previous is not None:
+                    updated = deepcopy(self.entity_classifications)
+                    updated["last_review_notification_fingerprint"] = None
+                    await self.classification_store.async_save(updated)
+                    self.entity_classifications = updated
+                    persistent_notification.async_dismiss(self.hass, notification_id)
+                return
+            if fingerprint == previous:
+                return
+            updated = deepcopy(self.entity_classifications)
+            updated["last_review_notification_fingerprint"] = fingerprint
+            await self.classification_store.async_save(updated)
+            self.entity_classifications = updated
+        names = "\n".join(f"- {entity_id}" for entity_id in due[:20])
+        remainder = f"\n- Plus {len(due) - 20} more" if len(due) > 20 else ""
+        persistent_notification.async_create(
+            self.hass,
+            f"{len(due)} saved entity classification(s) need review:\n\n{names}{remainder}\n\nOpen the Health Manager dashboard to inspect each classification and its reason.",
+            title="Home Assistant Health Manager: classification review",
+            notification_id=notification_id,
+        )
     def async_shutdown(self):
         if self._schedule_unsub:
             self._schedule_unsub()
@@ -81,6 +215,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             elif self.entry.options.get("weekly_reports", True) and _is_due(self.schedule.get("next_weekly"), now):
                 await self.async_generate_report(comprehensive=False, scheduled_period="next_weekly")
             await self.async_request_refresh()
+            await self.async_notify_classification_reviews()
         except Exception:
             _LOGGER.exception("Scheduled health review failed")
 
@@ -88,7 +223,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         try:
             # Home Assistant's async state/config-entry APIs must stay on the
             # event loop; only blocking filesystem work belongs in the executor.
-            snapshot = collect_snapshot(self.hass)
+            current_states = list(self.hass.states.async_all())
+            await self.async_update_classification_observations(current_states)
+            await self.async_notify_classification_reviews()
+            snapshot = collect_snapshot(self.hass, self.entity_classifications)
             snapshot["collection_coverage"] = build_collection_coverage(snapshot)
             async with self._state_lock:
                 change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
@@ -102,8 +240,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             return {
                 **snapshot,
                 **history_summary,
-                "status": "attention" if snapshot["unavailable_entity_count"] or snapshot["actionable_unknown_entity_count"] or snapshot["failed_config_entry_count"] else "healthy",
-                "active_issues": snapshot["unavailable_entity_count"] + snapshot["actionable_unknown_entity_count"] + snapshot["failed_config_entry_count"],
+                "status": "attention" if snapshot["actionable_unavailable_entity_count"] or snapshot["actionable_unknown_entity_count"] or snapshot["failed_config_entry_count"] else "healthy",
+                "active_issues": snapshot["actionable_unavailable_entity_count"] + snapshot["actionable_unknown_entity_count"] + snapshot["failed_config_entry_count"],
                 "last_assessment": schedule_snapshot.get("last_assessment"),
                 "last_report": schedule_snapshot.get("last_report"),
                 "report_count": schedule_snapshot.get("report_count", 0),
@@ -125,6 +263,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     async def async_generate_report(self, comprehensive=False, scheduled_period=None):
         """Serialize report generation so schedule history cannot race."""
         async with self._report_lock:
+            current_states = list(self.hass.states.async_all())
+            await self.async_update_classification_observations(current_states)
             async with self._state_lock:
                 return await self._async_generate_report_locked(comprehensive, scheduled_period)
 
@@ -134,7 +274,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         # report held the locks. Re-check due state after acquiring them.
         if scheduled_period and not _is_due(schedule.get(scheduled_period), datetime.now(timezone.utc)):
             return None
-        snapshot = collect_snapshot(self.hass)
+        snapshot = collect_snapshot(self.hass, self.entity_classifications)
         change_history, change_summary = update_change_history(schedule.get('change_history', []), snapshot, snapshot['collected_at'])
         schedule['change_history'] = change_history
         snapshot['diagnostic_change_history'] = change_summary

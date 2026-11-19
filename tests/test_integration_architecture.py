@@ -697,3 +697,55 @@ def test_snapshot_uses_supported_home_assistant_core_version_constant():
         )
         for node in ast.walk(snapshot)
     )
+
+
+def test_classification_management_has_native_text_and_button_platforms():
+    const = (INTEGRATION / "const.py").read_text(encoding="utf-8")
+    assert 'PLATFORMS = ["sensor", "select", "text", "button"]' in const
+    text_tree = _parse(INTEGRATION / "text.py")
+    button_tree = _parse(INTEGRATION / "button.py")
+    assert any(isinstance(node, ast.ClassDef) and node.name == "EntityClassificationReasonText" for node in text_tree.body)
+    assert any(isinstance(node, ast.ClassDef) and node.name == "EntityClassificationTargetText" for node in text_tree.body)
+    button_classes = {node.name for node in button_tree.body if isinstance(node, ast.ClassDef)}
+    assert {"ApplyEntityClassificationButton", "RemoveEntityClassificationButton"} <= button_classes
+    apply_button = next(node for node in button_tree.body if isinstance(node, ast.ClassDef) and node.name == "ApplyEntityClassificationButton")
+    press = next(node for node in apply_button.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_press")
+    assert any(isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "async_set_entity_classification" for node in ast.walk(press))
+    assert any(isinstance(node, ast.Attribute) and node.attr == "strip" for node in ast.walk(press))
+
+
+def test_classification_selector_supports_explicit_value_and_review_cadence():
+    tree = _parse(INTEGRATION / "select.py")
+    names = {node.name for node in tree.body if isinstance(node, ast.ClassDef)}
+    assert "EntityClassificationValueSelect" in names
+    assert "ClassificationReviewIntervalSelect" in names
+    assert "EntityClassificationReviewSelect" in names
+    assert "ConfirmEntityClassificationReviewSelect" in names
+
+def test_consolidated_health_overview_sensor_exposes_live_summary_attributes():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    assert '("health_overview", "Health Overview", None, None)' in source
+    assert 'if self.key == "health_overview":' in source
+    assert 'if self.key in {"status", "health_overview"}:' in source
+    for attribute in (
+        '"active_issues":',
+        '"actionable_unavailable_entity_count":',
+        '"actionable_unknown_entity_count":',
+        '"failed_config_entry_count":',
+        '"classification_review_due_count":',
+        '"collection_coverage":',
+        '"compatibility_assessment":',
+    ):
+        assert attribute in source
+
+
+def test_dashboard_displays_consolidated_health_metrics_and_raw_context():
+    dashboard = (ROOT / "docs" / "DASHBOARD.md").read_text(encoding="utf-8")
+    assert "sensor.health_overview" in dashboard
+    assert "sensor.actionable_unavailable_entities" in dashboard
+    assert "sensor.unavailable_entities" in dashboard
+    assert "sensor.actionable_unknown_entities" in dashboard
+    assert "sensor.unknown_entities" in dashboard
+    assert "sensor.classification_reviews_due" in dashboard
+    assert "last_assessment" in dashboard
+    assert "last_report" in dashboard

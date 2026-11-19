@@ -6,10 +6,16 @@ from .investigation_history import build_selected_investigation
 
 SENSORS = [
     ("status", "Health Status", None, None),
+    ("health_overview", "Health Overview", None, None),
     ("active_issues", "Active Issues", "issues", SensorStateClass.MEASUREMENT),
     ("unavailable_entity_count", "Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
+    ("actionable_unavailable_entity_count", "Actionable Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
     ("unknown_entity_count", "Unknown Entities", "entities", SensorStateClass.MEASUREMENT),
     ("actionable_unknown_entity_count", "Actionable Unknown Entities", "entities", SensorStateClass.MEASUREMENT),
+    ("raw_actionable_unknown_entity_count", "Raw Actionable Unknown Entities", "entities", SensorStateClass.MEASUREMENT),
+    ("classified_unknown_entity_count", "Classified Unknown Entities", "entities", SensorStateClass.MEASUREMENT),
+    ("classified_unavailable_entity_count", "Classified Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
+    ("classification_review_due_count", "Classification Reviews Due", "entities", SensorStateClass.MEASUREMENT),
     ("failed_config_entry_count", "Failed Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("config_entry_count", "Configured Integrations", "integrations", SensorStateClass.MEASUREMENT),
     ("integration_attention_domains", "Integration Attention Domains", "integrations", SensorStateClass.MEASUREMENT),
@@ -55,6 +61,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
+        if self.key == "health_overview":
+            return data.get("status", "unknown")
         if self.key == "compatibility_status":
             return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
         if self.key == "integration_attention_domains":
@@ -91,12 +99,18 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         data = self.coordinator.data or {}
-        if self.key == "status":
+        if self.key in {"status", "health_overview"}:
             return {
                 "last_assessment": data.get("last_assessment"),
                 "last_report": data.get("last_report"),
                 "last_ai_repair_prompt_path": data.get("last_ai_repair_prompt_path"),
                 "report_count": data.get("report_count", 0),
+                "active_issues": data.get("active_issues", 0),
+                "config_entry_count": data.get("config_entry_count", 0),
+                "failed_config_entry_count": data.get("failed_config_entry_count", 0),
+                "core_update_status": data.get("platform_updates", {}).get("core", {}),
+                "supervisor_update_status": data.get("platform_updates", {}).get("supervisor", {}),
+                "operating_system_update_status": data.get("platform_updates", {}).get("operating_system", {}),
                 "home_assistant_version": data.get("home_assistant_version"),
                 "platform_updates": data.get("platform_updates", {}),
                 "update_entity_inventory": data.get("update_entity_inventory", {}),
@@ -114,8 +128,15 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "entity_count": data.get("entity_count"),
                 "entity_counts_by_domain": data.get("entity_counts_by_domain", {}),
                 "unavailable_entity_count": data.get("unavailable_entity_count"),
+                "actionable_unavailable_entity_count": data.get("actionable_unavailable_entity_count"),
                 "unknown_entity_count": data.get("unknown_entity_count"),
                 "actionable_unknown_entity_count": data.get("actionable_unknown_entity_count"),
+                "raw_actionable_unknown_entity_count": data.get("raw_actionable_unknown_entity_count"),
+                "classified_unknown_entity_count": data.get("classified_unknown_entity_count"),
+                "classified_unavailable_entity_count": data.get("classified_unavailable_entity_count"),
+                "entity_classification_counts": data.get("entity_classification_counts", {}),
+                "classification_review_due_count": data.get("classification_review_due_count", 0),
+                "classification_review_due_entities": data.get("classification_review_due_entities", []),
                 "expected_unknown_entity_count": data.get("expected_unknown_entity_count"),
                 "failed_config_entry_count": data.get("failed_config_entry_count"),
                 "failed_config_entry_domains": data.get("failed_config_entry_domains", {}),

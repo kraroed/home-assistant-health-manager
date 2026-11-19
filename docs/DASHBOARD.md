@@ -13,8 +13,11 @@ cards:
       ## {{ states('sensor.health_status') | title }}
 
       **Active issues:** {{ states('sensor.active_issues') }}
-      **Unavailable:** {{ states('sensor.unavailable_entities') }}
+      **Unavailable (actionable / raw):** {{ states('sensor.actionable_unavailable_entities') }} / {{ states('sensor.unavailable_entities') }}
       **Unknown (actionable / raw):** {{ states('sensor.actionable_unknown_entities') }} / {{ states('sensor.unknown_entities') }}
+      **Classification reviews due:** {{ states('sensor.classification_reviews_due') }}
+      **Last assessment:** {{ state_attr('sensor.health_overview', 'last_assessment') or 'Not yet assessed' }}
+      **Last report:** {{ state_attr('sensor.health_overview', 'last_report') or 'No report yet' }}
       **Failed integrations:** {{ states('sensor.failed_integrations') }}
 
       **Platform updates:** Core {{ states('sensor.core_update') | replace('_', ' ') }}, Supervisor {{ states('sensor.supervisor_update') | replace('_', ' ') }}, OS {{ states('sensor.operating_system_update') | replace('_', ' ') }}
@@ -32,6 +35,28 @@ cards:
       {% endfor %}
 
       _Raw unknown counts include stateless buttons. Actionable unknown counts exclude buttons. Coverage describes collected diagnostic sources; it is not a health score._
+  - type: entities
+    title: Health metrics — live values
+    show_header_toggle: false
+    entities:
+      - entity: sensor.health_overview
+        name: Overall health and consolidated details
+      - entity: sensor.active_issues
+        name: Active issues
+      - entity: sensor.unavailable_entities
+        name: Unavailable (raw)
+      - entity: sensor.actionable_unavailable_entities
+        name: Unavailable (actionable)
+      - entity: sensor.unknown_entities
+        name: Unknown (raw)
+      - entity: sensor.actionable_unknown_entities
+        name: Unknown (actionable)
+      - entity: sensor.failed_integrations
+        name: Failed integrations
+      - entity: sensor.classification_reviews_due
+        name: Classifications needing review
+      - entity: sensor.diagnostic_coverage
+        name: Diagnostic coverage
   - type: entities
     title: Current diagnostics
     show_header_toggle: false
@@ -66,6 +91,24 @@ cards:
         name: Investigation to update
       - entity: select.home_assistant_health_manager_investigation_status
         name: Investigation status
+      - entity: sensor.classification_reviews_due
+        name: Entity classifications needing review
+      - entity: select.home_assistant_health_manager_entity_classification_to_review
+        name: Entity classification to review
+      - entity: select.home_assistant_health_manager_confirm_entity_classification_review
+        name: Confirm selected classification review
+      - entity: select.home_assistant_health_manager_entity_classification_value
+        name: Classification value to apply
+      - entity: text.home_assistant_health_manager_entity_classification_target
+        name: Entity ID to classify or edit
+      - entity: text.home_assistant_health_manager_entity_classification_reason
+        name: Explanation for classification
+      - entity: button.home_assistant_health_manager_apply_entity_classification
+        name: Apply selected classification
+      - entity: button.home_assistant_health_manager_remove_entity_classification
+        name: Remove selected classification
+      - entity: select.home_assistant_health_manager_classification_review_interval
+        name: Classification review interval
       - entity: sensor.diagnostic_coverage
         name: Diagnostic coverage
       - entity: sensor.diagnostic_trend
@@ -168,6 +211,8 @@ cards:
 
 The diagnostic sensors are read-only. The focused-prompt select is an explicit user-triggered action that only writes a local Markdown prompt and fires an event; it does not invoke repair, update, restart, or configuration changes.
 
+The **Health Overview** sensor is a consolidated, read-only summary. Its state mirrors the overall health status (`healthy` or `attention`), and its attributes contain the current issue counts, raw and actionable unknown/unavailable counts, integration status, platform update states, classification review queue, diagnostic coverage, compatibility, trends, and report metadata. Use the individual sensors for history graphs and focused inspection; the overview sensor is intended for one-place dashboards and automations.
+
 
 The `Unknown Entities` sensor is the raw count and includes all unknown states. The `Actionable Unknown Entities` sensor excludes `button` entities because buttons are stateless actions and an unknown state is expected. Overall health status, active issues, recommendations, and integration attention use actionable unknown counts; raw counts remain visible for transparency. Other unknown entity domains remain actionable and should be reviewed in context.
 
@@ -234,3 +279,14 @@ Choose an investigation before changing its status. The selected investigation i
 
 
 The **Selected Investigation** sensor exposes the chosen history record and, when still present in the latest repair plan, its current finding details: related recommendation IDs, suggested next steps, and structured evidence. The selection is session-only. If a finding is no longer in the latest repair plan, its retained history and prompt path remain visible and the detail card explains that current plan details are unavailable. This view is diagnostic context only; suggested actions are not executed.
+
+
+## Entity classification review
+
+The Health Manager stores classifications separately from diagnostic history. Raw unknown and unavailable totals remain unchanged; only explicitly classified `expected`, `setup_in_progress`, or `seasonal` entities are excluded from actionable counts. `actionable` classifications remain actionable. Unclassified entities remain subject to the normal domain-based rules.
+
+Use the **Entity Classification to Review** selector to inspect a saved record. Its attributes show the entity ID, classification, reason, source integration, observed availability, and why review was triggered. Select **Confirm selected classification review** only after checking the record; this updates its review timestamp and clears the current review flag without changing the classification or reason. For bulk confirmation, call `home_assistant_health_manager.review_entity_classifications` with `entity_ids` containing the exact entity IDs you reviewed.
+
+To create or change a classification in the dashboard, enter an existing entity ID in **Entity ID to Classify** (or choose an existing saved record in **Entity Classification to Review**), choose the value in **Classification Value**, enter a meaningful explanation in **Entity Classification Reason**, then press **Apply Entity Classification**. The reason is required. To remove only the saved classification, select the entity and press **Remove Entity Classification**. This removes only the saved metadata; it does not delete or alter the Home Assistant entity. The equivalent explicit services remain available: `home_assistant_health_manager.set_entity_classification` and `home_assistant_health_manager.remove_entity_classification`. A classification is never changed automatically.
+
+Scheduled review cadence is configured with the **Classification Review Interval** selector (`30`, `60`, `90`, or `manual`); the equivalent service is `home_assistant_health_manager.set_classification_review_interval`. Manual disables calendar-based reviews but event-triggered reviews remain active. Optional persistent notifications are disabled by default; enable **Entity classification review notifications** in the integration options to receive one notification when the set of due entities changes. The notification is updated rather than repeated for an unchanged set and is dismissed when no reviews remain due.

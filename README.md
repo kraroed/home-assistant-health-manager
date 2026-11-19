@@ -22,6 +22,8 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 - `home_assistant_health_manager.generate_ai_repair_prompt`
 - `home_assistant_health_manager.generate_focused_repair_prompt` (requires the exact `plan_id` from the latest repair-plan sensor attributes)
 - `home_assistant_health_manager.set_repair_investigation_status` (updates a user-maintained tracking label only)
+- `home_assistant_health_manager.set_entity_classification`, `remove_entity_classification`, and `review_entity_classifications` (manage user-approved entity classifications and review records)
+- `home_assistant_health_manager.set_classification_review_interval` (configure 30-, 60-, 90-day, or manual review cadence)
 
 ## AI repair and validation prompt
 
@@ -70,7 +72,7 @@ GitHub Actions runs Python tests, Home Assistant hassfest, and HACS integration 
 
 ## Status
 
-Prepared for the initial beta testing release (`0.1.0-beta.1`). Live Home Assistant OS runtime validation has not yet been completed; use [the controlled HA OS test checklist](docs/HA_OS_TEST_CHECKLIST.md) before treating the integration as production-ready. Supervisor/OS logs, host metrics, recorder internals, automation traces, dashboard resources, and approved remediation execution are future work. This integration is read-only and is not a complete security audit.
+The currently published release on `main` is `0.1.0-beta.3`. Persistent entity classifications, classification review controls, and the consolidated `sensor.health_overview` are being developed on the `feature/persistent-entity-classifications` branch and are not included in beta.3. The next release notes are being prepared as `0.1.0-beta.4`; do not install beta.3 expecting those newer features. Live Home Assistant OS runtime validation remains required before the feature branch is ready for release; use [the controlled HA OS test checklist](docs/HA_OS_TEST_CHECKLIST.md). Supervisor/OS logs, host metrics, recorder internals, automation traces, dashboard resources, and approved remediation execution are future work. This integration is read-only and is not a complete security audit.
 
 
 Compatibility triage includes integration domains with setup_error or setup_retry lifecycle states and reports when the bounded update-entity inventory is truncated. These are review signals, not compatibility verdicts.
@@ -90,6 +92,16 @@ Generated reports retain a bounded history of up to 90 aggregate trend samples. 
 
 An optional native Lovelace dashboard example using Markdown, Entities, and History Graph cards is available in [docs/DASHBOARD.md](docs/DASHBOARD.md). It requires no custom frontend resource. Diagnostic sensors are read-only; the focused-prompt selector and investigation-status service are explicit user-triggered local tracking actions.
 
+
+## Consolidated health overview
+
+The `sensor.health_overview` entity provides a single health state (`healthy` or `attention`) with current diagnostic metrics and supporting attributes. It is designed for at-a-glance dashboards and automations while all individual diagnostic sensors remain available. The native Lovelace dashboard in [`docs/DASHBOARD.md`](docs/DASHBOARD.md) includes a live metrics section.
+
+## Persistent entity classifications
+
+Entity classifications are stored separately from report history and survive restarts. Supported values are `actionable`, `expected`, `setup_in_progress`, and `seasonal`, each requiring a user-provided reason. Raw unknown and unavailable counts are never reduced. Only explicit non-actionable classifications affect the corresponding actionable diagnostic counts; unclassified entities remain actionable according to the existing domain rules. Classified entities that disappear, return, change providing integration identity, or transition into/out of unknown or unavailable are flagged for review without being reclassified.
+
+The native **Entity Classification to Review** selector exposes saved records and their review context. The **Entity ID to Classify** text field accepts any existing entity ID, including entities not yet classified. Choose a value in **Entity Classification Value**, provide the required explanation in **Entity Classification Reason**, then use **Apply Entity Classification**. **Remove Entity Classification** removes only the saved metadata. **Confirm Entity Classification Review** acknowledges a review without changing its meaning. Bulk confirmation is supported by service. The **Classification Review Interval** selector configures 30-, 60-, 90-day, or manual cadence. Optional persistent notifications are disabled by default and are deduplicated by the set of due entities.
 
 ## Recurring issue detection
 

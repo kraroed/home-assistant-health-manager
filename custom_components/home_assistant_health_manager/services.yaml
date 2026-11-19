@@ -63,3 +63,88 @@ set_repair_investigation_status:
             - resolved
             - needs_follow_up
             - dismissed
+
+set_entity_classification:
+  name: Set entity classification
+  description: Save or update a user-managed classification and reason for one entity. This does not change the entity or suppress raw diagnostic data.
+  fields:
+    entity_id:
+      name: Entity ID
+      description: Exact Home Assistant entity ID to classify.
+      required: true
+      selector:
+        entity:
+    classification:
+      name: Classification
+      description: How this entity should be tracked.
+      required: true
+      selector:
+        select:
+          options:
+            - actionable
+            - expected
+            - setup_in_progress
+            - seasonal
+    reason:
+      name: Reason
+      description: Explain why this classification applies.
+      required: true
+      selector:
+        text:
+          multiline: true
+    entity_domain:
+      name: Entity domain
+      required: false
+      selector:
+        text:
+    source_domain:
+      name: Source integration
+      required: false
+      selector:
+        text:
+    source_unique_id:
+      name: Source unique ID
+      required: false
+      selector:
+        text:
+
+remove_entity_classification:
+  name: Remove entity classification
+  description: Explicitly remove the saved classification for one entity. The entity itself is not changed or deleted.
+  fields:
+    entity_id:
+      name: Entity ID
+      required: true
+      selector:
+        entity:
+
+set_classification_review_interval:
+  name: Set classification review interval
+  description: Choose how often saved classifications should be reviewed. Manual disables scheduled review reminders.
+  fields:
+    interval:
+      name: Review interval
+      required: true
+      selector:
+        select:
+          options:
+            - label: Manual only
+              value: manual
+            - label: Every 30 days
+              value: "30"
+            - label: Every 60 days
+              value: "60"
+            - label: Every 90 days
+              value: "90"
+
+review_entity_classifications:
+  name: Confirm entity classification review
+  description: Confirm one or more saved classifications without changing their classification or explanation. Supports bulk confirmation.
+  fields:
+    entity_ids:
+      name: Entity IDs
+      description: One or more exact entity IDs whose current classifications you have reviewed.
+      required: true
+      selector:
+        entity:
+          multiple: true

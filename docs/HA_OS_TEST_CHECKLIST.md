@@ -26,7 +26,8 @@ This checklist validates Home Assistant Health Manager on a running Home Assista
 - Report implementation: https://github.com/kraroed/home-assistant-health-manager/blob/main/custom_components/home_assistant_health_manager/report.py
 - Dashboard: https://github.com/kraroed/home-assistant-health-manager/blob/main/docs/DASHBOARD.md
 - Report transaction tests: https://github.com/kraroed/home-assistant-health-manager/blob/main/tests/test_report_transactions.py
-- Latest inspected CI run: https://github.com/kraroed/home-assistant-health-manager/actions/runs/43730001710
+- Latest feature-branch CI run: https://github.com/kraroed/home-assistant-health-manager/actions/runs/44459943415
+- Feature branch commit validated: `f16b0634adb0823e7b681527751913bf505d5fc0` (subsequent documentation-only commits must also pass CI before release).
 
 Record the exact commit tested. Recheck the Actions page if testing a later revision; do not assume the linked run validates a different commit.
 
@@ -47,6 +48,8 @@ Stop if backup creation fails or you cannot restore the system.
 
 ## 2. Install from the Home Assistant Marketplace and restart
 
+> **Release gate:** As of this checklist revision, `0.1.0-beta.3` is the published release on `main`; `0.1.0-beta.4` is only a draft. Wait for beta.4 to be published after merge and final validation. Do not install beta.3 expecting the new classification controls or `sensor.health_overview`.
+
 **Test type:** Safe on production with the backup above.
 
 The current Home Assistant interface uses **Settings → Marketplace** (the successor to the older HACS interface).
@@ -60,21 +63,21 @@ Repository URL:
 3. In the upper-right corner, select **Add from link**.
 4. Enter the repository URL above under **GitHub link**, then select **Add**. If the Marketplace cannot identify the content type automatically, choose **Integration**.
 5. Open the Home Assistant Health Manager repository page.
-6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.1`; pre-releases are not offered by default.
-7. Select **Install**, verify the version shown is `0.1.0-beta.1`, and confirm.
+6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.4`; pre-releases are not offered by default.
+7. Select **Install**, verify the version shown is `0.1.0-beta.4`, and confirm.
 8. Follow the Marketplace prompt if a restart is required. Otherwise, restart Home Assistant normally before adding the integration.
 9. Wait for startup to finish.
 
 - [ ] Marketplace accepts the custom repository.
 - [ ] Repository is identified as an integration.
 - [ ] Pre-release switch is enabled.
-- [ ] Install dialog offers `0.1.0-beta.1`.
+- [ ] Install dialog offers `0.1.0-beta.4`.
 - [ ] Integration installation completes.
 - [ ] Home Assistant starts normally.
 - [ ] No new import/setup errors for `home_assistant_health_manager` appear.
 - [ ] Marketplace shows the integration as installed.
 
-**Expected:** The beta can be installed through the current Marketplace UI and imported without startup errors.
+**Expected:** The beta.4 release can be installed through the current Marketplace UI and imported without startup errors. The currently published beta.3 does not contain the classification-management and consolidated-overview work on this feature branch; do not use beta.3 to validate those features. Do not proceed until beta.4 is published from the fully validated release commit.
 
 If the pre-release version does not appear immediately after publishing, refresh the repository information or allow time for Marketplace's release metadata to update. Do not install the default-branch commit as a substitute for verifying the tagged beta.
 
@@ -94,6 +97,7 @@ Current options and defaults:
 | Weekly reports | Enabled |
 | Monthly comprehensive reviews | Enabled |
 | Include sanitized Core log | Enabled |
+| Entity classification review notifications | Disabled |
 | Report retention | 90 days |
 
 Retention is constrained to 7–365 days.
@@ -122,7 +126,7 @@ data:
 
 The other diagnostic entry point is `home_assistant_health_manager.run_diagnostics`. The service definitions are in `services.yaml`.
 
-Search Developer Tools → States for entities belonging to the integration. The current code defines 24 sensors and 3 select entities. Entity IDs may be prefixed differently by Home Assistant; verify actual IDs rather than assuming dashboard examples are exact.
+Search Developer Tools → States for entities belonging to the integration. The current code defines 31 sensors, 7 select entities, 2 text entities, and 2 button entities. Verify the actual entities created by Home Assistant rather than assuming IDs. Entity IDs may be prefixed differently by Home Assistant; verify actual IDs rather than assuming dashboard examples are exact.
 
 Sensor names to look for include:
 
@@ -144,7 +148,10 @@ Select entities:
 - Investigation Status
 
 - [ ] Expected sensor entities are created.
-- [ ] All three select entities are created.
+- [ ] All seven select entities are created.
+- [ ] Both classification text entities are created.
+- [ ] Both classification action buttons are created.
+- [ ] `sensor.health_overview` is created and mirrors the current overall health state.
 - [ ] Numeric sensors expose sensible numeric values.
 - [ ] Text sensors expose understandable states.
 - [ ] Relevant attributes are present.
@@ -307,7 +314,38 @@ Follow [docs/DASHBOARD.md](https://github.com/kraroed/home-assistant-health-mana
 
 **Expected:** Dashboard works using the actual entity IDs in this installation.
 
-## 12. Disposable-instance fault-injection tests
+## 12. Consolidated health overview and persistent entity classifications
+
+**Test type:** Safe on production after taking the backup described above. Use a test entity for classification-control checks; do not alter the user's established classifications merely to test the UI.
+
+### Consolidated overview
+
+- [ ] `sensor.health_overview` displays `healthy` or `attention` consistently with `sensor.health_status`.
+- [ ] Overview attributes include active issue count, raw and actionable unknown/unavailable counts, failed/configured integration counts, platform update details, classification review queue, diagnostic coverage, compatibility, trends, and report metadata.
+- [ ] Raw unknown and unavailable totals remain visible and are not reduced by classifications.
+- [ ] Individual diagnostic sensors continue to work independently.
+- [ ] The dashboard's Health metrics — live values card renders current values together.
+
+### Classification workflow
+
+- [ ] Classification records persist after a normal Home Assistant restart.
+- [ ] Entering an existing entity ID loads its saved classification and reason when one exists.
+- [ ] Entering a valid but not-yet-classified entity ID allows a new classification to be created.
+- [ ] Applying a classification requires a non-empty explanation.
+- [ ] All four values are available: `actionable`, `expected`, `setup_in_progress`, and `seasonal`.
+- [ ] Applying a new classification updates the stored reason and clears stale review triggers.
+- [ ] Removing a classification removes only the saved metadata and does not delete or modify the Home Assistant entity.
+- [ ] Confirming a review updates its review timestamp without changing the classification or reason.
+- [ ] Review interval selector supports `manual`, `30`, `60`, and `90`.
+- [ ] Manual cadence still permits event-triggered review when an entity disappears, returns, changes source, or has a qualifying availability change.
+- [ ] Multiple outstanding review reasons remain visible together.
+- [ ] Optional persistent notifications remain disabled by default.
+- [ ] When notifications are enabled, an unchanged due-entity set does not repeatedly notify; clearing the due set dismisses the notification.
+- [ ] Existing user classifications are not automatically changed.
+
+**Expected:** The overview gives a reliable single-place summary, while classifications remain explicit user-owned metadata and raw inventory metrics remain intact.
+
+## 13. Disposable-instance fault-injection tests
 
 **Test type:** Disposable HA OS test instance only. Never run these tests on production.
 
@@ -332,7 +370,7 @@ The repository contains unit tests for these transaction cases in `tests/test_re
 
 **Expected:** Committed artifacts survive, abandoned artifacts are cleaned up, and transient cleanup failures preserve retry markers.
 
-## 13. Logs and troubleshooting evidence
+## 14. Logs and troubleshooting evidence
 
 If a test fails, capture:
 
@@ -348,7 +386,7 @@ Search logs for `home_assistant_health_manager`. Review import errors, config-en
 
 Redact credentials, private URLs, and personal information before sharing logs.
 
-## 14. Upgrade, uninstall, and reinstall
+## 15. Upgrade, uninstall, and reinstall
 
 **Test type:** Prefer disposable instance. If performed on production, take a fresh full backup first.
 
@@ -370,7 +408,7 @@ Uninstall/reinstall:
 
 Do not manually delete `/config/health_manager` on production to test removal.
 
-## 15. Results record
+## 16. Results record
 
 Copy and complete this block:
 
@@ -393,7 +431,10 @@ INSTALLATION
 
 DIAGNOSTICS
 [ ] Expected sensors created
-[ ] Three select entities created
+[ ] Seven select entities created
+[ ] Two text entities created
+[ ] Two button entities created
+[ ] Health Overview sensor verified
 [ ] First report generated
 [ ] JSON inspected
 [ ] TXT inspected
@@ -441,15 +482,15 @@ Next action:
 
 The beta exists specifically to enable controlled installation and live testing. Do not require live HA OS test results before publishing this clearly labeled pre-release; those results are the purpose of the beta.
 
-Before publishing `0.1.0-beta.1`, verify:
+Before publishing `0.1.0-beta.4`, verify:
 
-1. The manifest version is exactly `0.1.0-beta.1` and the Git tag uses the same value.
-2. The release is explicitly marked **pre-release** in GitHub.
-3. The release notes identify this as an initial testing beta and state that live HA OS validation is outstanding.
-4. The latest GitHub Actions run passes all Python tests, hassfest, and HACS validation on the exact tagged commit.
+1. The manifest version is exactly `0.1.0-beta.4` and the Git tag uses the same value.
+2. The GitHub release is explicitly marked **pre-release**.
+3. The release notes identify this as a feature beta and state that live HA OS validation is outstanding.
+4. The latest GitHub Actions run passes Python syntax and unit tests, hassfest, and HACS validation on the exact tagged commit.
 5. The HACS brand icon, README, license, manifest, and `hacs.json` are present.
-6. The repository contains this installation checklist and the test instance has a full backup before installation.
-7. No unresolved release-blocking defect is known. In particular, report artifacts must be readable and the privacy warning must remain prominent.
+6. The repository contains this installation checklist; create a full HA OS backup before installing the beta.
+7. No unresolved release-blocking defect is known from code review and automated validation. Live installation, report artifacts, classification controls, and dashboard behavior are verified after publishing the beta, with a backup in place.
 
 A successful beta release does not mean runtime validation is complete or that the integration is suitable for unattended production use.
 
