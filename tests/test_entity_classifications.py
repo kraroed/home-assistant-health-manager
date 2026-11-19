@@ -188,6 +188,7 @@ def test_source_and_availability_changes_trigger_review_without_reclassification
     assert record["reason"] == "Intentionally inactive."
     assert record["review_due"] is True
     assert record["review_due_reason"] == "availability_changed"
+    assert set(record["review_due_reasons"]) == {"source_changed", "availability_changed"}
     assert record["previous_source_domain"] == "demo"
     assert record["source_domain"] == "new_demo"
     assert record["previous_source_unique_id"] == "old-id"
