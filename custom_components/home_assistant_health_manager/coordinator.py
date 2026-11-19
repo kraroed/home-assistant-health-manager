@@ -68,14 +68,15 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule = normalize_schedule_data(stored_data)
         stored_classifications = await self.classification_store.async_load()
         self.entity_classifications = normalize_classifications(stored_classifications)
-        if self.entity_classifications != stored_classifications:
-            await self.classification_store.async_save(self.entity_classifications)
         await async_reconcile_report_transactions(
             self.hass, self.schedule.get("last_report_path")
         )
         await async_reconcile_focused_prompt_transactions(
             self.hass, self.schedule.get("investigation_history", [])
         )
+        if self.entity_classifications != stored_classifications:
+            await self.classification_store.async_save(self.entity_classifications)
+
         self.last_report_path = self.schedule.get("last_report_path")
         if self.last_report_path and self.last_report_path.endswith(".zip"):
             self.last_prompt_path = self.last_report_path[:-4] + "_ai_repair_prompt.md"
