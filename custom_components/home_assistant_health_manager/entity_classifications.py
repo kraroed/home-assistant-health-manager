@@ -89,6 +89,18 @@ def remove_entity_classification(stored, entity_id):
     return data
 
 
+def _flag_review(record, reason, timestamp):
+    """Retain every outstanding event trigger until the user confirms review."""
+    reasons = record.get("review_due_reasons", [])
+    if not isinstance(reasons, list):
+        reasons = []
+    if reason not in reasons:
+        reasons.append(reason)
+    record["review_due"] = True
+    record["review_due_reason"] = reason
+    record["review_due_reasons"] = reasons
+    record["review_due_at"] = timestamp
+
 def mark_entity_observations(stored, present_entity_ids, *, entity_sources=None, entity_states=None, now=None):
     """Track presence, source identity and availability transitions for review."""
     data = normalize_classifications(stored)
@@ -102,8 +114,7 @@ def mark_entity_observations(stored, present_entity_ids, *, entity_sources=None,
                 record["entity_missing"] = False
                 record["returned_at"] = timestamp
                 record["last_seen"] = timestamp
-                record["review_due"] = True
-                record["review_due_reason"] = "entity_returned"
+                _flag_review(record, "entity_returned", timestamp)
             elif not record.get("last_seen"):
                 record["last_seen"] = timestamp
             source = sources.get(entity_id, {})
@@ -116,24 +127,21 @@ def mark_entity_observations(stored, present_entity_ids, *, entity_sources=None,
                     elif observed is not None and previous != observed:
                         record["previous_" + field] = previous
                         record[field] = observed
-                        record["review_due"] = True
-                        record["review_due_reason"] = "source_changed"
+                        _flag_review(record, "source_changed", timestamp)
                         record["source_changed_at"] = timestamp
             current_state = states.get(entity_id)
             if current_state is not None:
                 previous_state = record.get("last_observed_state")
                 if previous_state is not None and previous_state != current_state:
                     if previous_state in {"unknown", "unavailable"} or current_state in {"unknown", "unavailable"}:
-                        record["review_due"] = True
-                        record["review_due_reason"] = "availability_changed"
+                        _flag_review(record, "availability_changed", timestamp)
                         record["availability_changed_at"] = timestamp
                         record["previous_observed_state"] = previous_state
                 record["last_observed_state"] = current_state
         elif not record.get("entity_missing"):
             record["entity_missing"] = True
             record["missing_since"] = timestamp
-            record["review_due"] = True
-            record["review_due_reason"] = "entity_missing"
+            _flag_review(record, "entity_missing", timestamp)
     return data
 
 def set_review_interval(stored, interval):
@@ -184,4 +192,6 @@ def mark_classifications_reviewed(stored, entity_ids, *, now=None):
         record["last_reviewed"] = timestamp
         record["review_due"] = False
         record.pop("review_due_reason", None)
+        record.pop("review_due_reasons", None)
+        record.pop("review_due_at", None)
     return data
