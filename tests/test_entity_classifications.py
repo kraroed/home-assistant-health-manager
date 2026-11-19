@@ -237,3 +237,38 @@ def test_explicit_classification_update_clears_outstanding_review_triggers():
     assert "review_due_reason" not in record
     assert "review_due_reasons" not in record
     assert "review_due_at" not in record
+
+
+def test_malformed_unhashable_values_in_persisted_store_are_ignored_safely():
+    source = {
+        "review_interval": ["not", "an", "interval"],
+        "entities": {
+            "sensor.bad_class": {
+                "classification": ["expected"],
+                "reason": "Malformed classification value.",
+            },
+            "sensor.good": {
+                "classification": "expected",
+                "reason": "Preserve valid record.",
+            },
+        },
+    }
+    result = CLASSIFICATIONS.normalize_classifications(source)
+    assert result["review_interval"] == "90"
+    assert set(result["entities"]) == {"sensor.good"}
+
+    try:
+        CLASSIFICATIONS.set_entity_classification(
+            {}, "sensor.example", ["expected"], "Reason.", now=NOW
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("unhashable classification should be rejected")
+
+    try:
+        CLASSIFICATIONS.set_review_interval({}, ["30"])
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("unhashable review interval should be rejected")
