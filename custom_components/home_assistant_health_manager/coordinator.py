@@ -146,7 +146,9 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         try:
             # Home Assistant's async state/config-entry APIs must stay on the
             # event loop; only blocking filesystem work belongs in the executor.
-            snapshot = collect_snapshot(self.hass)
+            present_entity_ids = {state.entity_id for state in self.hass.states.async_all()}
+            await self.async_update_classification_observations(present_entity_ids)
+            snapshot = collect_snapshot(self.hass, self.entity_classifications)
             snapshot["collection_coverage"] = build_collection_coverage(snapshot)
             async with self._state_lock:
                 change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
@@ -192,7 +194,9 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         # report held the locks. Re-check due state after acquiring them.
         if scheduled_period and not _is_due(schedule.get(scheduled_period), datetime.now(timezone.utc)):
             return None
-        snapshot = collect_snapshot(self.hass)
+        present_entity_ids = {state.entity_id for state in self.hass.states.async_all()}
+        await self.async_update_classification_observations(present_entity_ids)
+        snapshot = collect_snapshot(self.hass, self.entity_classifications)
         change_history, change_summary = update_change_history(schedule.get('change_history', []), snapshot, snapshot['collected_at'])
         schedule['change_history'] = change_history
         snapshot['diagnostic_change_history'] = change_summary
