@@ -93,6 +93,9 @@ def test_missing_entities_are_retained_and_restored_when_seen_again():
     record = restored["entities"]["sensor.example"]
     assert record["entity_missing"] is False
     assert record["last_seen"] == later.isoformat()
+    assert record["returned_at"] == later.isoformat()
+    assert record["review_due"] is True
+    assert record["review_due_reason"] == "entity_returned"
     assert record["reason"] == "Seasonal device."
 
 
@@ -136,3 +139,29 @@ def test_review_interval_is_validated_and_persisted():
         pass
     else:
         raise AssertionError("unsupported review interval should be rejected")
+
+
+def test_review_due_respects_interval_and_manual_setting():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Intentionally inactive.", now=NOW
+    )
+    after_30_days = datetime(2026, 12, 19, 12, 0, tzinfo=timezone.utc)
+    assert CLASSIFICATIONS.get_review_due_entities(stored, now=after_30_days) == ["sensor.example"]
+    manual = CLASSIFICATIONS.set_review_interval(stored, "manual")
+    assert CLASSIFICATIONS.get_review_due_entities(manual, now=after_30_days) == []
+
+
+def test_entity_return_triggers_review_without_changing_classification():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "setup_in_progress", "Still being configured.", now=NOW
+    )
+    missing = CLASSIFICATIONS.mark_entity_observations(stored, set(), now=NOW)
+    returned = CLASSIFICATIONS.mark_entity_observations(
+        missing, {"sensor.example"},
+        now=datetime(2026, 11, 20, 12, 0, tzinfo=timezone.utc),
+    )
+    record = returned["entities"]["sensor.example"]
+    assert record["classification"] == "setup_in_progress"
+    assert record["reason"] == "Still being configured."
+    assert record["review_due"] is True
+    assert CLASSIFICATIONS.get_review_due_entities(returned) == ["sensor.example"]
