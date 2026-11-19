@@ -136,3 +136,15 @@ set_classification_review_interval:
               value: "60"
             - label: Every 90 days
               value: "90"
+
+review_entity_classifications:
+  name: Confirm entity classification review
+  description: Confirm one or more saved classifications without changing their classification or explanation. Supports bulk confirmation.
+  fields:
+    entity_ids:
+      name: Entity IDs
+      description: One or more exact entity IDs whose current classifications you have reviewed.
+      required: true
+      selector:
+        entity:
+          multiple: true
