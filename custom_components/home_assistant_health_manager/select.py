@@ -14,6 +14,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
         RepairPlanSelect(coordinator, entry, hass),
         InvestigationHistorySelect(coordinator, entry),
         InvestigationStatusSelect(coordinator, entry),
+        EntityClassificationReviewSelect(coordinator, entry),
+        ConfirmEntityClassificationReviewSelect(coordinator, entry),
     ])
 
 
@@ -156,3 +158,98 @@ class InvestigationStatusSelect(CoordinatorEntity, SelectEntity):
         if not plan_id:
             raise ValueError("Choose an investigation in the Investigation to Update dropdown first.")
         await self.coordinator.async_set_investigation_status(plan_id, option)
+
+
+class EntityClassificationReviewSelect(CoordinatorEntity, SelectEntity):
+    """Select a saved entity classification and expose its full review context."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Entity Classification to Review"
+    _attr_icon = "mdi:clipboard-check-outline"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_entity_classification_review"
+        self._option_to_entity_id = {}
+
+    @property
+    def options(self):
+        records = self.coordinator.entity_classifications.get("entities", {})
+        self._option_to_entity_id = {
+            f"{entity_id} — {record.get('classification', 'unknown')}": entity_id
+            for entity_id, record in sorted(records.items())
+            if isinstance(record, dict)
+        }
+        return list(self._option_to_entity_id)
+
+    @property
+    def current_option(self):
+        _ = self.options
+        selected = getattr(self.coordinator, "selected_entity_classification_id", None)
+        return next((label for label, entity_id in self._option_to_entity_id.items() if entity_id == selected), None)
+
+    @property
+    def extra_state_attributes(self):
+        selected = getattr(self.coordinator, "selected_entity_classification_id", None)
+        record = self.coordinator.entity_classifications.get("entities", {}).get(selected, {})
+        return {
+            "selected_entity_id": selected,
+            "classification": record.get("classification"),
+            "reason": record.get("reason"),
+            "review_due": record.get("review_due", False),
+            "review_due_reason": record.get("review_due_reason"),
+            "last_reviewed": record.get("last_reviewed"),
+            "entity_missing": record.get("entity_missing", False),
+            "missing_since": record.get("missing_since"),
+            "source_domain": record.get("source_domain"),
+            "source_unique_id": record.get("source_unique_id"),
+            "previous_source_domain": record.get("previous_source_domain"),
+            "previous_source_unique_id": record.get("previous_source_unique_id"),
+            "last_observed_state": record.get("last_observed_state"),
+            "previous_observed_state": record.get("previous_observed_state"),
+            "available_review_entities": self.coordinator.data.get("classification_review_due_entities", []) if self.coordinator.data else [],
+            "note": "Selection is for inspection only. Use the explicit classification services to change or remove a record.",
+        }
+
+    async def async_select_option(self, option):
+        self._option_to_entity_id = {
+            f"{entity_id} — {record.get('classification', 'unknown')}": entity_id
+            for entity_id, record in sorted(self.coordinator.entity_classifications.get("entities", {}).items())
+            if isinstance(record, dict)
+        }
+        entity_id = self._option_to_entity_id.get(option)
+        if entity_id is None:
+            raise ValueError("That classification is no longer available.")
+        self.coordinator.selected_entity_classification_id = entity_id
+        self.coordinator.async_update_listeners()
+
+
+class ConfirmEntityClassificationReviewSelect(CoordinatorEntity, SelectEntity):
+    """Explicitly confirm the currently selected classification was reviewed."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Confirm Entity Classification Review"
+    _attr_icon = "mdi:check-circle-outline"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_confirm_entity_classification_review"
+
+    @property
+    def options(self):
+        selected = getattr(self.coordinator, "selected_entity_classification_id", None)
+        return ["Confirm selected classification"] if selected in self.coordinator.entity_classifications.get("entities", {}) else []
+
+    @property
+    def current_option(self):
+        return None
+
+    @property
+    def extra_state_attributes(self):
+        return {"action": "Selecting the option records that you reviewed the selected classification; it does not change its classification or reason."}
+
+    async def async_select_option(self, option):
+        entity_id = getattr(self.coordinator, "selected_entity_classification_id", None)
+        if option != "Confirm selected classification" or entity_id not in self.coordinator.entity_classifications.get("entities", {}):
+            raise ValueError("Select a valid entity classification first.")
+        await self.coordinator.async_review_entity_classifications([entity_id])
