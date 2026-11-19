@@ -737,3 +737,15 @@ def test_consolidated_health_overview_sensor_exposes_live_summary_attributes():
         '"compatibility_assessment":',
     ):
         assert attribute in source
+
+
+def test_dashboard_displays_consolidated_health_metrics_and_raw_context():
+    dashboard = (ROOT / "docs" / "DASHBOARD.md").read_text(encoding="utf-8")
+    assert "sensor.health_overview" in dashboard
+    assert "sensor.actionable_unavailable_entities" in dashboard
+    assert "sensor.unavailable_entities" in dashboard
+    assert "sensor.actionable_unknown_entities" in dashboard
+    assert "sensor.unknown_entities" in dashboard
+    assert "sensor.classification_reviews_due" in dashboard
+    assert "last_assessment" in dashboard
+    assert "last_report" in dashboard
