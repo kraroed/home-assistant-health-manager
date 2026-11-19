@@ -94,6 +94,7 @@ Current options and defaults:
 | Weekly reports | Enabled |
 | Monthly comprehensive reviews | Enabled |
 | Include sanitized Core log | Enabled |
+| Entity classification review notifications | Disabled |
 | Report retention | 90 days |
 
 Retention is constrained to 7–365 days.
