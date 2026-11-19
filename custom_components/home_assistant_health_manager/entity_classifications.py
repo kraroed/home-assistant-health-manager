@@ -72,6 +72,9 @@ def set_entity_classification(stored, entity_id, classification, reason, *, now=
         "updated_at": timestamp, "last_reviewed": timestamp,
         "review_due": False, "entity_missing": False,
     })
+    record.pop("review_due_reason", None)
+    record.pop("review_due_reasons", None)
+    record.pop("review_due_at", None)
     if entity_domain is not None:
         record["entity_domain"] = entity_domain
     if source_domain is not None:
