@@ -202,3 +202,20 @@ def test_manual_interval_still_allows_event_triggered_review():
     manual = CLASSIFICATIONS.set_review_interval(stored, "manual")
     due = CLASSIFICATIONS.mark_entity_observations(manual, set(), now=NOW)
     assert CLASSIFICATIONS.get_review_due_entities(due, now=NOW) == ["sensor.example"]
+
+
+def test_bulk_review_confirmation_clears_due_without_changing_classification_or_reason():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Intentionally inactive.", now=NOW
+    )
+    due = CLASSIFICATIONS.mark_entity_observations(stored, set(), now=NOW)
+    later = datetime(2026, 11, 20, 12, 0, tzinfo=timezone.utc)
+    reviewed = CLASSIFICATIONS.mark_classifications_reviewed(
+        due, ["sensor.example", "sensor.not_classified"], now=later
+    )
+    record = reviewed["entities"]["sensor.example"]
+    assert record["classification"] == "expected"
+    assert record["reason"] == "Intentionally inactive."
+    assert record["review_due"] is False
+    assert record["last_reviewed"] == later.isoformat()
+    assert CLASSIFICATIONS.get_review_due_entities(reviewed, now=later) == []
