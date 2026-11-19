@@ -22,6 +22,8 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 - `home_assistant_health_manager.generate_ai_repair_prompt`
 - `home_assistant_health_manager.generate_focused_repair_prompt` (requires the exact `plan_id` from the latest repair-plan sensor attributes)
 - `home_assistant_health_manager.set_repair_investigation_status` (updates a user-maintained tracking label only)
+- `home_assistant_health_manager.set_entity_classification`, `remove_entity_classification`, and `review_entity_classifications` (manage user-approved entity classifications and review records)
+- `home_assistant_health_manager.set_classification_review_interval` (configure 30-, 60-, 90-day, or manual review cadence)
 
 ## AI repair and validation prompt
 
@@ -90,6 +92,12 @@ Generated reports retain a bounded history of up to 90 aggregate trend samples. 
 
 An optional native Lovelace dashboard example using Markdown, Entities, and History Graph cards is available in [docs/DASHBOARD.md](docs/DASHBOARD.md). It requires no custom frontend resource. Diagnostic sensors are read-only; the focused-prompt selector and investigation-status service are explicit user-triggered local tracking actions.
 
+
+## Persistent entity classifications
+
+Entity classifications are stored separately from report history and survive restarts. Supported values are `actionable`, `expected`, `setup_in_progress`, and `seasonal`, each requiring a user-provided reason. Raw unknown and unavailable counts are never reduced. Only explicit non-actionable classifications affect the corresponding actionable diagnostic counts; unclassified entities remain actionable according to the existing domain rules. Classified entities that disappear, return, change providing integration identity, or transition into/out of unknown or unavailable are flagged for review without being reclassified.
+
+The native selectors **Entity Classification to Review** and **Confirm Entity Classification Review** expose a basic review workflow. The selected record's attributes show its current classification, reason, source identity, observed state, and review trigger. Changing or removing a classification requires the explicit services listed above. Bulk confirmation is supported. Calendar review cadence is configurable, and optional persistent notifications are disabled by default. When enabled, notifications are deduplicated by the set of due entities and do not repeat for an unchanged set.
 
 ## Recurring issue detection
 
