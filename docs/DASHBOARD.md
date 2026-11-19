@@ -13,8 +13,11 @@ cards:
       ## {{ states('sensor.health_status') | title }}
 
       **Active issues:** {{ states('sensor.active_issues') }}
-      **Unavailable:** {{ states('sensor.unavailable_entities') }}
+      **Unavailable (actionable / raw):** {{ states('sensor.actionable_unavailable_entities') }} / {{ states('sensor.unavailable_entities') }}
       **Unknown (actionable / raw):** {{ states('sensor.actionable_unknown_entities') }} / {{ states('sensor.unknown_entities') }}
+      **Classification reviews due:** {{ states('sensor.classification_reviews_due') }}
+      **Last assessment:** {{ state_attr('sensor.health_overview', 'last_assessment') or 'Not yet assessed' }}
+      **Last report:** {{ state_attr('sensor.health_overview', 'last_report') or 'No report yet' }}
       **Failed integrations:** {{ states('sensor.failed_integrations') }}
 
       **Platform updates:** Core {{ states('sensor.core_update') | replace('_', ' ') }}, Supervisor {{ states('sensor.supervisor_update') | replace('_', ' ') }}, OS {{ states('sensor.operating_system_update') | replace('_', ' ') }}
