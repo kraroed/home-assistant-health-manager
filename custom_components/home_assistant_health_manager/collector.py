@@ -37,6 +37,10 @@ def collect_snapshot(hass, entity_classifications=None):
             and classification_for(state) not in NON_ACTIONABLE_CLASSIFICATIONS
         )
     ]
+    actionable_unavailable = [
+        state for state in unavailable
+        if classification_for(state) not in NON_ACTIONABLE_CLASSIFICATIONS
+    ]
     classified_unknown = [state for state in unknown if classification_for(state)]
     classified_unavailable = [state for state in unavailable if classification_for(state)]
     classification_counts = Counter(
@@ -58,6 +62,7 @@ def collect_snapshot(hass, entity_classifications=None):
         "integration_inventory": collect_integration_inventory(entries, entity_registry, states),
         "entity_count": len(states),
         "unavailable_entity_count": len(unavailable),
+        "actionable_unavailable_entity_count": len(actionable_unavailable),
         "unknown_entity_count": len(unknown),
         "raw_actionable_unknown_entity_count": len(raw_actionable_unknown),
         "actionable_unknown_entity_count": len(actionable_unknown),
