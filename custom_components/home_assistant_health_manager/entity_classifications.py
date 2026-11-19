@@ -32,7 +32,7 @@ def normalize_classifications(value):
             continue
         classification = record.get("classification")
         reason = record.get("reason")
-        if classification not in VALID_CLASSIFICATIONS or not isinstance(reason, str) or not reason.strip():
+        if not isinstance(classification, str) or classification not in VALID_CLASSIFICATIONS or not isinstance(reason, str) or not reason.strip():
             continue
         item = deepcopy(record)
         item["reason"] = reason.strip()
@@ -49,7 +49,7 @@ def normalize_classifications(value):
     result["schema_version"] = SCHEMA_VERSION
     result["entities"] = normalized
     interval = result.get("review_interval", "90")
-    result["review_interval"] = interval if interval in VALID_REVIEW_INTERVALS else "90"
+    result["review_interval"] = interval if isinstance(interval, str) and interval in VALID_REVIEW_INTERVALS else "90"
     return result
 
 
@@ -58,7 +58,7 @@ def set_entity_classification(stored, entity_id, classification, reason, *, now=
     """Create/update one explicitly user-managed classification."""
     if not isinstance(entity_id, str) or not entity_id.strip():
         raise ValueError("entity_id must be a non-empty string")
-    if classification not in VALID_CLASSIFICATIONS:
+    if not isinstance(classification, str) or classification not in VALID_CLASSIFICATIONS:
         raise ValueError(f"Unsupported classification: {classification}")
     if not isinstance(reason, str) or not reason.strip():
         raise ValueError("A non-empty explanation is required")
@@ -149,7 +149,7 @@ def mark_entity_observations(stored, present_entity_ids, *, entity_sources=None,
 
 def set_review_interval(stored, interval):
     """Set the user's classification review cadence."""
-    if interval not in VALID_REVIEW_INTERVALS:
+    if not isinstance(interval, str) or interval not in VALID_REVIEW_INTERVALS:
         raise ValueError(f"Unsupported review interval: {interval}")
     data = normalize_classifications(stored)
     data["review_interval"] = interval
