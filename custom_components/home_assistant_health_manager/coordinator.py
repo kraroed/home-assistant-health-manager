@@ -37,6 +37,7 @@ from .entity_classifications import (
     remove_entity_classification,
     mark_entity_observations,
     set_review_interval,
+    mark_classifications_reviewed,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -117,6 +118,16 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             self.entity_classifications = updated
         self.async_update_listeners()
 
+    async def async_review_entity_classifications(self, entity_ids):
+        """Confirm selected classifications without changing their values."""
+        async with self._state_lock:
+            updated = mark_classifications_reviewed(
+                self.entity_classifications, entity_ids
+            )
+            if updated != self.entity_classifications:
+                await self.classification_store.async_save(updated)
+                self.entity_classifications = updated
+        self.async_update_listeners()
     async def async_update_classification_observations(self, states):
         """Record presence, registry source and availability for classified entities."""
         entity_registry = er.async_get(self.hass)
