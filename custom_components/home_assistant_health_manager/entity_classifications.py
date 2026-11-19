@@ -99,6 +99,7 @@ def mark_entity_observations(stored, present_entity_ids, *, now=None):
             if record.get("entity_missing"):
                 record["entity_missing"] = False
                 record["returned_at"] = timestamp
+                record["last_seen"] = timestamp
                 record["review_due"] = True
                 record["review_due_reason"] = "entity_returned"
             elif not record.get("last_seen"):
