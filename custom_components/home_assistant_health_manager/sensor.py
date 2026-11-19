@@ -6,6 +6,7 @@ from .investigation_history import build_selected_investigation
 
 SENSORS = [
     ("status", "Health Status", None, None),
+    ("health_overview", "Health Overview", None, None),
     ("active_issues", "Active Issues", "issues", SensorStateClass.MEASUREMENT),
     ("unavailable_entity_count", "Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
     ("actionable_unavailable_entity_count", "Actionable Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
@@ -60,6 +61,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
+        if self.key == "health_overview":
+            return data.get("status", "unknown")
         if self.key == "compatibility_status":
             return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
         if self.key == "integration_attention_domains":
@@ -96,7 +99,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         data = self.coordinator.data or {}
-        if self.key == "status":
+        if self.key in {"status", "health_overview"}:
             return {
                 "last_assessment": data.get("last_assessment"),
                 "last_report": data.get("last_report"),
