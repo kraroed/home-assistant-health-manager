@@ -149,8 +149,6 @@ def get_review_due_entities(stored, *, now=None):
     """Return explicitly classified entities due for user review."""
     data = normalize_classifications(stored)
     interval = data["review_interval"]
-    if interval == "manual":
-        return []
     current = now or datetime.now(timezone.utc)
     if current.tzinfo is None:
         current = current.replace(tzinfo=timezone.utc)
