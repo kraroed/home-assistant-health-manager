@@ -66,6 +66,12 @@ cards:
         name: Investigation to update
       - entity: select.home_assistant_health_manager_investigation_status
         name: Investigation status
+      - entity: sensor.classification_reviews_due
+        name: Entity classifications needing review
+      - entity: select.home_assistant_health_manager_entity_classification_to_review
+        name: Entity classification to review
+      - entity: select.home_assistant_health_manager_confirm_entity_classification_review
+        name: Confirm selected classification review
       - entity: sensor.diagnostic_coverage
         name: Diagnostic coverage
       - entity: sensor.diagnostic_trend
@@ -234,3 +240,14 @@ Choose an investigation before changing its status. The selected investigation i
 
 
 The **Selected Investigation** sensor exposes the chosen history record and, when still present in the latest repair plan, its current finding details: related recommendation IDs, suggested next steps, and structured evidence. The selection is session-only. If a finding is no longer in the latest repair plan, its retained history and prompt path remain visible and the detail card explains that current plan details are unavailable. This view is diagnostic context only; suggested actions are not executed.
+
+
+## Entity classification review
+
+The Health Manager stores classifications separately from diagnostic history. Raw unknown and unavailable totals remain unchanged; only explicitly classified `expected`, `setup_in_progress`, or `seasonal` entities are excluded from actionable counts. `actionable` classifications remain actionable. Unclassified entities remain subject to the normal domain-based rules.
+
+Use the **Entity Classification to Review** selector to inspect a saved record. Its attributes show the entity ID, classification, reason, source integration, observed availability, and why review was triggered. Select **Confirm selected classification review** only after checking the record; this updates its review timestamp and clears the current review flag without changing the classification or reason. For bulk confirmation, call `home_assistant_health_manager.review_entity_classifications` with `entity_ids` containing the exact entity IDs you reviewed.
+
+To change a classification, call `home_assistant_health_manager.set_entity_classification` with the entity ID, new classification, and a meaningful reason. To remove only the saved classification, call `home_assistant_health_manager.remove_entity_classification`. Neither service changes or deletes the Home Assistant entity. A classification is never changed automatically.
+
+Scheduled review cadence is configured by `home_assistant_health_manager.set_classification_review_interval` (`30`, `60`, `90`, or `manual`). Manual disables calendar-based reviews but event-triggered reviews remain active. Optional persistent notifications are disabled by default; enable **Entity classification review notifications** in the integration options to receive one notification when the set of due entities changes. The notification is updated rather than repeated for an unchanged set and is dismissed when no reviews remain due.
