@@ -721,3 +721,19 @@ def test_classification_selector_supports_explicit_value_and_review_cadence():
     assert "ClassificationReviewIntervalSelect" in names
     assert "EntityClassificationReviewSelect" in names
     assert "ConfirmEntityClassificationReviewSelect" in names
+
+def test_consolidated_health_overview_sensor_exposes_live_summary_attributes():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    assert '("health_overview", "Health Overview", None, None)' in source
+    assert 'if self.key == "health_overview":' in source
+    assert 'if self.key in {"status", "health_overview"}:' in source
+    for attribute in (
+        '"active_issues":',
+        '"actionable_unavailable_entity_count":',
+        '"actionable_unknown_entity_count":',
+        '"failed_config_entry_count":',
+        '"classification_review_due_count":',
+        '"collection_coverage":',
+        '"compatibility_assessment":',
+    ):
+        assert attribute in source
