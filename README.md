@@ -93,6 +93,10 @@ Generated reports retain a bounded history of up to 90 aggregate trend samples. 
 An optional native Lovelace dashboard example using Markdown, Entities, and History Graph cards is available in [docs/DASHBOARD.md](docs/DASHBOARD.md). It requires no custom frontend resource. Diagnostic sensors are read-only; the focused-prompt selector and investigation-status service are explicit user-triggered local tracking actions.
 
 
+## Consolidated health overview
+
+The `sensor.health_overview` entity provides a single health state (`healthy` or `attention`) with current diagnostic metrics and supporting attributes. It is designed for at-a-glance dashboards and automations while all individual diagnostic sensors remain available. The native Lovelace dashboard in [`docs/DASHBOARD.md`](docs/DASHBOARD.md) includes a live metrics section.
+
 ## Persistent entity classifications
 
 Entity classifications are stored separately from report history and survive restarts. Supported values are `actionable`, `expected`, `setup_in_progress`, and `seasonal`, each requiring a user-provided reason. Raw unknown and unavailable counts are never reduced. Only explicit non-actionable classifications affect the corresponding actionable diagnostic counts; unclassified entities remain actionable according to the existing domain rules. Classified entities that disappear, return, change providing integration identity, or transition into/out of unknown or unavailable are flagged for review without being reclassified.
