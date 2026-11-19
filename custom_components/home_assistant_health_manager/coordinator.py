@@ -129,6 +129,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 await self.classification_store.async_save(updated)
                 self.entity_classifications = updated
         self.async_update_listeners()
+
     async def async_update_classification_observations(self, states):
         """Record presence, registry source and availability for classified entities."""
         entity_registry = er.async_get(self.hass)
@@ -154,9 +155,18 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
 
     async def async_notify_classification_reviews(self):
         """Create one persistent notification per changed due-review set, when enabled."""
-        if not self.entry.options.get("classification_review_notifications", False):
-            return
         from homeassistant.components import persistent_notification
+        if not self.entry.options.get("classification_review_notifications", False):
+            async with self._state_lock:
+                if self.entity_classifications.get("last_review_notification_fingerprint") is not None:
+                    updated = deepcopy(self.entity_classifications)
+                    updated["last_review_notification_fingerprint"] = None
+                    await self.classification_store.async_save(updated)
+                    self.entity_classifications = updated
+            persistent_notification.async_dismiss(
+                self.hass, f"{DOMAIN}_classification_review_due"
+            )
+            return
         from .entity_classifications import get_review_due_entities
         due = get_review_due_entities(self.entity_classifications)
         notification_id = f"{DOMAIN}_classification_review_due"
