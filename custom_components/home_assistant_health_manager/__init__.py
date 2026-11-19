@@ -35,4 +35,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_remove(DOMAIN, "set_entity_classification")
         hass.services.async_remove(DOMAIN, "remove_entity_classification")
         hass.services.async_remove(DOMAIN, "set_classification_review_interval")
+        hass.services.async_remove(DOMAIN, "review_entity_classifications")
     return unloaded
