@@ -17,6 +17,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         EntityClassificationReviewSelect(coordinator, entry),
         ConfirmEntityClassificationReviewSelect(coordinator, entry),
         EntityClassificationValueSelect(coordinator, entry),
+        ClassificationReviewIntervalSelect(coordinator, entry),
     ])
 
 
@@ -255,6 +256,31 @@ class EntityClassificationValueSelect(CoordinatorEntity, SelectEntity):
         self.coordinator.async_update_listeners()
 
 
+
+
+class ClassificationReviewIntervalSelect(CoordinatorEntity, SelectEntity):
+    """Configure periodic classification review cadence."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Classification Review Interval"
+    _attr_icon = "mdi:calendar-clock"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_classification_review_interval"
+
+    @property
+    def options(self):
+        return ["manual", "30", "60", "90"]
+
+    @property
+    def current_option(self):
+        return self.coordinator.entity_classifications.get("review_interval", "90")
+
+    async def async_select_option(self, option):
+        if option not in self.options:
+            raise ValueError("Unsupported classification review interval.")
+        await self.coordinator.async_set_classification_review_interval(option)
 class ConfirmEntityClassificationReviewSelect(CoordinatorEntity, SelectEntity):
     """Explicitly confirm the currently selected classification was reviewed."""
 
