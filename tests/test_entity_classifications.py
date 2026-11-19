@@ -193,3 +193,12 @@ def test_source_and_availability_changes_trigger_review_without_reclassification
     assert record["previous_source_unique_id"] == "old-id"
     assert record["source_unique_id"] == "new-id"
 
+
+
+def test_manual_interval_still_allows_event_triggered_review():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Seasonal source.", now=NOW
+    )
+    manual = CLASSIFICATIONS.set_review_interval(stored, "manual")
+    due = CLASSIFICATIONS.mark_entity_observations(manual, set(), now=NOW)
+    assert CLASSIFICATIONS.get_review_due_entities(due, now=NOW) == ["sensor.example"]
