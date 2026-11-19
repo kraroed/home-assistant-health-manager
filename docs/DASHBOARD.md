@@ -74,6 +74,8 @@ cards:
         name: Confirm selected classification review
       - entity: select.home_assistant_health_manager_entity_classification_value
         name: Classification value to apply
+      - entity: text.home_assistant_health_manager_entity_classification_target
+        name: Entity ID to classify or edit
       - entity: text.home_assistant_health_manager_entity_classification_reason
         name: Explanation for classification
       - entity: button.home_assistant_health_manager_apply_entity_classification
@@ -258,6 +260,6 @@ The Health Manager stores classifications separately from diagnostic history. Ra
 
 Use the **Entity Classification to Review** selector to inspect a saved record. Its attributes show the entity ID, classification, reason, source integration, observed availability, and why review was triggered. Select **Confirm selected classification review** only after checking the record; this updates its review timestamp and clears the current review flag without changing the classification or reason. For bulk confirmation, call `home_assistant_health_manager.review_entity_classifications` with `entity_ids` containing the exact entity IDs you reviewed.
 
-To change a saved classification in the dashboard, select the entity, choose the new value in **Classification Value**, edit **Entity Classification Reason**, then press **Apply Entity Classification**. The reason is required. To remove only the saved classification, select the entity and press **Remove Entity Classification**. This removes only the saved metadata; it does not delete or alter the Home Assistant entity. The equivalent explicit services remain available: `home_assistant_health_manager.set_entity_classification` and `home_assistant_health_manager.remove_entity_classification`. A classification is never changed automatically.
+To create or change a classification in the dashboard, enter an existing entity ID in **Entity ID to Classify** (or choose an existing saved record in **Entity Classification to Review**), choose the value in **Classification Value**, enter a meaningful explanation in **Entity Classification Reason**, then press **Apply Entity Classification**. The reason is required. To remove only the saved classification, select the entity and press **Remove Entity Classification**. This removes only the saved metadata; it does not delete or alter the Home Assistant entity. The equivalent explicit services remain available: `home_assistant_health_manager.set_entity_classification` and `home_assistant_health_manager.remove_entity_classification`. A classification is never changed automatically.
 
 Scheduled review cadence is configured with the **Classification Review Interval** selector (`30`, `60`, `90`, or `manual`); the equivalent service is `home_assistant_health_manager.set_classification_review_interval`. Manual disables calendar-based reviews but event-triggered reviews remain active. Optional persistent notifications are disabled by default; enable **Entity classification review notifications** in the integration options to receive one notification when the set of due entities changes. The notification is updated rather than repeated for an unchanged set and is dismissed when no reviews remain due.
