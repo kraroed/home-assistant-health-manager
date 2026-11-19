@@ -72,7 +72,7 @@ GitHub Actions runs Python tests, Home Assistant hassfest, and HACS integration 
 
 ## Status
 
-Prepared for the initial beta testing release (`0.1.0-beta.1`). Live Home Assistant OS runtime validation has not yet been completed; use [the controlled HA OS test checklist](docs/HA_OS_TEST_CHECKLIST.md) before treating the integration as production-ready. Supervisor/OS logs, host metrics, recorder internals, automation traces, dashboard resources, and approved remediation execution are future work. This integration is read-only and is not a complete security audit.
+The currently published release on `main` is `0.1.0-beta.3`. Persistent entity classifications, classification review controls, and the consolidated `sensor.health_overview` are being developed on the `feature/persistent-entity-classifications` branch and are not included in beta.3. The next release notes are being prepared as `0.1.0-beta.4`; do not install beta.3 expecting those newer features. Live Home Assistant OS runtime validation remains required before the feature branch is ready for release; use [the controlled HA OS test checklist](docs/HA_OS_TEST_CHECKLIST.md). Supervisor/OS logs, host metrics, recorder internals, automation traces, dashboard resources, and approved remediation execution are future work. This integration is read-only and is not a complete security audit.
 
 
 Compatibility triage includes integration domains with setup_error or setup_retry lifecycle states and reports when the bounded update-entity inventory is truncated. These are review signals, not compatibility verdicts.
