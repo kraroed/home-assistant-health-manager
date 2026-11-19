@@ -58,6 +58,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.last_repair_context = None
         self.selected_investigation_plan_id = None
         self.selected_entity_classification_id = None
+        self.selected_entity_classification = None
+        self.selected_entity_classification_reason = ""
         self._schedule_unsub = None
         self._report_lock = asyncio.Lock()
         self._state_lock = asyncio.Lock()
