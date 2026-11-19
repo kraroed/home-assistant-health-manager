@@ -145,6 +145,7 @@ def test_review_due_respects_interval_and_manual_setting():
     stored = CLASSIFICATIONS.set_entity_classification(
         {}, "sensor.example", "expected", "Intentionally inactive.", now=NOW
     )
+    stored = CLASSIFICATIONS.set_review_interval(stored, "30")
     after_30_days = datetime(2026, 12, 19, 12, 0, tzinfo=timezone.utc)
     assert CLASSIFICATIONS.get_review_due_entities(stored, now=after_30_days) == ["sensor.example"]
     manual = CLASSIFICATIONS.set_review_interval(stored, "manual")
