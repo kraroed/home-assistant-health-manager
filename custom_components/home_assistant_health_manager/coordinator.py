@@ -177,11 +177,11 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             updated["last_review_notification_fingerprint"] = fingerprint
             await self.classification_store.async_save(updated)
             self.entity_classifications = updated
-        names = "\\n".join(f"- {entity_id}" for entity_id in due[:20])
-        remainder = f"\\n- Plus {len(due) - 20} more" if len(due) > 20 else ""
+        names = "\n".join(f"- {entity_id}" for entity_id in due[:20])
+        remainder = f"\n- Plus {len(due) - 20} more" if len(due) > 20 else ""
         persistent_notification.async_create(
             self.hass,
-            f"{len(due)} saved entity classification(s) need review:\\n\\n{names}{remainder}\\n\\nOpen the Health Manager dashboard to inspect each classification and its reason.",
+            f"{len(due)} saved entity classification(s) need review:\n\n{names}{remainder}\n\nOpen the Health Manager dashboard to inspect each classification and its reason.",
             title="Home Assistant Health Manager: classification review",
             notification_id=notification_id,
         )
