@@ -146,7 +146,7 @@ def set_review_interval(stored, interval):
 
 
 def get_review_due_entities(stored, *, now=None):
-    """Return explicitly classified entities due for user review."""
+    """Return explicitly triggered reviews plus periodic reviews when enabled."""
     data = normalize_classifications(stored)
     interval = data["review_interval"]
     current = now or datetime.now(timezone.utc)
@@ -156,6 +156,9 @@ def get_review_due_entities(stored, *, now=None):
     for entity_id, record in data["entities"].items():
         if record.get("review_due"):
             due.append(entity_id)
+            continue
+        # Manual disables calendar-based reviews, not event-triggered reviews.
+        if interval == "manual":
             continue
         reviewed = record.get("last_reviewed") or record.get("created_at")
         try:
