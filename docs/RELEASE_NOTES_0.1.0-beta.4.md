@@ -27,8 +27,8 @@
 - Python syntax and unit-test job: passed.
 - Home Assistant validation (hassfest): passed.
 - HACS validation: passed.
-- CI run: https://github.com/kraroed/home-assistant-health-manager/actions/runs/44461418726
-- Validated feature-branch commit: `4073068f90838856bae587315ee1bb022d1fb3e1`.
+- CI run: https://github.com/kraroed/home-assistant-health-manager/actions/runs/44461916418
+- Validated beta.4 candidate commit: `9c940ce373aa30e840049402f41143030838488c`.
 - Re-run all checks on the exact beta.4 release commit before publishing.
 
 ## Required before publication
