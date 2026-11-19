@@ -33,6 +33,28 @@ cards:
 
       _Raw unknown counts include stateless buttons. Actionable unknown counts exclude buttons. Coverage describes collected diagnostic sources; it is not a health score._
   - type: entities
+    title: Health metrics — live values
+    show_header_toggle: false
+    entities:
+      - entity: sensor.health_overview
+        name: Overall health and consolidated details
+      - entity: sensor.active_issues
+        name: Active issues
+      - entity: sensor.unavailable_entities
+        name: Unavailable (raw)
+      - entity: sensor.actionable_unavailable_entities
+        name: Unavailable (actionable)
+      - entity: sensor.unknown_entities
+        name: Unknown (raw)
+      - entity: sensor.actionable_unknown_entities
+        name: Unknown (actionable)
+      - entity: sensor.failed_integrations
+        name: Failed integrations
+      - entity: sensor.classification_reviews_due
+        name: Classifications needing review
+      - entity: sensor.diagnostic_coverage
+        name: Diagnostic coverage
+  - type: entities
     title: Current diagnostics
     show_header_toggle: false
     entities:
@@ -185,6 +207,8 @@ cards:
 - A low or partial coverage result means some sources were unavailable. It must not be interpreted as proof of a healthy system.
 
 The diagnostic sensors are read-only. The focused-prompt select is an explicit user-triggered action that only writes a local Markdown prompt and fires an event; it does not invoke repair, update, restart, or configuration changes.
+
+The **Health Overview** sensor is a consolidated, read-only summary. Its state mirrors the overall health status (`healthy` or `attention`), and its attributes contain the current issue counts, raw and actionable unknown/unavailable counts, integration status, platform update states, classification review queue, diagnostic coverage, compatibility, trends, and report metadata. Use the individual sensors for history graphs and focused inspection; the overview sensor is intended for one-place dashboards and automations.
 
 
 The `Unknown Entities` sensor is the raw count and includes all unknown states. The `Actionable Unknown Entities` sensor excludes `button` entities because buttons are stateless actions and an unknown state is expected. Overall health status, active issues, recommendations, and integration attention use actionable unknown counts; raw counts remain visible for transparency. Other unknown entity domains remain actionable and should be reviewed in context.
