@@ -1,6 +1,6 @@
 # Home Assistant Health Manager 0.1.0-beta.4
 
-**Draft release notes — not yet published.** This version follows the published `0.1.0-beta.3` release and is intended to make the new features available for controlled Home Assistant OS beta testing. Live runtime verification is performed after publication, not before it.
+**Pre-release candidate — publication pending.** This version follows the published `0.1.0-beta.3` release and is intended to make the new features available for controlled Home Assistant OS beta testing. Live runtime verification is performed after publication, not before it.
 
 ## What's new
 
@@ -27,16 +27,16 @@
 - Python syntax and unit-test job: passed.
 - Home Assistant validation (hassfest): passed.
 - HACS validation: passed.
-- CI run: https://github.com/kraroed/home-assistant-health-manager/actions/runs/44461916418
-- Validated beta.4 candidate commit: `9c940ce373aa30e840049402f41143030838488c`.
-- Re-run all checks on the exact beta.4 release commit before publishing.
+- PR candidate validation: https://github.com/kraroed/home-assistant-health-manager/actions/runs/44462147789 (all jobs passed).
+- Merged `main` commit: `f9f63efef6c765f05ac7e4f1c94c27351ec6b589`.
+- Post-merge `main` validation: https://github.com/kraroed/home-assistant-health-manager/actions/runs/44462321626 (Python tests, Home Assistant validation, and HACS validation all passed).
 
-## Required before publication
+## Publication and beta testing
 
-- Complete code review and merge the feature branch into `main`.
-- Set the integration manifest version and Git tag to exactly `0.1.0-beta.4`.
-- Publish beta.4 as a GitHub pre-release so it can be installed through HACS/Marketplace.
-- Re-run all validation against the exact release commit before publishing.
+- The feature branch has been reviewed and merged into `main` through PR #5.
+- The manifest version on `main` is `0.1.0-beta.4`.
+- All post-merge automated validation has passed.
+- The Git tag and GitHub pre-release `0.1.0-beta.4` still need to be created. Once published, it will be available for installation through HACS/Marketplace.
 - After publication, install on a backed-up Home Assistant OS instance and complete [the controlled test checklist](HA_OS_TEST_CHECKLIST.md), including classification persistence, event-triggered review, review notifications, dashboard entity IDs, and the consolidated overview.
 
-Live Home Assistant OS verification has not yet been completed for these new features. This draft is not an installable release announcement.
+Live Home Assistant OS verification has not yet been completed for these new features. This is a beta pre-release candidate, not a stable release.
