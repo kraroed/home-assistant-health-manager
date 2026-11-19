@@ -165,3 +165,31 @@ def test_entity_return_triggers_review_without_changing_classification():
     assert record["reason"] == "Still being configured."
     assert record["review_due"] is True
     assert CLASSIFICATIONS.get_review_due_entities(returned) == ["sensor.example"]
+
+
+def test_source_and_availability_changes_trigger_review_without_reclassification():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Intentionally inactive.",
+        now=NOW, source_domain="demo", source_unique_id="old-id"
+    )
+    baseline = CLASSIFICATIONS.mark_entity_observations(
+        stored, {"sensor.example"},
+        entity_sources={"sensor.example": {"source_domain": "demo", "source_unique_id": "old-id"}},
+        entity_states={"sensor.example": "off"}, now=NOW
+    )
+    changed = CLASSIFICATIONS.mark_entity_observations(
+        baseline, {"sensor.example"},
+        entity_sources={"sensor.example": {"source_domain": "new_demo", "source_unique_id": "new-id"}},
+        entity_states={"sensor.example": "unavailable"},
+        now=datetime(2026, 11, 19, 12, 0, tzinfo=timezone.utc),
+    )
+    record = changed["entities"]["sensor.example"]
+    assert record["classification"] == "expected"
+    assert record["reason"] == "Intentionally inactive."
+    assert record["review_due"] is True
+    assert record["review_due_reason"] == "availability_changed"
+    assert record["previous_source_domain"] == "demo"
+    assert record["source_domain"] == "new_demo"
+    assert record["previous_source_unique_id"] == "old-id"
+    assert record["source_unique_id"] == "new-id"
+
