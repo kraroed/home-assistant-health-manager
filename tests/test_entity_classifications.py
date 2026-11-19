@@ -221,3 +221,19 @@ def test_bulk_review_confirmation_clears_due_without_changing_classification_or_
     assert record["review_due"] is False
     assert record["last_reviewed"] == later.isoformat()
     assert CLASSIFICATIONS.get_review_due_entities(reviewed, now=later) == []
+
+
+def test_explicit_classification_update_clears_outstanding_review_triggers():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Seasonal device.", now=NOW
+    )
+    flagged = CLASSIFICATIONS.mark_entity_observations(stored, set(), now=NOW)
+    assert flagged["entities"]["sensor.example"]["review_due"] is True
+    updated = CLASSIFICATIONS.set_entity_classification(
+        flagged, "sensor.example", "actionable", "Now needs attention.", now=NOW
+    )
+    record = updated["entities"]["sensor.example"]
+    assert record["review_due"] is False
+    assert "review_due_reason" not in record
+    assert "review_due_reasons" not in record
+    assert "review_due_at" not in record
