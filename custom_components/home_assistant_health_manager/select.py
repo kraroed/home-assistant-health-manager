@@ -198,6 +198,7 @@ class EntityClassificationReviewSelect(CoordinatorEntity, SelectEntity):
             "reason": record.get("reason"),
             "review_due": record.get("review_due", False),
             "review_due_reason": record.get("review_due_reason"),
+            "review_due_reasons": record.get("review_due_reasons", []),
             "last_reviewed": record.get("last_reviewed"),
             "entity_missing": record.get("entity_missing", False),
             "missing_since": record.get("missing_since"),
