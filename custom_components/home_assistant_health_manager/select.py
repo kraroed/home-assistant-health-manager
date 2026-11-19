@@ -16,6 +16,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         InvestigationStatusSelect(coordinator, entry),
         EntityClassificationReviewSelect(coordinator, entry),
         ConfirmEntityClassificationReviewSelect(coordinator, entry),
+        EntityClassificationValueSelect(coordinator, entry),
     ])
 
 
@@ -222,6 +223,35 @@ class EntityClassificationReviewSelect(CoordinatorEntity, SelectEntity):
         if entity_id is None:
             raise ValueError("That classification is no longer available.")
         self.coordinator.selected_entity_classification_id = entity_id
+        record = self.coordinator.entity_classifications.get("entities", {}).get(entity_id, {})
+        self.coordinator.selected_entity_classification = record.get("classification", "actionable")
+        self.coordinator.selected_entity_classification_reason = record.get("reason", "")
+        self.coordinator.async_update_listeners()
+
+
+class EntityClassificationValueSelect(CoordinatorEntity, SelectEntity):
+    """Choose the classification to apply to the selected entity."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Entity Classification Value"
+    _attr_icon = "mdi:tag-edit-outline"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_entity_classification_value"
+
+    @property
+    def options(self):
+        return ["actionable", "expected", "setup_in_progress", "seasonal"]
+
+    @property
+    def current_option(self):
+        return getattr(self.coordinator, "selected_entity_classification", None)
+
+    async def async_select_option(self, option):
+        if option not in self.options:
+            raise ValueError("Unsupported entity classification.")
+        self.coordinator.selected_entity_classification = option
         self.coordinator.async_update_listeners()
 
 
