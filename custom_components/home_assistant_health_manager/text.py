@@ -1,6 +1,7 @@
 """Native text control for entity classification explanations."""
 
 from homeassistant.components.text import TextEntity
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -8,7 +9,10 @@ from .const import DOMAIN
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([EntityClassificationReasonText(coordinator, entry)])
+    async_add_entities([
+        EntityClassificationTargetText(coordinator, entry),
+        EntityClassificationReasonText(coordinator, entry),
+    ])
 
 
 class EntityClassificationReasonText(CoordinatorEntity, TextEntity):
@@ -30,4 +34,35 @@ class EntityClassificationReasonText(CoordinatorEntity, TextEntity):
 
     async def async_set_value(self, value):
         self.coordinator.selected_entity_classification_reason = value.strip()
+        self.coordinator.async_update_listeners()
+
+
+class EntityClassificationTargetText(CoordinatorEntity, TextEntity):
+    """Enter any existing entity ID to classify or edit."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Entity ID to Classify"
+    _attr_icon = "mdi:form-textbox"
+    _attr_native_min = 3
+    _attr_native_max = 255
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_entity_classification_target"
+
+    @property
+    def native_value(self):
+        return getattr(self.coordinator, "selected_entity_classification_id", "") or ""
+
+    async def async_set_value(self, value):
+        entity_id = value.strip()
+        if "." not in entity_id or " " in entity_id:
+            raise ValueError("Enter a valid Home Assistant entity ID, such as sensor.example.")
+        registry = er.async_get(self.hass)
+        if self.hass.states.get(entity_id) is None and registry.async_get(entity_id) is None:
+            raise ValueError("That entity ID was not found in Home Assistant.")
+        record = self.coordinator.entity_classifications.get("entities", {}).get(entity_id, {})
+        self.coordinator.selected_entity_classification_id = entity_id
+        self.coordinator.selected_entity_classification = record.get("classification", "actionable")
+        self.coordinator.selected_entity_classification_reason = record.get("reason", "")
         self.coordinator.async_update_listeners()
