@@ -705,6 +705,7 @@ def test_classification_management_has_native_text_and_button_platforms():
     text_tree = _parse(INTEGRATION / "text.py")
     button_tree = _parse(INTEGRATION / "button.py")
     assert any(isinstance(node, ast.ClassDef) and node.name == "EntityClassificationReasonText" for node in text_tree.body)
+    assert any(isinstance(node, ast.ClassDef) and node.name == "EntityClassificationTargetText" for node in text_tree.body)
     button_classes = {node.name for node in button_tree.body if isinstance(node, ast.ClassDef)}
     assert {"ApplyEntityClassificationButton", "RemoveEntityClassificationButton"} <= button_classes
     apply_button = next(node for node in button_tree.body if isinstance(node, ast.ClassDef) and node.name == "ApplyEntityClassificationButton")
