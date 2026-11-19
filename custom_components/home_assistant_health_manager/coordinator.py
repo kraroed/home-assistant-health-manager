@@ -30,6 +30,13 @@ from .repair_plan import build_repair_plan
 from .focused_repair_prompt import build_focused_repair_prompt
 from .investigation_history import record_investigation, set_investigation_status, summarize_investigations
 from .storage import normalize_schedule_data
+from .entity_classifications import (
+    normalize_classifications,
+    set_entity_classification,
+    remove_entity_classification,
+    mark_entity_observations,
+    set_review_interval,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +47,9 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.hass = hass
         self.entry = entry
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
+        # Keep user classifications isolated from diagnostic/report history.
+        self.classification_store = Store(hass, 1, f'{DOMAIN}_entity_classifications')
+        self.entity_classifications = normalize_classifications({})
         self.schedule = {}
         self.last_report_path = None
         self.last_prompt_path = None
@@ -53,6 +63,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     async def async_setup_schedule(self):
         stored_data = await self.store.async_load()
         self.schedule = normalize_schedule_data(stored_data)
+        stored_classifications = await self.classification_store.async_load()
+        self.entity_classifications = normalize_classifications(stored_classifications)
+        if self.entity_classifications != stored_classifications:
+            await self.classification_store.async_save(self.entity_classifications)
         await async_reconcile_report_transactions(
             self.hass, self.schedule.get("last_report_path")
         )
@@ -67,6 +81,50 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self._schedule_unsub = async_track_time_interval(
             self.hass, self._async_scheduled_check, SCHEDULE_INTERVAL
         )
+
+    async def async_set_entity_classification(
+        self, entity_id, classification, reason, **metadata
+    ):
+        """Persist one explicit user classification independently of reports."""
+        async with self._state_lock:
+            updated = set_entity_classification(
+                self.entity_classifications,
+                entity_id,
+                classification,
+                reason,
+                **metadata,
+            )
+            await self.classification_store.async_save(updated)
+            self.entity_classifications = updated
+        self.async_update_listeners()
+
+    async def async_remove_entity_classification(self, entity_id):
+        """Remove only the explicitly selected entity classification."""
+        async with self._state_lock:
+            updated = remove_entity_classification(
+                self.entity_classifications, entity_id
+            )
+            await self.classification_store.async_save(updated)
+            self.entity_classifications = updated
+        self.async_update_listeners()
+
+    async def async_set_classification_review_interval(self, interval):
+        """Persist the user's classification review cadence."""
+        async with self._state_lock:
+            updated = set_review_interval(self.entity_classifications, interval)
+            await self.classification_store.async_save(updated)
+            self.entity_classifications = updated
+        self.async_update_listeners()
+
+    async def async_update_classification_observations(self, entity_ids):
+        """Record entity presence while retaining classifications for absences."""
+        async with self._state_lock:
+            updated = mark_entity_observations(
+                self.entity_classifications, entity_ids
+            )
+            if updated != self.entity_classifications:
+                await self.classification_store.async_save(updated)
+                self.entity_classifications = updated
 
     def async_shutdown(self):
         if self._schedule_unsub:
