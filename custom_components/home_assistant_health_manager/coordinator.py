@@ -57,6 +57,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.last_prompt_path = None
         self.last_repair_context = None
         self.selected_investigation_plan_id = None
+        self.selected_entity_classification_id = None
         self._schedule_unsub = None
         self._report_lock = asyncio.Lock()
         self._state_lock = asyncio.Lock()
@@ -151,6 +152,39 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 await self.classification_store.async_save(updated)
                 self.entity_classifications = updated
 
+    async def async_notify_classification_reviews(self):
+        """Create one persistent notification per changed due-review set, when enabled."""
+        if not self.entry.options.get("classification_review_notifications", False):
+            return
+        from homeassistant.components import persistent_notification
+        from .entity_classifications import get_review_due_entities
+        due = get_review_due_entities(self.entity_classifications)
+        notification_id = f"{DOMAIN}_classification_review_due"
+        fingerprint = "|".join(due)
+        async with self._state_lock:
+            previous = self.entity_classifications.get("last_review_notification_fingerprint")
+            if not due:
+                if previous is not None:
+                    updated = deepcopy(self.entity_classifications)
+                    updated["last_review_notification_fingerprint"] = None
+                    await self.classification_store.async_save(updated)
+                    self.entity_classifications = updated
+                    persistent_notification.async_dismiss(self.hass, notification_id)
+                return
+            if fingerprint == previous:
+                return
+            updated = deepcopy(self.entity_classifications)
+            updated["last_review_notification_fingerprint"] = fingerprint
+            await self.classification_store.async_save(updated)
+            self.entity_classifications = updated
+        names = "\\n".join(f"- {entity_id}" for entity_id in due[:20])
+        remainder = f"\\n- Plus {len(due) - 20} more" if len(due) > 20 else ""
+        persistent_notification.async_create(
+            self.hass,
+            f"{len(due)} saved entity classification(s) need review:\\n\\n{names}{remainder}\\n\\nOpen the Health Manager dashboard to inspect each classification and its reason.",
+            title="Home Assistant Health Manager: classification review",
+            notification_id=notification_id,
+        )
     def async_shutdown(self):
         if self._schedule_unsub:
             self._schedule_unsub()
@@ -164,6 +198,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             elif self.entry.options.get("weekly_reports", True) and _is_due(self.schedule.get("next_weekly"), now):
                 await self.async_generate_report(comprehensive=False, scheduled_period="next_weekly")
             await self.async_request_refresh()
+            await self.async_notify_classification_reviews()
         except Exception:
             _LOGGER.exception("Scheduled health review failed")
 
