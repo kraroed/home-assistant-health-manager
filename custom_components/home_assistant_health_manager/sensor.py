@@ -3,7 +3,11 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .investigation_history import build_selected_investigation
-from .recorder_sizing import recorder_safe_attributes
+from .recorder_sizing import (
+    RecordTooLargeError,
+    pack_json_records,
+    recorder_safe_attributes,
+)
 
 SENSORS = [
     ("status", "Health Status", None, None),
@@ -59,12 +63,87 @@ SENSORS = [
 ]
 
 
+PAGED_COLLECTIONS = {
+    "newly_unavailable_entity_ids": ("newly_unavailable_entity_ids", "list"),
+    "persistent_unavailable_entity_ids": ("persistent_unavailable_entity_ids", "list"),
+    "missing_tracked_entity_ids": ("missing_tracked_entity_ids", "list"),
+    "unavailable_investigation_groups": ("unavailable_investigation_groups", "list"),
+    "classification_review_due_entities": ("classification_review_due_entities", "list"),
+    "unknown_counts_by_domain": ("unknown_counts_by_domain", "mapping"),
+    "integration_attention_domains": ("integration_inventory.attention_domains", "list"),
+    "failed_config_entry_domains": ("failed_config_entry_domains", "mapping"),
+    "config_entry_states": ("config_entry_states", "mapping"),
+    "unavailable_investigations": ("unavailable_investigations", "list"),
+    "diagnostic_change_events": ("diagnostic_change_history.events", "list"),
+    "repair_investigations": ("investigations", "list"),
+    "recurring_issues": ("recurring_issues", "list"),
+    "entity_counts_by_domain": ("entity_counts_by_domain", "mapping"),
+    "unavailable_counts_by_domain": ("unavailable_counts_by_domain", "mapping"),
+    "actionable_unknown_counts_by_domain": ("actionable_unknown_counts_by_domain", "mapping"),
+    "availability_observation_events": ("availability_observation_events", "list"),
+}
+
+
+def _nested_value(data, path):
+    value = data
+    for part in path.split("."):
+        value = value.get(part, {}) if isinstance(value, dict) else {}
+    return value
+
+
+def _collection_records(data, collection_key):
+    path, kind = PAGED_COLLECTIONS[collection_key]
+    value = _nested_value(data, path)
+    if kind == "mapping":
+        if not isinstance(value, dict):
+            return []
+        return [{"key": key, "value": item} for key, item in value.items()]
+    return value if isinstance(value, list) else []
+
+
+def _page_records(data, collection_key):
+    records = _collection_records(data, collection_key)
+    return pack_json_records(
+        records,
+        attribute_key="records",
+        metadata={"collection_key": collection_key, "record_kind": PAGED_COLLECTIONS[collection_key][1]},
+    )
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         HealthManagerSensor(coordinator, entry, key, name, unit, state_class)
         for key, name, unit, state_class in SENSORS
     )
+
+    added_page_keys = set()
+
+    def add_detail_pages():
+        data = coordinator.data or {}
+        entities = []
+        for collection_key in PAGED_COLLECTIONS:
+            try:
+                pages = _page_records(data, collection_key)
+            except RecordTooLargeError:
+                # The source detail sensor exposes an explicit report pointer
+                # through recorder_safe_attributes; no record is discarded.
+                continue
+            for page_number in range(1, len(pages) + 1):
+                key = f"detail_page_{collection_key}_{page_number}"
+                if key in added_page_keys:
+                    continue
+                added_page_keys.add(key)
+                entities.append(
+                    HealthManagerDetailPageSensor(
+                        coordinator, entry, collection_key, page_number
+                    )
+                )
+        if entities:
+            async_add_entities(entities)
+
+    add_detail_pages()
+    entry.async_on_unload(coordinator.async_add_listener(add_detail_pages))
 
 
 class HealthManagerSensor(CoordinatorEntity, SensorEntity):
@@ -322,3 +401,20 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             platform = self.key.removesuffix("_update_status")
             return data.get("platform_updates", {}).get(platform, {})
         return {}
+
+
+
+class HealthManagerDetailPageSensor(HealthManagerSensor):
+    """A size-aware page of one diagnostic collection."""
+
+    def __init__(self, coordinator, entry, collection_key, page_number):
+        key = f"detail_page_{collection_key}_{page_number}"
+        super().__init__(
+            coordinator,
+            entry,
+            key,
+            f"Detail Page {collection_key.replace('_', ' ').title()} {page_number}",
+            "records",
+            SensorStateClass.MEASUREMENT,
+        )
+        self._attr_suggested_object_id = key
