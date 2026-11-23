@@ -821,7 +821,7 @@ def test_dashboard_documents_live_unavailable_investigation_metrics():
         "sensor.tracked_unavailable_entities",
         "sensor.persistent_unavailable_entities",
         "sensor.missing_tracked_entities",
-        "sensor.unavailable_investigation_group_count",
+        "sensor.unavailable_investigation_groups",
     ):
         assert entity_id in dashboard
     assert "root cause" in dashboard
@@ -961,3 +961,22 @@ def test_unavailable_entity_history_events_are_exposed_as_bounded_sensor_attribu
     assert '("availability_observation_event_count", "Unavailable Entity History Events"' in sensor
     assert '"events": data.get("availability_observation_events", [])' in sensor
     assert '"retained_limit": 100' in sensor
+
+
+def test_unavailable_investigation_dashboard_uses_generated_entity_ids():
+    dashboard = (ROOT / "docs" / "DASHBOARD.md").read_text(encoding="utf-8")
+    expected = (
+        "sensor.unavailable_investigation_groups",
+        "sensor.unavailable_investigations",
+        "sensor.unavailable_entity_history_events",
+        "select.unavailable_group_to_investigate",
+        "button.start_unavailable_investigation",
+        "text.unavailable_entity_to_investigate",
+        "button.start_manual_unavailable_investigation",
+        "select.unavailable_investigation_to_update",
+        "select.unavailable_investigation_status",
+        "text.unavailable_investigation_note",
+    )
+    for entity_id in expected:
+        assert entity_id in dashboard
+    assert "home_assistant_health_manager_unavailable_" not in dashboard
