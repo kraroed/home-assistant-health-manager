@@ -134,3 +134,26 @@ def test_group_exposes_latest_entity_return_time_for_reassessment():
     }, now=NOW)
     device = next(group for group in groups if group["group_type"] == "device")
     assert device["latest_entity_returned_at"] == returned_at
+
+
+def test_device_group_includes_friendly_device_context_without_registry_id():
+    groups = GROUPING.build_unavailable_groups({
+        "sensor.one": {
+            **_record("sensor.one", device_id="secret-id"),
+            "device_name": "Garage Controller",
+            "device_manufacturer": "Acme",
+            "device_model": "GX-2",
+        },
+        "sensor.two": {
+            **_record("sensor.two", device_id="secret-id"),
+            "device_name": "Garage Controller",
+            "device_manufacturer": "Acme",
+            "device_model": "GX-2",
+        },
+    }, now=NOW)
+    group = next(item for item in groups if item["group_type"] == "device")
+    assert group["title"] == "2 entities on Garage Controller"
+    assert group["device_name"] == "Garage Controller"
+    assert group["device_manufacturer"] == "Acme"
+    assert group["device_model"] == "GX-2"
+    assert "secret-id" not in str(group)
