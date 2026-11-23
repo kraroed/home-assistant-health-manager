@@ -296,6 +296,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 snapshot.get("integration_inventory"),
                 now=datetime.now(timezone.utc).isoformat(),
                 group_related=self.entry.options.get("group_related_unavailable_entities", True),
+                persistent_entity_ids=self.availability_summary.get("persistent_unavailable_entity_ids", []),
             )
             async with self._state_lock:
                 change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
@@ -353,6 +354,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             snapshot.get("integration_inventory"),
             now=datetime.now(timezone.utc).isoformat(),
             group_related=self.entry.options.get("group_related_unavailable_entities", True),
+            persistent_entity_ids=self.availability_summary.get("persistent_unavailable_entity_ids", []),
         )
         snapshot["unavailable_investigation_group_count"] = len(snapshot["unavailable_investigation_groups"])
         change_history, change_summary = update_change_history(schedule.get('change_history', []), snapshot, snapshot['collected_at'])
