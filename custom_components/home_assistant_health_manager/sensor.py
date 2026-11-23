@@ -103,6 +103,8 @@ def _collection_records(data, collection_key):
 
 def _page_records(data, collection_key):
     records = _collection_records(data, collection_key)
+    if not records:
+        return []
     return pack_json_records(
         records,
         attribute_key="records",
