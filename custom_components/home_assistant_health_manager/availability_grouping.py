@@ -1,5 +1,6 @@
 """Evidence-based grouping for related unavailable entities."""
 from datetime import datetime, timezone
+import hashlib
 
 DEVICE_GROUP_MINIMUM = 2
 INTEGRATION_GROUP_MINIMUM = 2
@@ -60,6 +61,8 @@ def _make_group(group_id, group_type, records, now, confidence, evidence):
         "earliest_unavailable_since": earliest.isoformat() if earliest else None,
         "duration_minutes": duration,
         "requires_user_review": True,
+        "cause_confirmed": False,
+        "confidence_scope": "association evidence only; root cause is not confirmed",
     }
 
 
@@ -104,7 +107,7 @@ def build_unavailable_groups(
         if len(records) < DEVICE_GROUP_MINIMUM:
             continue
         groups.append(_make_group(
-            f"device:{device_id}", "device", records, now, "strong",
+            f"device:{hashlib.sha256(device_id.encode()).hexdigest()[:12]}", "device", records, now, "strong",
             ["Multiple unavailable entities share the same registered device."],
         ))
         assigned.update(record["entity_id"] for record in records)
