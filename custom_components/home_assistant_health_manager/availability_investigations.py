@@ -36,6 +36,7 @@ def start_investigation(investigations, group, now):
         updated["cause_confirmed"] = False
         updated["confidence"] = group.get("confidence", "unassessed")
         updated["group_type"] = group.get("group_type", "entity")
+        updated["outage_started_at"] = group.get("earliest_unavailable_since")
         updated["updated_at"] = now_dt.isoformat()
         result = dict(investigations)
         result[group_id] = updated
@@ -53,6 +54,7 @@ def start_investigation(investigations, group, now):
         "evidence": list(group.get("evidence", []))[:50],
         "confidence": group.get("confidence", "unassessed"),
         "group_type": group.get("group_type", "entity"),
+        "outage_started_at": group.get("earliest_unavailable_since"),
         "cause_confirmed": False,
         "status": "needs_review",
         "created_at": now_dt.isoformat(),
