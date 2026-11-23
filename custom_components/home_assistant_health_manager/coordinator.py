@@ -649,7 +649,9 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 }
                 for group in sorted(due_groups, key=lambda item: item.get("group_id", ""))
             ]
-            fingerprint = json.dumps(fingerprint_data, sort_keys=True, separators=(",", ":"))
+            fingerprint = hashlib.sha256(
+                json.dumps(fingerprint_data, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
             previous = updated.get("last_notification_fingerprint")
             last_at = updated.get("last_notification_at")
             reminder_due = False
