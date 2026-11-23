@@ -111,3 +111,23 @@ def test_summary_counts_statuses_and_bounds_display_records():
     assert summary["unavailable_investigation_count"] == 110
     assert len(summary["unavailable_investigations"]) == 100
     assert summary["unavailable_investigation_status_counts"]["needs_review"] == 110
+
+
+def test_current_investigation_finds_latest_reopened_record_for_group():
+    records, first_id = INVESTIGATIONS.start_investigation({}, _group(), NOW)
+    records = INVESTIGATIONS.set_investigation_status(records, first_id, "resolved", NOW)
+    records, second_id = INVESTIGATIONS.start_investigation(
+        records, _group(), "2026-11-23T13:00:00+00:00",
+    )
+    current = INVESTIGATIONS.find_current_investigation(records, _group()["group_id"])
+    assert second_id != first_id
+    assert current["investigation_id"] == second_id
+    assert current["status"] == "needs_review"
+
+
+def test_current_investigation_returns_latest_closed_record_when_group_is_resolved():
+    records, first_id = INVESTIGATIONS.start_investigation({}, _group(), NOW)
+    records = INVESTIGATIONS.set_investigation_status(records, first_id, "resolved", NOW)
+    current = INVESTIGATIONS.find_current_investigation(records, _group()["group_id"])
+    assert current["investigation_id"] == first_id
+    assert current["status"] == "resolved"
