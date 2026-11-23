@@ -24,6 +24,7 @@ def test_first_unavailable_observation_starts_duration_and_records_event():
     assert record["unavailable_since"] == NOW
     assert record["present"] is True
     assert result["persistent_entity_ids"] == []
+    assert result["newly_unavailable_entity_ids"] == ["sensor.garage"]
     assert result["events"][0]["action"] == "became_unavailable"
 
 
@@ -39,6 +40,7 @@ def test_repeated_unavailable_refresh_preserves_original_start_time():
     )
     assert result["observations"]["sensor.garage"]["unavailable_since"] == started
     assert result["persistent_entity_ids"] == ["sensor.garage"]
+    assert result["newly_unavailable_entity_ids"] == []
     assert result["events"] == []
 
 
@@ -162,3 +164,22 @@ def test_return_after_missing_is_recorded_without_resetting_original_unavailable
     assert "missing_since" not in record
     assert result["events"][-1]["action"] == "entity_returned"
     assert result["persistent_entity_ids"] == ["sensor.garage"]
+
+
+def test_recovered_entity_that_becomes_unavailable_again_is_a_new_transition():
+    recovered = {
+        "observations": {
+            "sensor.garage": {
+                "entity_id": "sensor.garage",
+                "state": "available",
+                "present": True,
+                "last_recovered_at": "2026-11-23T11:00:00+00:00",
+            }
+        }
+    }
+    result = OBSERVER.observe_unavailable_entities(
+        recovered,
+        [{"entity_id": "sensor.garage", "state": "unavailable"}],
+        NOW,
+    )
+    assert result["newly_unavailable_entity_ids"] == ["sensor.garage"]
