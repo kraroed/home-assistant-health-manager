@@ -115,3 +115,23 @@ def test_invalid_clock_is_rejected_and_malformed_items_are_ignored():
         {}, [None, {"entity_id": "not-an-id", "state": "unavailable"}], NOW,
     )
     assert result["observations"] == {}
+
+
+def test_observer_output_can_be_round_tripped_through_storage_normalizer():
+    from importlib.util import module_from_spec, spec_from_file_location
+
+    storage_path = MODULE_PATH.parent / "availability_storage.py"
+    storage_spec = spec_from_file_location("health_manager_availability_storage_roundtrip", storage_path)
+    storage = module_from_spec(storage_spec)
+    storage_spec.loader.exec_module(storage)
+
+    first = OBSERVER.observe_unavailable_entities(
+        {}, [{"entity_id": "sensor.garage", "state": "unavailable"}], NOW,
+    )
+    missing = OBSERVER.observe_unavailable_entities(first, [], NOW)
+    normalized = storage.normalize_availability_data(missing)
+    record = normalized["observations"]["sensor.garage"]
+    assert record["present"] is False
+    assert record["state"] == "unavailable"
+    assert record["unavailable_since"] == NOW
+    assert record["missing_since"] == NOW
