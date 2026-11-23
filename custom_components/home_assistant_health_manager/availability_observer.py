@@ -81,6 +81,15 @@ def observe_unavailable_entities(data, current_entities, now, persistence_minute
             record["device_id"] = device_id[:255]
         elif isinstance(previous, dict) and previous.get("device_id"):
             record["device_id"] = previous["device_id"]
+        if isinstance(previous, dict):
+            for key in ("last_missing_since", "last_returned_at"):
+                if previous.get(key):
+                    record[key] = previous[key]
+        if isinstance(previous, dict) and previous.get("present") is False:
+            if previous.get("missing_since"):
+                record["last_missing_since"] = previous["missing_since"]
+            record["last_returned_at"] = now
+            _append_event(events, now, "entity_returned", entity_id)
 
         if state == "unavailable":
             since = previous.get("unavailable_since") if previous_state == "unavailable" else None
