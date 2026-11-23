@@ -59,7 +59,7 @@ def test_starting_previously_closed_group_creates_new_history_record():
     )
     assert second_id != first_id
     assert records[first_id]["status"] == "resolved"
-    assert records[second_id]["status"] == "investigating"
+    assert records[second_id]["status"] == "needs_review"
 
 
 def test_waiting_status_sets_configurable_reminder_and_resolved_records_timestamp():
