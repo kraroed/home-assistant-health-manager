@@ -38,6 +38,9 @@ def start_investigation(investigations, group, now):
         updated["cause_confirmed"] = False
         updated["confidence"] = group.get("confidence", "unassessed")
         updated["group_type"] = group.get("group_type", "entity")
+        updated["device_name"] = group.get("device_name")
+        updated["device_manufacturer"] = group.get("device_manufacturer")
+        updated["device_model"] = group.get("device_model")
         updated["source_domains"] = sorted(set(group.get("source_domains", [])))
         updated["outage_started_at"] = group.get("earliest_unavailable_since")
         updated["last_entity_returned_at"] = group.get("latest_entity_returned_at")
@@ -58,6 +61,9 @@ def start_investigation(investigations, group, now):
         "evidence": list(group.get("evidence", []))[:50],
         "confidence": group.get("confidence", "unassessed"),
         "group_type": group.get("group_type", "entity"),
+        "device_name": group.get("device_name"),
+        "device_manufacturer": group.get("device_manufacturer"),
+        "device_model": group.get("device_model"),
         "source_domains": sorted(set(group.get("source_domains", []))),
         "outage_started_at": group.get("earliest_unavailable_since"),
         "last_entity_returned_at": group.get("latest_entity_returned_at"),
@@ -170,6 +176,9 @@ def refresh_investigation_context(investigations, investigation_id, group):
     updated["reason"] = "; ".join(updated["evidence"])[:1000]
     updated["confidence"] = group.get("confidence", "unassessed")
     updated["group_type"] = group.get("group_type", "entity")
+    updated["device_name"] = group.get("device_name")
+    updated["device_manufacturer"] = group.get("device_manufacturer")
+    updated["device_model"] = group.get("device_model")
     updated["source_domains"] = sorted({
         item for item in group.get("source_domains", []) if isinstance(item, str)
     })
