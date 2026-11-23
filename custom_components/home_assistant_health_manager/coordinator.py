@@ -33,6 +33,7 @@ from .investigation_history import record_investigation, set_investigation_statu
 from .storage import normalize_schedule_data
 from .availability_storage import normalize_availability_data
 from .availability_observer import observe_unavailable_entities
+from .availability_grouping import build_unavailable_groups
 from .entity_classifications import (
     normalize_classifications,
     set_entity_classification,
@@ -290,6 +291,12 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             await self.async_notify_classification_reviews()
             snapshot = collect_snapshot(self.hass, self.entity_classifications)
             snapshot["collection_coverage"] = build_collection_coverage(snapshot)
+            availability_groups = build_unavailable_groups(
+                self.availability_data.get("observations", {}),
+                snapshot.get("integration_inventory"),
+                now=datetime.now(timezone.utc).isoformat(),
+                group_related=self.entry.options.get("group_related_unavailable_entities", True),
+            )
             async with self._state_lock:
                 change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
                 if change_history != self.schedule.get('change_history', []):
@@ -319,6 +326,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "repair_plan": schedule_snapshot.get("last_repair_plan", {}),
                 **summarize_investigations(schedule_snapshot.get("investigation_history", [])),
                 **self.availability_summary,
+                "unavailable_investigation_groups": availability_groups,
+                "unavailable_investigation_group_count": len(availability_groups),
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
@@ -339,6 +348,13 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         if scheduled_period and not _is_due(schedule.get(scheduled_period), datetime.now(timezone.utc)):
             return None
         snapshot = collect_snapshot(self.hass, self.entity_classifications)
+        snapshot["unavailable_investigation_groups"] = build_unavailable_groups(
+            self.availability_data.get("observations", {}),
+            snapshot.get("integration_inventory"),
+            now=datetime.now(timezone.utc).isoformat(),
+            group_related=self.entry.options.get("group_related_unavailable_entities", True),
+        )
+        snapshot["unavailable_investigation_group_count"] = len(snapshot["unavailable_investigation_groups"])
         change_history, change_summary = update_change_history(schedule.get('change_history', []), snapshot, snapshot['collected_at'])
         schedule['change_history'] = change_history
         snapshot['diagnostic_change_history'] = change_summary
