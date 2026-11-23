@@ -202,3 +202,21 @@ def test_device_metadata_is_retained_for_grouping_and_user_context():
     assert record["device_name"] == "Garage Controller"
     assert record["device_manufacturer"] == "Acme"
     assert record["device_model"] == "GX-2"
+
+
+def test_initial_unavailable_duration_uses_home_assistant_last_changed_time():
+    state_changed = "2026-11-23T10:00:00+00:00"
+    result = OBSERVER.observe_unavailable_entities(
+        {},
+        [{
+            "entity_id": "sensor.garage",
+            "state": "unavailable",
+            "last_changed": state_changed,
+        }],
+        NOW,
+        persistence_minutes=60,
+    )
+    record = result["observations"]["sensor.garage"]
+    assert record["last_changed"] == state_changed
+    assert record["unavailable_since"] == state_changed
+    assert result["persistent_entity_ids"] == ["sensor.garage"]
