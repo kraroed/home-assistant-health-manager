@@ -319,3 +319,10 @@ The integration keeps a separate local observation store for entities that becom
 An entity that disappears from the state registry is recorded as missing, not recovered. Its original unavailable timestamp is retained. Recovery is recorded only when the entity is seen again in a non-unavailable state.
 
 The overview lists groups only after the configured persistence threshold has been reached, and only when there is supporting association evidence: multiple entities on the same registered device, multiple entities from an integration with a setup error/retry, or multiple entities from one integration whose unavailable transitions began within five minutes. Same-integration entities with no such evidence remain separate. Grouping can be disabled in the options. A group is an investigation lead, not a confirmed root cause; every group remains subject to user review and no entity is automatically classified or suppressed.
+
+
+## Managing unavailable-entity investigations
+
+Use **Start Unavailable Entity Investigation** to begin tracking a persistent group. This records your decision locally; it does not alter Home Assistant entities or their classifications. For a transient outage that needs immediate attention, the `home_assistant_health_manager.start_unavailable_investigation` service accepts an explicit list of currently unavailable entity IDs and bypasses the persistence threshold.
+
+Use **Unavailable Investigation to Update** to inspect saved records, then **Unavailable Investigation Status** to choose `needs_review`, `investigating`, `waiting`, `resolved`, or `expected`. The `waiting` status schedules a reminder using the configured interval. An `expected` status is only a user tracking decision; it does not suppress the entity from health counts or create an entity classification. The Health Overview exposes the saved records, status counts, evidence, and reminder timestamps.
