@@ -138,7 +138,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
         data = self.coordinator.data or {}
         return recorder_safe_attributes(
             attributes,
-            report_path=data.get("last_report"),
+            report_path=data.get("last_report_path"),
             entity_key=self.key,
         )
 
