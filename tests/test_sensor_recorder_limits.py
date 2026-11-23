@@ -1,0 +1,146 @@
+"""Regression coverage for every sensor's Recorder attribute payload."""
+
+import importlib.util
+import sys
+import types
+from pathlib import Path
+
+import pytest
+
+
+ROOT = Path(__file__).parents[1]
+PACKAGE_NAME = "custom_components.home_assistant_health_manager"
+PACKAGE_PATH = ROOT / "custom_components" / "home_assistant_health_manager"
+
+
+def _load_sensor_module():
+    package = types.ModuleType(PACKAGE_NAME)
+    package.__path__ = [str(PACKAGE_PATH)]
+    sys.modules[PACKAGE_NAME] = package
+
+    sensor_module = types.ModuleType("homeassistant.components.sensor")
+    sensor_module.SensorEntity = type("SensorEntity", (), {})
+    sensor_module.SensorStateClass = types.SimpleNamespace(
+        MEASUREMENT="measurement",
+        TOTAL_INCREASING="total_increasing",
+    )
+    helpers_module = types.ModuleType("homeassistant.helpers.update_coordinator")
+    helpers_module.CoordinatorEntity = type(
+        "CoordinatorEntity",
+        (),
+        {"__init__": lambda self, coordinator: setattr(self, "coordinator", coordinator)},
+    )
+    homeassistant = types.ModuleType("homeassistant")
+    components = types.ModuleType("homeassistant.components")
+    helpers = types.ModuleType("homeassistant.helpers")
+    sys.modules.update({
+        "homeassistant": homeassistant,
+        "homeassistant.components": components,
+        "homeassistant.components.sensor": sensor_module,
+        "homeassistant.helpers": helpers,
+        "homeassistant.helpers.update_coordinator": helpers_module,
+    })
+
+    for name in ("const", "investigation_history", "recorder_sizing"):
+        spec = importlib.util.spec_from_file_location(
+            f"{PACKAGE_NAME}.{name}", PACKAGE_PATH / f"{name}.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+
+    spec = importlib.util.spec_from_file_location(
+        f"{PACKAGE_NAME}.sensor", PACKAGE_PATH / "sensor.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+SENSOR_MODULE = _load_sensor_module()
+json_attribute_size = sys.modules[f"{PACKAGE_NAME}.recorder_sizing"].json_attribute_size
+
+
+class Coordinator:
+    def __init__(self, data):
+        self.data = data
+        self.selected_unavailable_investigation_id = None
+        self.selected_investigation_plan_id = None
+
+
+def large_synthetic_data():
+    entities = [
+        {
+            "entity_id": f"sensor.synthetic_{index}",
+            "reason": "A detailed diagnostic explanation " * 12,
+            "attributes": {"source": "test", "evidence": ["same device", "same integration"]},
+        }
+        for index in range(500)
+    ]
+    return {
+        "status": "attention",
+        "last_assessment": "2026-11-23T12:00:00Z",
+        "last_report": "/config/health_manager/reports/health_report_test.zip",
+        "report_count": 4,
+        "active_issues": 500,
+        "unavailable_entity_count": 500,
+        "newly_unavailable_entity_ids": [item["entity_id"] for item in entities],
+        "persistent_unavailable_entity_ids": [item["entity_id"] for item in entities],
+        "missing_tracked_entity_ids": [item["entity_id"] for item in entities],
+        "unavailable_investigation_groups": [
+            {"title": f"Group {i}", "entity_ids": [item["entity_id"] for item in entities[i:i+20]], "evidence": entities[i:i+20]}
+            for i in range(0, 500, 20)
+        ],
+        "unknown_entity_count": 500,
+        "classification_review_due_entities": entities,
+        "entity_classification_counts": {"expected": 100, "setup_in_progress": 20},
+        "unknown_counts_by_domain": {f"domain_{i}": i for i in range(200)},
+        "integration_inventory": {"attention_domains": [f"domain_{i}" for i in range(500)], "inventory": entities},
+        "failed_config_entry_domains": {f"domain_{i}": i for i in range(500)},
+        "config_entry_states": {f"entry_{i}": "setup_error" for i in range(500)},
+        "integration_trend_summary": {"domains": entities},
+        "unavailable_investigations": [
+            {"investigation_id": f"inv_{i}", "title": f"Investigation {i}", "evidence": entities[i]}
+            for i in range(500)
+        ],
+        "unavailable_investigation_count": 500,
+        "unavailable_investigation_status_counts": {"investigating": 500},
+        "platform_updates": {"core": {"state": "on"}, "supervisor": {"state": "off"}},
+        "compatibility_assessment": {"overall_status": "review", "findings": entities},
+        "diagnostic_change_history": {"events": entities},
+        "collection_coverage": {"coverage_percent": 99, "uncovered": entities},
+        "diagnostic_trend": {"overall_direction": "worsening", "events": entities},
+        "investigations": entities,
+        "investigation_status_counts": {"in_progress": 500},
+        "recurring_issues": entities,
+        "entity_count": 5000,
+        "entity_counts_by_domain": {f"domain_{i}": i for i in range(500)},
+        "unavailable_counts_by_domain": {f"domain_{i}": i for i in range(500)},
+        "actionable_unknown_counts_by_domain": {f"domain_{i}": i for i in range(500)},
+        "repair_plan": {"items": entities, "item_count": 500, "priority_order": ["critical", "high"]},
+        "availability_observation_event_count": 500,
+        "availability_observation_events": entities,
+    }
+
+
+def test_every_sensor_attribute_payload_is_recorder_safe_for_large_dataset():
+    data = large_synthetic_data()
+    coordinator = Coordinator(data)
+    overflowed = []
+
+    for key, _name, _unit, _state_class in SENSOR_MODULE.SENSORS:
+        entity = SENSOR_MODULE.HealthManagerSensor.__new__(SENSOR_MODULE.HealthManagerSensor)
+        entity.coordinator = coordinator
+        entity.key = key
+        attributes = entity.extra_state_attributes
+        size = json_attribute_size(attributes)
+        assert size <= 12_000, f"{key} emitted {size} bytes"
+        if attributes.get("recorder_attribute_overflow"):
+            overflowed.append(key)
+            assert attributes["details_preserved_in_report"] is True
+            assert attributes["full_details_report"] == data["last_report"]
+
+    assert "health_overview" not in overflowed
+    assert "status" not in overflowed
+    assert overflowed, "Synthetic large data should exercise the explicit overflow guard"
