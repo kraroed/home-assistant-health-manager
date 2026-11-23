@@ -178,3 +178,17 @@ def test_investigation_context_retains_latest_entity_return_timestamp():
     group["latest_entity_returned_at"] = "2026-11-23T11:30:00+00:00"
     updated = INVESTIGATIONS.refresh_investigation_context(records, investigation_id, group)
     assert updated[investigation_id]["last_entity_returned_at"] == "2026-11-23T11:30:00+00:00"
+
+
+def test_investigation_history_preserves_friendly_device_context():
+    group = _group()
+    group.update({
+        "device_name": "Garage Controller",
+        "device_manufacturer": "Acme",
+        "device_model": "GX-2",
+    })
+    records, investigation_id = INVESTIGATIONS.start_investigation({}, group, NOW)
+    record = records[investigation_id]
+    assert record["device_name"] == "Garage Controller"
+    assert record["device_manufacturer"] == "Acme"
+    assert record["device_model"] == "GX-2"
