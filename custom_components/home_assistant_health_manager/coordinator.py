@@ -99,6 +99,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             "persistent_unavailable_entity_count": 0,
             "missing_tracked_entity_count": 0,
             "tracked_unavailable_entity_count": 0,
+            "newly_unavailable_entity_ids": [],
+            "newly_unavailable_entity_count": 0,
             "availability_observation_event_count": 0,
         }
         await async_reconcile_report_transactions(
@@ -206,6 +208,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "missing_tracked_entity_ids": updated["missing_entity_ids"],
                 "persistent_unavailable_entity_count": len(updated["persistent_entity_ids"]),
                 "missing_tracked_entity_count": len(updated["missing_entity_ids"]),
+                "newly_unavailable_entity_ids": updated["newly_unavailable_entity_ids"],
+                "newly_unavailable_entity_count": len(updated["newly_unavailable_entity_ids"]),
                 "tracked_unavailable_entity_count": sum(
                     1 for record in self.availability_data["observations"].values()
                     if record.get("state") == "unavailable" and record.get("present") is True
