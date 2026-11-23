@@ -40,6 +40,9 @@ def _make_group(group_id, group_type, records, now, confidence, evidence):
     times = [value for value in times if value is not None]
     earliest = min(times) if times else None
     duration = max(0, int((now - earliest).total_seconds() // 60)) if earliest else None
+    returned_times = [_parse_time(record.get("last_returned_at")) for record in records]
+    returned_times = [value for value in returned_times if value is not None]
+    latest_returned = max(returned_times).isoformat() if returned_times else None
     domains = sorted({
         record["source_domain"] for record in records
         if isinstance(record.get("source_domain"), str) and record.get("source_domain")
@@ -59,6 +62,7 @@ def _make_group(group_id, group_type, records, now, confidence, evidence):
         "confidence": confidence,
         "evidence": evidence,
         "earliest_unavailable_since": earliest.isoformat() if earliest else None,
+        "latest_entity_returned_at": latest_returned,
         "duration_minutes": duration,
         "requires_user_review": True,
         "cause_confirmed": False,
