@@ -167,35 +167,36 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "source_domain": getattr(registry_entry, "platform", None),
                 "device_id": getattr(registry_entry, "device_id", None),
             })
-        updated = observe_unavailable_entities(
-            self.availability_data,
-            current_entities,
-            datetime.now(timezone.utc).isoformat(),
-            self.entry.options.get(
-                "unavailable_persistence_minutes",
-                DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES,
-            ),
-        )
-        persisted = normalize_availability_data({
-            "schema_version": updated["schema_version"],
-            "observations": updated["observations"],
-            "investigations": self.availability_data.get("investigations", {}),
-            "events": updated["events"],
-        })
-        if persisted != self.availability_data:
-            await self.availability_store.async_save(persisted)
-            self.availability_data = persisted
-        self.availability_summary = {
-            "persistent_unavailable_entity_ids": updated["persistent_entity_ids"],
-            "missing_tracked_entity_ids": updated["missing_entity_ids"],
-            "persistent_unavailable_entity_count": len(updated["persistent_entity_ids"]),
-            "missing_tracked_entity_count": len(updated["missing_entity_ids"]),
-            "tracked_unavailable_entity_count": sum(
-                1 for record in self.availability_data["observations"].values()
-                if record.get("state") == "unavailable" and record.get("present") is True
-            ),
-            "availability_observation_event_count": len(self.availability_data["events"]),
-        }
+        async with self._state_lock:
+            updated = observe_unavailable_entities(
+                self.availability_data,
+                current_entities,
+                datetime.now(timezone.utc).isoformat(),
+                self.entry.options.get(
+                    "unavailable_persistence_minutes",
+                    DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES,
+                ),
+            )
+            persisted = normalize_availability_data({
+                "schema_version": updated["schema_version"],
+                "observations": updated["observations"],
+                "investigations": self.availability_data.get("investigations", {}),
+                "events": updated["events"],
+            })
+            if persisted != self.availability_data:
+                await self.availability_store.async_save(persisted)
+                self.availability_data = persisted
+            self.availability_summary = {
+                "persistent_unavailable_entity_ids": updated["persistent_entity_ids"],
+                "missing_tracked_entity_ids": updated["missing_entity_ids"],
+                "persistent_unavailable_entity_count": len(updated["persistent_entity_ids"]),
+                "missing_tracked_entity_count": len(updated["missing_entity_ids"]),
+                "tracked_unavailable_entity_count": sum(
+                    1 for record in self.availability_data["observations"].values()
+                    if record.get("state") == "unavailable" and record.get("present") is True
+                ),
+                "availability_observation_event_count": len(self.availability_data["events"]),
+            }
 
     async def async_update_classification_observations(self, states):
         """Record presence, registry source and availability for classified entities."""
