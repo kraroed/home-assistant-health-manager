@@ -135,3 +135,30 @@ def test_observer_output_can_be_round_tripped_through_storage_normalizer():
     assert record["state"] == "unavailable"
     assert record["unavailable_since"] == NOW
     assert record["missing_since"] == NOW
+
+
+def test_return_after_missing_is_recorded_without_resetting_original_unavailable_start():
+    started = "2026-11-23T10:00:00+00:00"
+    missing_at = "2026-11-23T11:00:00+00:00"
+    data = {"observations": {"sensor.garage": {
+        "entity_id": "sensor.garage",
+        "state": "unavailable",
+        "unavailable_since": started,
+        "first_seen": started,
+        "present": False,
+        "missing_since": missing_at,
+    }}}
+    result = OBSERVER.observe_unavailable_entities(
+        data,
+        [{"entity_id": "sensor.garage", "state": "unavailable", "source_domain": "mqtt"}],
+        NOW,
+        persistence_minutes=60,
+    )
+    record = result["observations"]["sensor.garage"]
+    assert record["present"] is True
+    assert record["unavailable_since"] == started
+    assert record["last_missing_since"] == missing_at
+    assert record["last_returned_at"] == NOW
+    assert "missing_since" not in record
+    assert result["events"][-1]["action"] == "entity_returned"
+    assert result["persistent_entity_ids"] == ["sensor.garage"]
