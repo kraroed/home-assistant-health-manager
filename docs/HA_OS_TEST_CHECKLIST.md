@@ -48,7 +48,7 @@ Stop if backup creation fails or you cannot restore the system.
 
 ## 2. Install from the Home Assistant Marketplace and restart
 
-> **Release gate:** As of this checklist revision, `0.1.0-beta.3` is the published release on `main`; `0.1.0-beta.4` is only a draft. Wait for beta.4 to be published after merge and final validation. Do not install beta.3 expecting the new classification controls or `sensor.health_overview`.
+> **Release gate:** The `0.1.0-beta.6` feature pre-release is intended for controlled HA OS testing. Confirm the exact Marketplace version and tagged commit before installing. Wait for beta.4 to be published after merge and final validation. Do not install beta.3 expecting the new classification controls or `sensor.health_overview`.
 
 **Test type:** Safe on production with the backup above.
 
@@ -63,15 +63,15 @@ Repository URL:
 3. In the upper-right corner, select **Add from link**.
 4. Enter the repository URL above under **GitHub link**, then select **Add**. If the Marketplace cannot identify the content type automatically, choose **Integration**.
 5. Open the Home Assistant Health Manager repository page.
-6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.4`; pre-releases are not offered by default.
-7. Select **Install**, verify the version shown is `0.1.0-beta.4`, and confirm.
+6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.6`; pre-releases are not offered by default.
+7. Select **Install**, verify the version shown is `0.1.0-beta.6`, and confirm.
 8. Follow the Marketplace prompt if a restart is required. Otherwise, restart Home Assistant normally before adding the integration.
 9. Wait for startup to finish.
 
 - [ ] Marketplace accepts the custom repository.
 - [ ] Repository is identified as an integration.
 - [ ] Pre-release switch is enabled.
-- [ ] Install dialog offers `0.1.0-beta.4`.
+- [ ] Install dialog offers `0.1.0-beta.6`.
 - [ ] Integration installation completes.
 - [ ] Home Assistant starts normally.
 - [ ] No new import/setup errors for `home_assistant_health_manager` appear.
@@ -188,6 +188,23 @@ The ZIP is expected to contain `health_report.json`, `summary.txt`, `ai_repair_p
 - [ ] No partial or obviously incomplete artifacts remain after successful generation.
 
 **Expected:** A complete report set is present and readable.
+
+## Recorder attribute-size and detail-page verification
+
+**Test type:** Safe on production after the backup above.
+
+This beta splits detailed diagnostic collections into dynamically registered detail-page sensors. Pages are sized by serialized UTF-8 JSON bytes with a 12 KB target. A single record too large to fit is represented by an explicit overflow notice and report reference; it must not be silently truncated.
+
+- [ ] Search Core logs for `State attributes for sensor.* exceed maximum size` after the first assessment.
+- [ ] Confirm no Recorder attribute-size warnings are emitted for Health Manager sensors.
+- [ ] Confirm the Health Status and Health Overview entities remain compact.
+- [ ] Confirm detail-page entities appear for collections with records.
+- [ ] Confirm page numbers are contiguous for each collection and record counts match the source detail data.
+- [ ] Confirm the card's six views still show the complete merged collections.
+- [ ] If an overflow notice appears, verify the referenced report exists under `/config/health_manager/reports` and that its JSON snapshot contains the corresponding full diagnostic collection.
+- [ ] Confirm Recorder history stores the attributes after the next assessment and a normal restart.
+
+**Expected:** No Health Manager Recorder size warnings; complete detail collections remain available through page sensors and the card. Record any overflow case separately rather than treating a report pointer as equivalent to visible pagination.
 
 ## 6. Privacy and redaction review
 
@@ -482,9 +499,9 @@ Next action:
 
 The beta exists specifically to enable controlled installation and live testing. Do not require live HA OS test results before publishing this clearly labeled pre-release; those results are the purpose of the beta.
 
-Before publishing `0.1.0-beta.4`, verify:
+Before publishing `0.1.0-beta.6`, verify:
 
-1. The manifest version is exactly `0.1.0-beta.4` and the Git tag uses the same value.
+1. The manifest version is exactly `0.1.0-beta.6` and the Git tag uses the same value.
 2. The GitHub release is explicitly marked **pre-release**.
 3. The release notes identify this as a feature beta and state that live HA OS validation is outstanding.
 4. The latest GitHub Actions run passes Python syntax and unit tests, hassfest, and HACS validation on the exact tagged commit.
