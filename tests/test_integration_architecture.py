@@ -813,3 +813,15 @@ def test_health_overview_includes_unavailable_investigation_group_details():
     source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
     assert '"unavailable_investigation_groups":' in source
     assert '"unavailable_investigation_group_count":' in source
+
+
+def test_dashboard_documents_live_unavailable_investigation_metrics():
+    dashboard = (ROOT / "docs" / "DASHBOARD.md").read_text(encoding="utf-8")
+    for entity_id in (
+        "sensor.tracked_unavailable_entities",
+        "sensor.persistent_unavailable_entities",
+        "sensor.missing_tracked_entities",
+        "sensor.unavailable_investigation_groups",
+    ):
+        assert entity_id in dashboard
+    assert "root cause" in dashboard
