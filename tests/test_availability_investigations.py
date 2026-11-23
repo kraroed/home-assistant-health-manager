@@ -26,7 +26,7 @@ def _group():
     }
 
 
-def test_start_requires_explicit_group_and_creates_needs_review_record():
+def test_start_requires_explicit_group_and_creates_investigating_record():
     records, investigation_id = INVESTIGATIONS.start_investigation({}, _group(), NOW)
     record = records[investigation_id]
     assert record["status"] == "investigating"
@@ -110,7 +110,7 @@ def test_summary_counts_statuses_and_bounds_display_records():
     summary = INVESTIGATIONS.summarize_investigations(records)
     assert summary["unavailable_investigation_count"] == 110
     assert len(summary["unavailable_investigations"]) == 100
-    assert summary["unavailable_investigation_status_counts"]["needs_review"] == 110
+    assert summary["unavailable_investigation_status_counts"]["investigating"] == 110
 
 
 def test_current_investigation_finds_latest_reopened_record_for_group():
