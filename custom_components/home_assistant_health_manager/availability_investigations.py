@@ -40,7 +40,6 @@ def start_investigation(investigations, group, now):
         updated["group_type"] = group.get("group_type", "entity")
         updated["source_domains"] = sorted(set(group.get("source_domains", [])))
         updated["outage_started_at"] = group.get("earliest_unavailable_since")
-    updated["last_entity_returned_at"] = group.get("latest_entity_returned_at")
         updated["last_entity_returned_at"] = group.get("latest_entity_returned_at")
         updated["updated_at"] = now_dt.isoformat()
         result = dict(investigations)
@@ -173,6 +172,7 @@ def refresh_investigation_context(investigations, investigation_id, group):
         item for item in group.get("source_domains", []) if isinstance(item, str)
     })
     updated["outage_started_at"] = group.get("earliest_unavailable_since")
+    updated["last_entity_returned_at"] = group.get("latest_entity_returned_at")
     updated["cause_confirmed"] = False
     result = dict(investigations)
     result[investigation_id] = updated
