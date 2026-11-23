@@ -59,7 +59,7 @@ def test_starting_previously_closed_group_creates_new_history_record():
     )
     assert second_id != first_id
     assert records[first_id]["status"] == "resolved"
-    assert records[second_id]["status"] == "needs_review"
+    assert records[second_id]["status"] == "investigating"
 
 
 def test_waiting_status_sets_configurable_reminder_and_resolved_records_timestamp():
@@ -124,7 +124,7 @@ def test_current_investigation_finds_latest_reopened_record_for_group():
     current = INVESTIGATIONS.find_current_investigation(records, _group()["group_id"])
     assert second_id != first_id
     assert current["investigation_id"] == second_id
-    assert current["status"] == "needs_review"
+    assert current["status"] == "investigating"
 
 
 def test_current_investigation_returns_latest_closed_record_when_group_is_resolved():
