@@ -32,6 +32,8 @@ def start_investigation(investigations, group, now):
         updated["entity_ids"] = sorted(set(entity_ids))
         updated["title"] = str(group.get("title") or existing.get("title") or "Unavailable entities")[:1000]
         updated["reason"] = "; ".join(group.get("evidence", []))[:1000]
+        updated["evidence"] = list(group.get("evidence", []))[:50]
+        updated["cause_confirmed"] = False
         updated["confidence"] = group.get("confidence", "unassessed")
         updated["group_type"] = group.get("group_type", "entity")
         updated["updated_at"] = now_dt.isoformat()
@@ -48,6 +50,7 @@ def start_investigation(investigations, group, now):
         "entity_ids": sorted(set(entity_ids)),
         "title": str(group.get("title") or "Unavailable entities")[:1000],
         "reason": "; ".join(group.get("evidence", []))[:1000],
+        "evidence": list(group.get("evidence", []))[:50],
         "confidence": group.get("confidence", "unassessed"),
         "group_type": group.get("group_type", "entity"),
         "cause_confirmed": False,
