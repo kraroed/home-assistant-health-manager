@@ -131,3 +131,10 @@ def test_current_investigation_returns_latest_closed_record_when_group_is_resolv
     current = INVESTIGATIONS.find_current_investigation(records, _group()["group_id"])
     assert current["investigation_id"] == first_id
     assert current["status"] == "resolved"
+
+
+def test_investigation_records_outage_cycle_for_later_reassessment():
+    group = _group()
+    group["earliest_unavailable_since"] = "2026-11-23T10:00:00+00:00"
+    records, investigation_id = INVESTIGATIONS.start_investigation({}, group, NOW)
+    assert records[investigation_id]["outage_started_at"] == "2026-11-23T10:00:00+00:00"
