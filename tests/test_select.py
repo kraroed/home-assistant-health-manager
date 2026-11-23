@@ -222,8 +222,8 @@ def test_unavailable_group_selector_exposes_current_persistent_groups(selector_m
     assert entity.extra_state_attributes["selected_group"]["entity_ids"] == ["sensor.one", "sensor.two"]
 
 
-def test_unavailable_group_selector_rejects_stale_group():
-    module = importlib.import_module("health_manager_selector_test.select")
+def test_unavailable_group_selector_rejects_stale_group(selector_module):
+    module, _ = selector_module
     coordinator = FakeCoordinator(sample_history())
     coordinator.selected_unavailable_group_id = "stale"
     entity = module.UnavailableInvestigationGroupSelect(coordinator, FakeEntry())
@@ -232,8 +232,8 @@ def test_unavailable_group_selector_rejects_stale_group():
     assert coordinator.selected_unavailable_group_id == "stale"
 
 
-def test_unavailable_investigation_history_and_status_selectors():
-    module = importlib.import_module("health_manager_selector_test.select")
+def test_unavailable_investigation_history_and_status_selectors(selector_module):
+    module, _ = selector_module
     coordinator = FakeCoordinator(sample_history())
     coordinator.data["unavailable_investigations"] = [{
         "investigation_id": "device:abc",
