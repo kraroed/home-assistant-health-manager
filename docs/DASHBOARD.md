@@ -14,6 +14,9 @@ cards:
 
       **Active issues:** {{ states('sensor.active_issues') }}
       **Unavailable (actionable / raw):** {{ states('sensor.actionable_unavailable_entities') }} / {{ states('sensor.unavailable_entities') }}
+      **Persistent unavailable:** {{ states('sensor.persistent_unavailable_entities') }} / {{ states('sensor.tracked_unavailable_entities') }} tracked
+      **Missing tracked entities:** {{ states('sensor.missing_tracked_entities') }}
+      **Unavailable investigation groups:** {{ states('sensor.unavailable_investigation_groups') }}
       **Unknown (actionable / raw):** {{ states('sensor.actionable_unknown_entities') }} / {{ states('sensor.unknown_entities') }}
       **Classification reviews due:** {{ states('sensor.classification_reviews_due') }}
       **Last assessment:** {{ state_attr('sensor.health_overview', 'last_assessment') or 'Not yet assessed' }}
@@ -25,6 +28,15 @@ cards:
       **Diagnostic trend:** {{ states('sensor.diagnostic_trend') | replace('_', ' ') | title }}
       **Diagnostic coverage:** {{ states('sensor.diagnostic_coverage') }}%
       **Compatibility:** {{ states('sensor.compatibility_status') | replace('_', ' ') | title }}
+
+      {% set groups = state_attr('sensor.health_overview', 'unavailable_investigation_groups') or [] %}
+      **Unavailable entity groups needing review**
+      {% for group in groups[:8] %}
+      - **{{ group.title }}** ({{ group.confidence }}) — {{ group.entity_ids | join(', ') }}
+        - Evidence: {{ group.evidence | join('; ') }}
+      {% else %}
+      - No unavailable entity groups currently meet the grouping criteria
+      {% endfor %}
 
       {% set attention = state_attr('sensor.health_status', 'integration_attention_domains') or [] %}
       **Integration attention areas**
@@ -45,6 +57,14 @@ cards:
         name: Active issues
       - entity: sensor.unavailable_entities
         name: Unavailable (raw)
+      - entity: sensor.tracked_unavailable_entities
+        name: Tracked unavailable
+      - entity: sensor.persistent_unavailable_entities
+        name: Persistent unavailable
+      - entity: sensor.missing_tracked_entities
+        name: Missing tracked entities
+      - entity: sensor.unavailable_investigation_groups
+        name: Unavailable investigation groups
       - entity: sensor.actionable_unavailable_entities
         name: Unavailable (actionable)
       - entity: sensor.unknown_entities
