@@ -224,6 +224,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                     if record.get("state") == "unavailable" and record.get("present") is True
                 ),
                 "availability_observation_event_count": len(self.availability_data["events"]),
+                "availability_observation_events": self.availability_data["events"][-100:],
             }
 
     async def async_update_classification_observations(self, states):
