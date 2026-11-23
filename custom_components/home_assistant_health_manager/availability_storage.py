@@ -98,7 +98,7 @@ def _normalize_investigation(investigation_id, value):
             text for item in evidence
             if (text := _clean_text(item, 1000))
         ][:50]
-    for key in ("created_at", "updated_at", "next_reminder_at", "resolved_at"):
+    for key in ("created_at", "updated_at", "next_reminder_at", "resolved_at", "outage_started_at"):
         timestamp = _valid_timestamp(value.get(key))
         if timestamp:
             result[key] = timestamp
