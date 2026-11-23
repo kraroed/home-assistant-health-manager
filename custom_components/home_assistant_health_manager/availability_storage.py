@@ -53,11 +53,11 @@ def _normalize_observation(entity_id, value):
         "entity_id": entity_id,
         "state": state,
     }
-    for key in ("first_seen", "last_seen", "unavailable_since", "last_changed"):
+    for key in ("first_seen", "last_seen", "unavailable_since", "last_changed", "missing_since", "last_unavailable_since", "last_recovered_at"):
         timestamp = _valid_timestamp(value.get(key))
         if timestamp:
             result[key] = timestamp
-    for key in ("source_domain", "device_id"):
+    if isinstance(value.get("present"), bool):\n        result["present"] = value["present"]\n    for key in ("source_domain", "device_id"):
         text = _clean_text(value.get(key), 255)
         if text:
             result[key] = text
