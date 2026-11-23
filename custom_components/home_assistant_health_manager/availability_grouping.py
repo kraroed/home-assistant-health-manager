@@ -43,6 +43,9 @@ def _make_group(group_id, group_type, records, now, confidence, evidence):
     returned_times = [_parse_time(record.get("last_returned_at")) for record in records]
     returned_times = [value for value in returned_times if value is not None]
     latest_returned = max(returned_times).isoformat() if returned_times else None
+    device_name = next((record.get("device_name") for record in records if record.get("device_name")), None)
+    device_manufacturer = next((record.get("device_manufacturer") for record in records if record.get("device_manufacturer")), None)
+    device_model = next((record.get("device_model") for record in records if record.get("device_model")), None)
     domains = sorted({
         record["source_domain"] for record in records
         if isinstance(record.get("source_domain"), str) and record.get("source_domain")
@@ -51,7 +54,7 @@ def _make_group(group_id, group_type, records, now, confidence, evidence):
         "group_id": group_id,
         "group_type": group_type,
         "title": (
-            f"{len(entity_ids)} entities on one device"
+            f"{len(entity_ids)} entities on {device_name}" if device_name else f"{len(entity_ids)} entities on one device"
             if group_type == "device"
             else f"{len(entity_ids)} entities from {domains[0]}"
             if group_type == "integration" and domains
@@ -59,6 +62,9 @@ def _make_group(group_id, group_type, records, now, confidence, evidence):
         ),
         "entity_ids": entity_ids,
         "source_domains": domains,
+        "device_name": device_name,
+        "device_manufacturer": device_manufacturer,
+        "device_model": device_model,
         "confidence": confidence,
         "evidence": evidence,
         "earliest_unavailable_since": earliest.isoformat() if earliest else None,
