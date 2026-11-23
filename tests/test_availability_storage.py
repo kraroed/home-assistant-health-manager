@@ -135,3 +135,14 @@ def test_storage_is_bounded_and_deduplicates_entity_ids():
     assert result["investigations"]["group"]["entity_ids"] == [
         "sensor.one", "binary_sensor.two"
     ]
+
+
+def test_malformed_unhashable_investigation_status_is_discarded():
+    result = STORAGE.normalize_availability_data({
+        "investigations": {
+            "list-status": {"entity_ids": ["sensor.one"], "status": ["resolved"]},
+            "dict-status": {"entity_ids": ["sensor.two"], "status": {"resolved": True}},
+            "valid": {"entity_ids": ["sensor.three"], "status": "waiting"},
+        }
+    })
+    assert set(result["investigations"]) == {"valid"}
