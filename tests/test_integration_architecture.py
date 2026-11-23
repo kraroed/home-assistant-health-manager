@@ -825,3 +825,8 @@ def test_dashboard_documents_live_unavailable_investigation_metrics():
     ):
         assert entity_id in dashboard
     assert "root cause" in dashboard
+
+
+def test_automatic_unavailable_groups_are_filtered_by_persistence_threshold():
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    assert coordinator.count("persistent_entity_ids=self.availability_summary.get") >= 2
