@@ -611,7 +611,7 @@ class UnavailableInvestigationStatusSelect(CoordinatorEntity, SelectEntity):
     @property
     def extra_state_attributes(self):
         selected_id = self.coordinator.selected_unavailable_investigation_id
-        record = (self.coordinator.availability_data.get("investigations", {}) or {}).get(selected_id, {})
+        record = next((item for item in (self.coordinator.data or {}).get("unavailable_investigations", []) if item.get("investigation_id") == selected_id), {})
         return {
             "selected_investigation_id": selected_id,
             "user_note": record.get("user_note"),
