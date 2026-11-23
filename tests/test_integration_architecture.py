@@ -939,3 +939,16 @@ def test_availability_observations_collect_device_registry_context():
     for field in ("device_name", "device_manufacturer", "device_model"):
         assert f'"{field}"' in coordinator
         assert f'"{field}"' in observer
+
+
+def test_overview_exposes_new_unavailable_and_investigation_status_counts():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    for key in (
+        "newly_unavailable_entity_count",
+        "unavailable_investigations_in_progress",
+        "unavailable_investigations_waiting",
+        "unavailable_investigations_expected",
+        "unavailable_investigations_resolved",
+    ):
+        assert f'"{key}"' in source
+    assert "newly_unavailable_entity_ids" in source
