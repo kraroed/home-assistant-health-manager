@@ -117,9 +117,11 @@ def summarize_investigations(investigations):
         "unavailable_investigations": records[:100],
         "unavailable_investigation_count": len(records),
         "unavailable_investigation_status_counts": counts,
-        "unavailable_investigations_needing_review": sum(
-            1 for record in records if record.get("status") == "needs_review"
-        ),
+        "unavailable_investigations_needing_review": counts["needs_review"],
+        "unavailable_investigations_in_progress": counts["investigating"],
+        "unavailable_investigations_waiting": counts["waiting"],
+        "unavailable_investigations_resolved": counts["resolved"],
+        "unavailable_investigations_expected": counts["expected"],
     }
 
 
