@@ -952,3 +952,12 @@ def test_overview_exposes_new_unavailable_and_investigation_status_counts():
     ):
         assert f'"{key}"' in source
     assert "newly_unavailable_entity_ids" in source
+
+
+def test_unavailable_entity_history_events_are_exposed_as_bounded_sensor_attributes():
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    sensor = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    assert '"availability_observation_events": self.availability_data["events"][-100:]' in coordinator
+    assert '("availability_observation_event_count", "Unavailable Entity History Events"' in sensor
+    assert '"events": data.get("availability_observation_events", [])' in sensor
+    assert '"retained_limit": 100' in sensor
