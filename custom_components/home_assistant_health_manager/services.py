@@ -68,6 +68,28 @@ async def async_setup_services(hass):
         coordinator = _get_coordinator(hass)
         await coordinator.async_review_entity_classifications(call.data["entity_ids"])
 
+    async def start_unavailable_investigation(call: ServiceCall):
+        coordinator = _get_coordinator(hass)
+        investigation_id = await coordinator.async_start_manual_unavailable_investigation(
+            call.data["entity_ids"]
+        )
+        hass.bus.async_fire(f"{DOMAIN}_unavailable_investigation_started", {
+            "investigation_id": investigation_id,
+            "entity_ids": call.data["entity_ids"],
+        })
+
+    async def set_unavailable_investigation_status(call: ServiceCall):
+        coordinator = _get_coordinator(hass)
+        investigation_id = call.data["investigation_id"]
+        status = call.data["status"]
+        await coordinator.async_set_unavailable_investigation_status(
+            investigation_id, status, call.data.get("user_note")
+        )
+        hass.bus.async_fire(f"{DOMAIN}_unavailable_investigation_updated", {
+            "investigation_id": investigation_id,
+            "status": status,
+        })
+
     async def set_repair_investigation_status(call: ServiceCall):
         coordinator = _get_coordinator(hass)
         plan_id = call.data["plan_id"]
@@ -99,6 +121,14 @@ async def async_setup_services(hass):
     review_classifications_schema = vol.Schema({
         vol.Required("entity_ids"): vol.All([str], vol.Length(min=1)),
     })
+    start_unavailable_investigation_schema = vol.Schema({
+        vol.Required("entity_ids"): vol.All([str], vol.Length(min=1)),
+    })
+    unavailable_investigation_status_schema = vol.Schema({
+        vol.Required("investigation_id"): str,
+        vol.Required("status"): vol.In(["needs_review", "investigating", "waiting", "resolved", "expected"]),
+        vol.Optional("user_note"): str,
+    })
     investigation_status_schema = vol.Schema({
         vol.Required("plan_id"): str,
         vol.Required("status"): vol.In(["prompt_generated", "in_progress", "resolved", "needs_follow_up", "dismissed"]),
@@ -108,6 +138,8 @@ async def async_setup_services(hass):
     hass.services.async_register(DOMAIN, "generate_ai_repair_prompt", generate_ai_repair_prompt, schema=schema)
     hass.services.async_register(DOMAIN, "generate_focused_repair_prompt", generate_focused_repair_prompt, schema=focused_schema)
     hass.services.async_register(DOMAIN, "set_repair_investigation_status", set_repair_investigation_status, schema=investigation_status_schema)
+    hass.services.async_register(DOMAIN, "start_unavailable_investigation", start_unavailable_investigation, schema=start_unavailable_investigation_schema)
+    hass.services.async_register(DOMAIN, "set_unavailable_investigation_status", set_unavailable_investigation_status, schema=unavailable_investigation_status_schema)
     hass.services.async_register(DOMAIN, "set_entity_classification", set_entity_classification_service, schema=classification_schema)
     hass.services.async_register(DOMAIN, "remove_entity_classification", remove_entity_classification_service, schema=remove_classification_schema)
     hass.services.async_register(DOMAIN, "set_classification_review_interval", set_classification_review_interval_service, schema=review_interval_schema)
