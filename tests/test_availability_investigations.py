@@ -192,3 +192,19 @@ def test_investigation_history_preserves_friendly_device_context():
     assert record["device_name"] == "Garage Controller"
     assert record["device_manufacturer"] == "Acme"
     assert record["device_model"] == "GX-2"
+
+
+def test_restarting_latest_reopened_group_updates_record_instead_of_duplicating():
+    records, first_id = INVESTIGATIONS.start_investigation({}, _group(), NOW)
+    records = INVESTIGATIONS.set_investigation_status(records, first_id, "resolved", NOW)
+    records, reopened_id = INVESTIGATIONS.start_investigation(
+        records, _group(), "2026-11-23T13:00:00+00:00",
+    )
+    changed = _group()
+    changed["entity_ids"].append("sensor.three")
+    updated, current_id = INVESTIGATIONS.start_investigation(
+        records, changed, "2026-11-23T13:01:00+00:00",
+    )
+    assert current_id == reopened_id
+    assert len(updated) == 2
+    assert "sensor.three" in updated[reopened_id]["entity_ids"]
