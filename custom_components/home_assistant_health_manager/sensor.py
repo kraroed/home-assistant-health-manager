@@ -13,7 +13,6 @@ SENSORS = [
     ("persistent_unavailable_entity_count", "Persistent Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
     ("missing_tracked_entity_count", "Missing Tracked Entities", "entities", SensorStateClass.MEASUREMENT),
     ("unavailable_investigation_group_count", "Unavailable Investigation Groups", "groups", SensorStateClass.MEASUREMENT),
-    ("unavailable_investigations", "Unavailable Investigations", "investigations", SensorStateClass.MEASUREMENT),
     ("selected_unavailable_investigation", "Selected Unavailable Investigation", None, None),
     ("unavailable_investigation_count", "Unavailable Investigations", "investigations", SensorStateClass.MEASUREMENT),
     ("unavailable_investigations_needing_review", "Unavailable Investigations Needing Review", "investigations", SensorStateClass.MEASUREMENT),
@@ -75,13 +74,6 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
         if self.key == "integration_attention_domains":
             return data.get("integration_inventory", {}).get("attention_domain_count", 0)
-        if self.key == "unavailable_investigations":
-            return {
-                "investigations": data.get("unavailable_investigations", []),
-                "status_counts": data.get("unavailable_investigation_status_counts", {}),
-                "needing_review": data.get("unavailable_investigations_needing_review", 0),
-                "retained_limit": 100,
-            }
         if self.key == "selected_unavailable_investigation":
             selected_id = self.coordinator.selected_unavailable_investigation_id
             record = next(
@@ -178,10 +170,6 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "unavailable_investigation_count": data.get("unavailable_investigation_count", 0),
                 "unavailable_investigation_status_counts": data.get("unavailable_investigation_status_counts", {}),
                 "unavailable_investigations_needing_review": data.get("unavailable_investigations_needing_review", 0),
-                "unavailable_investigation_count": data.get("unavailable_investigation_count", 0),
-                "unavailable_investigations": data.get("unavailable_investigations", []),
-                "unavailable_investigation_status_counts": data.get("unavailable_investigation_status_counts", {}),
-                "unavailable_investigations_needing_review": data.get("unavailable_investigations_needing_review", 0),
                 "actionable_unavailable_entity_count": data.get("actionable_unavailable_entity_count"),
                 "unknown_entity_count": data.get("unknown_entity_count"),
                 "actionable_unknown_entity_count": data.get("actionable_unknown_entity_count"),
@@ -219,6 +207,19 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "selection_required": selected_data["selected"] is None,
                 "selection_stale": selected_id is not None and selected_data["selected"] is None,
                 "scope_note": "Finding details come from the latest generated repair plan. Investigation status is a user tracking label, not verification.",
+            }
+        if self.key == "selected_unavailable_investigation":
+            selected_id = self.coordinator.selected_unavailable_investigation_id
+            record = next(
+                (item for item in data.get("unavailable_investigations", [])
+                 if item.get("investigation_id") == selected_id),
+                None,
+            )
+            return {
+                "selected_investigation_id": selected_id,
+                "investigation": record,
+                "selection_required": record is None,
+                "note": "Status and notes are user-managed tracking metadata. Expected and Resolved never classify or suppress entities.",
             }
         if self.key == "integration_attention_domains":
             return {
