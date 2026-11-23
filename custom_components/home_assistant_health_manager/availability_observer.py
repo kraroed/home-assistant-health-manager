@@ -83,6 +83,12 @@ def observe_unavailable_entities(data, current_entities, now, persistence_minute
             record["device_id"] = device_id[:255]
         elif isinstance(previous, dict) and previous.get("device_id"):
             record["device_id"] = previous["device_id"]
+        for key in ("device_name", "device_manufacturer", "device_model"):
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                record[key] = value.strip()[:255]
+            elif isinstance(previous, dict) and previous.get(key):
+                record[key] = previous[key]
         if isinstance(previous, dict):
             for key in ("last_missing_since", "last_returned_at"):
                 if previous.get(key):
