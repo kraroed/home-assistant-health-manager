@@ -633,6 +633,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 current_reason = "; ".join(group.get("evidence", []))
                 if (current_entities != recorded_entities or current_reason != record.get("reason", "")
                         or group.get("earliest_unavailable_since") != record.get("outage_started_at")
+                        or group.get("latest_entity_returned_at") != record.get("last_entity_returned_at")
                         or sorted(group.get("source_domains", [])) != sorted(record.get("source_domains", []))):
                     due_groups.append(group)
                     continue
@@ -662,6 +663,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                     "entity_ids": sorted(group.get("entity_ids", [])),
                     "evidence": sorted(group.get("evidence", [])),
                     "outage_started_at": group.get("earliest_unavailable_since"),
+                    "latest_entity_returned_at": group.get("latest_entity_returned_at"),
                     "source_domains": sorted(group.get("source_domains", [])),
                 }
                 for group in sorted(due_groups, key=lambda item: item.get("group_id", ""))
