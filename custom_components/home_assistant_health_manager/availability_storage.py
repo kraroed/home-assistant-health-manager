@@ -92,6 +92,9 @@ def _normalize_investigation(investigation_id, value):
             result[key] = text
     if value.get("cause_confirmed") is False:
         result["cause_confirmed"] = False
+    source_domains = value.get("source_domains", [])
+    if isinstance(source_domains, list):
+        result["source_domains"] = sorted({text for item in source_domains if (text := _clean_text(item, 255))})
     evidence = value.get("evidence", [])
     if isinstance(evidence, list):
         result["evidence"] = [
