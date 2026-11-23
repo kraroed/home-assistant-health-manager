@@ -185,3 +185,27 @@ def test_store_retains_active_unavailable_records_before_inactive_history():
     result = STORAGE.normalize_availability_data({"observations": observations})
     assert "sensor.new_outage" in result["observations"]
     assert len(result["observations"]) == STORAGE.MAX_OBSERVATIONS
+
+
+def test_investigation_evidence_and_notification_fingerprint_survive_normalization():
+    result = STORAGE.normalize_availability_data({
+        "investigations": {
+            "device:abc": {
+                "entity_ids": ["sensor.one", "sensor.two"],
+                "status": "needs_review",
+                "group_id": "device:abc",
+                "group_type": "device",
+                "confidence": "strong",
+                "cause_confirmed": False,
+                "evidence": ["Both entities share a registered device."],
+            }
+        },
+        "last_notification_fingerprint": "group:device:abc|reason:shared_device",
+        "last_notification_at": "2026-11-23T12:00:00+00:00",
+    })
+    record = result["investigations"]["device:abc"]
+    assert record["cause_confirmed"] is False
+    assert record["evidence"] == ["Both entities share a registered device."]
+    assert record["confidence"] == "strong"
+    assert result["last_notification_fingerprint"].startswith("group:")
+    assert result["last_notification_at"] == "2026-11-23T12:00:00+00:00"
