@@ -26,10 +26,7 @@
           "unavailable_persistence_minutes": "Unavailable entity persistence threshold (minutes)",
           "group_related_unavailable_entities": "Group unavailable entities when shared-device or integration evidence supports it",
           "unavailable_investigation_notifications": "Enable unavailable entity investigation notifications",
-          "unavailable_investigation_reminder_days": "Unavailable investigation reminder interval (days)",
-          "start_unavailable_entity_investigation": "Start unavailable entity investigation",
-          "unavailable_investigation_to_update": "Unavailable investigation to update",
-          "unavailable_investigation_status": "Unavailable investigation status"
+          "unavailable_investigation_reminder_days": "Unavailable investigation reminder interval (days)"
         }
       }
     }
