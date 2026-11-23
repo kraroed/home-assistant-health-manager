@@ -3,7 +3,6 @@
 This module deliberately contains no Home Assistant imports so stored data can
 be normalized and tested independently of a running Home Assistant instance.
 """
-from copy import deepcopy
 from datetime import datetime
 
 STORE_VERSION = 1
@@ -69,7 +68,7 @@ def _normalize_investigation(investigation_id, value):
     if not isinstance(investigation_id, str) or not investigation_id or not isinstance(value, dict):
         return None
     status = value.get("status", "needs_review")
-    if status not in INVESTIGATION_STATUSES:
+    if not isinstance(status, str) or status not in INVESTIGATION_STATUSES:
         return None
     entity_ids = value.get("entity_ids", [])
     if not isinstance(entity_ids, list):
