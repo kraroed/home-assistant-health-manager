@@ -821,7 +821,7 @@ def test_dashboard_documents_live_unavailable_investigation_metrics():
         "sensor.tracked_unavailable_entities",
         "sensor.persistent_unavailable_entities",
         "sensor.missing_tracked_entities",
-        "sensor.unavailable_investigation_group_count",
+        "sensor.unavailable_investigation_groups",
     ):
         assert entity_id in dashboard
     assert "root cause" in dashboard
