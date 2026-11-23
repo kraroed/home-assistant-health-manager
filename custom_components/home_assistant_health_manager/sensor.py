@@ -162,6 +162,13 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
+        if self.key.startswith("detail_page_"):
+            try:
+                collection_key, page_text = self.key[len("detail_page_"):].rsplit("_", 1)
+                pages = _page_records(data, collection_key)
+                return len(pages[int(page_text) - 1])
+            except (KeyError, ValueError, IndexError, RecordTooLargeError):
+                return 0
         if self.key == "health_overview":
             return data.get("status", "unknown")
         if self.key == "compatibility_status":
@@ -226,6 +233,29 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def _raw_extra_state_attributes(self):
         data = self.coordinator.data or {}
+
+        if self.key.startswith("detail_page_"):
+            try:
+                collection_key, page_text = self.key[len("detail_page_"):].rsplit("_", 1)
+                pages = _page_records(data, collection_key)
+                page_number = int(page_text)
+                records = pages[page_number - 1]
+                return {
+                    "collection_key": collection_key,
+                    "record_kind": PAGED_COLLECTIONS[collection_key][1],
+                    "page": page_number,
+                    "page_count": len(pages),
+                    "total_records": len(_collection_records(data, collection_key)),
+                    "records": records,
+                    "note": "Records are paginated by serialized UTF-8 size; no records are silently truncated.",
+                }
+            except (KeyError, ValueError, IndexError, RecordTooLargeError) as err:
+                return {
+                    "collection_key": self.key,
+                    "page_error": str(err),
+                    "details_preserved_in_report": bool(data.get("last_report_path")),
+                    "full_details_report": data.get("last_report_path"),
+                }
 
         # Summary entities intentionally stay small. Detailed records live on
         # dedicated entities so Recorder can persist them independently.
