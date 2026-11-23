@@ -104,12 +104,25 @@ def normalize_availability_data(data):
     observations = {}
     raw_observations = data.get("observations", {})
     if isinstance(raw_observations, dict):
+        valid_records = []
         for entity_id, value in raw_observations.items():
             record = _normalize_observation(entity_id, value)
             if record:
-                observations[entity_id] = record
-            if len(observations) >= MAX_OBSERVATIONS:
-                break
+                valid_records.append((entity_id, record))
+        # Never evict an active unavailable observation merely because the
+        # store reached its retention bound. Bound inactive history first.
+        active_records = [
+            item for item in valid_records if item[1].get("state") == "unavailable"
+        ]
+        inactive_records = [
+            item for item in valid_records if item[1].get("state") != "unavailable"
+        ]
+        inactive_records.sort(
+            key=lambda item: item[1].get("last_seen", ""),
+            reverse=True,
+        )
+        remaining = max(0, MAX_OBSERVATIONS - len(active_records))
+        observations = dict(active_records + inactive_records[:remaining])
 
     investigations = {}
     raw_investigations = data.get("investigations", {})
