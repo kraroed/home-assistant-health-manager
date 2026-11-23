@@ -88,12 +88,6 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("investigation_count", 0)
         if self.key == "availability_observation_event_count":
             return data.get("availability_observation_event_count", 0)
-        if self.key == "availability_observation_event_count":
-            return {
-                "events": data.get("availability_observation_events", []),
-                "retained_limit": 100,
-                "note": "Recent availability transitions and user investigation status changes. A missing entity is not automatically treated as recovered.",
-            }
         if self.key == "selected_unavailable_investigation":
             selected_id = self.coordinator.selected_unavailable_investigation_id
             record = next(
@@ -212,6 +206,12 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "selection_required": selected_data["selected"] is None,
                 "selection_stale": selected_id is not None and selected_data["selected"] is None,
                 "scope_note": "Finding details come from the latest generated repair plan. Investigation status is a user tracking label, not verification.",
+            }
+        if self.key == "availability_observation_event_count":
+            return {
+                "events": data.get("availability_observation_events", []),
+                "retained_limit": 100,
+                "note": "Recent availability transitions and user investigation status changes. A missing entity is not automatically treated as recovered.",
             }
         if self.key == "selected_unavailable_investigation":
             selected_id = self.coordinator.selected_unavailable_investigation_id
