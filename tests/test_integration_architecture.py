@@ -754,7 +754,7 @@ def test_dashboard_displays_consolidated_health_metrics_and_raw_context():
 def test_unavailable_observations_use_an_isolated_store_and_refresh_cycle():
     tree = _parse(INTEGRATION / "coordinator.py")
     source = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
-    assert 'f'{DOMAIN}_availability_investigations'' in source
+    assert "f'{DOMAIN}_availability_investigations'" in source
     assert "normalize_availability_data" in source
     assert "observe_unavailable_entities" in source
     coordinator = next(
