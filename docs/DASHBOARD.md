@@ -65,6 +65,24 @@ cards:
         name: Missing tracked entities
       - entity: sensor.unavailable_investigation_groups
         name: Unavailable investigation groups
+      - entity: sensor.unavailable_investigations
+        name: Saved unavailable investigations
+      - entity: sensor.selected_unavailable_investigation
+        name: Selected unavailable investigation
+      - entity: select.home_assistant_health_manager_unavailable_group_to_investigate
+        name: Persistent unavailable group to investigate
+      - entity: button.home_assistant_health_manager_start_unavailable_investigation
+        name: Start selected group investigation
+      - entity: text.home_assistant_health_manager_unavailable_entity_to_investigate
+        name: Entity ID for immediate manual investigation
+      - entity: button.home_assistant_health_manager_start_manual_unavailable_investigation
+        name: Start immediate manual investigation
+      - entity: select.home_assistant_health_manager_unavailable_investigation_to_update
+        name: Unavailable investigation to update
+      - entity: select.home_assistant_health_manager_unavailable_investigation_status
+        name: Unavailable investigation status
+      - entity: text.home_assistant_health_manager_unavailable_investigation_note
+        name: Unavailable investigation note
       - entity: sensor.actionable_unavailable_entities
         name: Unavailable (actionable)
       - entity: sensor.unknown_entities
@@ -326,3 +344,26 @@ The overview lists groups only after the configured persistence threshold has be
 Use **Start Unavailable Entity Investigation** to begin tracking a persistent group. This records your decision locally; it does not alter Home Assistant entities or their classifications. For a transient outage that needs immediate attention, the `home_assistant_health_manager.start_unavailable_investigation` service accepts an explicit list of currently unavailable entity IDs and bypasses the persistence threshold.
 
 Use **Unavailable Investigation to Update** to inspect saved records, then **Unavailable Investigation Status** to choose `needs_review`, `investigating`, `waiting`, `resolved`, or `expected`. The `waiting` status schedules a reminder using the configured interval. An `expected` status is only a user tracking decision; it does not suppress the entity from health counts or create an entity classification. The Health Overview exposes the saved records, status counts, evidence, and reminder timestamps.
+
+## Unavailable entity investigations
+
+Automatic unavailable-entity groups appear only after the configured persistence threshold. Select a group in **Persistent Unavailable Group to Investigate**, then press **Start Selected Group Investigation**. For an outage that needs attention before the threshold, enter one currently unavailable entity ID in **Entity ID for Immediate Manual Investigation** and press **Start Immediate Manual Investigation**. The equivalent service supports multiple entity IDs:
+
+```yaml
+action: home_assistant_health_manager.start_unavailable_investigation
+data:
+  entity_ids:
+    - sensor.example
+```
+
+Choose a saved record in **Unavailable Investigation to Update**, enter an optional note, then choose a status:
+
+- `needs_review` — awaiting your review
+- `investigating` — you are actively investigating it
+- `waiting` — defer it; a reminder is scheduled using the configured interval
+- `resolved` — your tracking decision that the issue is resolved
+- `expected` — your decision that this outage is expected in its current context
+
+`Resolved` and `Expected` are not technical verification, entity classifications, or suppression rules. Raw and actionable unavailable counts continue to include those entities. A changed group membership, changed evidence, or a new outage cycle can prompt another review. Investigation history is retained separately from entity classifications and diagnostic report history.
+
+Persistent notifications can be enabled in the integration options. They update when the due group set or its evidence changes, and reminders follow the configured interval. The notification does not attempt repairs.
