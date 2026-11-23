@@ -63,7 +63,7 @@ def start_investigation(investigations, group, now):
 def set_investigation_status(investigations, investigation_id, status, now, reminder_days=7, user_note=None):
     """Persist an explicit user status; never changes entity classifications."""
     now_dt = _parse_now(now)
-    if status not in VALID_STATUSES:
+    if not isinstance(status, str) or status not in VALID_STATUSES:
         raise ValueError("Unsupported unavailable investigation status.")
     if not isinstance(investigations, dict) or not isinstance(investigations.get(investigation_id), dict):
         raise ValueError("No unavailable investigation exists with that ID.")
