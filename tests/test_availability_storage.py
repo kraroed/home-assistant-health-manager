@@ -209,3 +209,23 @@ def test_investigation_evidence_and_notification_fingerprint_survive_normalizati
     assert record["confidence"] == "strong"
     assert result["last_notification_fingerprint"].startswith("group:")
     assert result["last_notification_at"] == "2026-11-23T12:00:00+00:00"
+
+
+def test_store_retains_active_investigations_and_newest_closed_history():
+    investigations = {
+        f"closed_{index}": {
+            "status": "resolved",
+            "entity_ids": ["sensor.closed"],
+            "updated_at": f"2026-11-{(index % 20) + 1:02d}T00:00:00+00:00",
+        }
+        for index in range(STORAGE.MAX_INVESTIGATIONS)
+    }
+    investigations["active_new"] = {
+        "status": "investigating",
+        "entity_ids": ["sensor.active"],
+        "updated_at": "2026-11-23T12:00:00+00:00",
+    }
+    result = STORAGE.normalize_availability_data({"investigations": investigations})
+    assert "active_new" in result["investigations"]
+    assert len(result["investigations"]) == STORAGE.MAX_INVESTIGATIONS
+    assert result["investigations"]["active_new"]["status"] == "investigating"
