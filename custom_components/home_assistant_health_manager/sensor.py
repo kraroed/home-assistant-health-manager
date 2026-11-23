@@ -14,6 +14,7 @@ SENSORS = [
     ("persistent_unavailable_entity_count", "Persistent Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
     ("missing_tracked_entity_count", "Missing Tracked Entities", "entities", SensorStateClass.MEASUREMENT),
     ("unavailable_investigation_group_count", "Unavailable Investigation Groups", "groups", SensorStateClass.MEASUREMENT),
+    ("availability_observation_event_count", "Unavailable Entity History Events", "events", SensorStateClass.MEASUREMENT),
     ("selected_unavailable_investigation", "Selected Unavailable Investigation", None, None),
     ("unavailable_investigation_count", "Unavailable Investigations", "investigations", SensorStateClass.MEASUREMENT),
     ("unavailable_investigations_needing_review", "Unavailable Investigations Needing Review", "investigations", SensorStateClass.MEASUREMENT),
@@ -85,6 +86,14 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("repair_plan", {}).get("item_count", 0)
         if self.key == "repair_investigations":
             return data.get("investigation_count", 0)
+        if self.key == "availability_observation_event_count":
+            return data.get("availability_observation_event_count", 0)
+        if self.key == "availability_observation_event_count":
+            return {
+                "events": data.get("availability_observation_events", []),
+                "retained_limit": 100,
+                "note": "Recent availability transitions and user investigation status changes. A missing entity is not automatically treated as recovered.",
+            }
         if self.key == "selected_unavailable_investigation":
             selected_id = self.coordinator.selected_unavailable_investigation_id
             record = next(
