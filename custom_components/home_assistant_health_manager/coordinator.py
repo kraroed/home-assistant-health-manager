@@ -40,6 +40,7 @@ from .availability_investigations import (
     start_investigation as start_unavailable_investigation,
     set_investigation_status as set_unavailable_investigation_status,
     summarize_investigations as summarize_unavailable_investigations,
+    find_current_investigation as find_current_unavailable_investigation,
     find_current_investigation,
 )
 from .entity_classifications import (
