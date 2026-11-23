@@ -16,7 +16,7 @@ cards:
       **Unavailable (actionable / raw):** {{ states('sensor.actionable_unavailable_entities') }} / {{ states('sensor.unavailable_entities') }}
       **Persistent unavailable:** {{ states('sensor.persistent_unavailable_entities') }} / {{ states('sensor.tracked_unavailable_entities') }} tracked
       **Missing tracked entities:** {{ states('sensor.missing_tracked_entities') }}
-      **Unavailable investigation groups:** {{ states('sensor.unavailable_investigation_groups') }}
+      **Unavailable investigation groups:** {{ states('sensor.unavailable_investigation_group_count') }}
       **Unknown (actionable / raw):** {{ states('sensor.actionable_unknown_entities') }} / {{ states('sensor.unknown_entities') }}
       **Classification reviews due:** {{ states('sensor.classification_reviews_due') }}
       **Last assessment:** {{ state_attr('sensor.health_overview', 'last_assessment') or 'Not yet assessed' }}
@@ -63,11 +63,11 @@ cards:
         name: Persistent unavailable
       - entity: sensor.missing_tracked_entities
         name: Missing tracked entities
-      - entity: sensor.unavailable_investigation_groups
+      - entity: sensor.unavailable_investigation_group_count
         name: Unavailable investigation groups
-      - entity: sensor.unavailable_investigations
+      - entity: sensor.unavailable_investigation_count
         name: Saved unavailable investigations
-      - entity: sensor.unavailable_investigations_needing_review
+      - entity: sensor.unavailable_investigation_count_needing_review
         name: Unavailable investigations needing review
       - entity: sensor.selected_unavailable_investigation
         name: Selected unavailable investigation
@@ -343,7 +343,7 @@ The overview lists groups only after the configured persistence threshold has be
 
 ## Managing unavailable-entity investigations
 
-Use **Start Unavailable Entity Investigation** to begin tracking a persistent group. This records your decision locally; it does not alter Home Assistant entities or their classifications. For a transient outage that needs immediate attention, the `home_assistant_health_manager.start_unavailable_investigation` service accepts an explicit list of currently unavailable entity IDs and bypasses the persistence threshold.
+Use **Start Unavailable Investigation** to begin tracking a persistent group. This records your decision locally; it does not alter Home Assistant entities or their classifications. For a transient outage that needs immediate attention, the `home_assistant_health_manager.start_unavailable_investigation` service accepts an explicit list of currently unavailable entity IDs and bypasses the persistence threshold.
 
 Use **Unavailable Investigation to Update** to inspect saved records, then **Unavailable Investigation Status** to choose `needs_review`, `investigating`, `waiting`, `resolved`, or `expected`. The `waiting` status schedules a reminder using the configured interval. An `expected` status is only a user tracking decision; it does not suppress the entity from health counts or create an entity classification. The Health Overview exposes the saved records, status counts, evidence, and reminder timestamps.
 
