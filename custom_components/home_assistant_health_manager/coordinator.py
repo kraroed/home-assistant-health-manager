@@ -42,6 +42,7 @@ from .availability_investigations import (
     summarize_investigations as summarize_unavailable_investigations,
     find_current_investigation as find_current_unavailable_investigation,
     find_current_investigation,
+    refresh_investigation_context,
 )
 from .entity_classifications import (
     normalize_classifications,
@@ -567,9 +568,22 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 reminder_days=self.entry.options.get("unavailable_investigation_reminder_days", 7),
                 user_note=user_note,
             )
+            record = investigations[investigation_id]
+            group_id = record.get("group_id") or record.get("investigation_id")
+            current_group = next(
+                (
+                    item for item in (self.data or {}).get("unavailable_investigation_groups", [])
+                    if item.get("group_id") == group_id
+                ),
+                None,
+            )
+            if current_group:
+                investigations = refresh_investigation_context(
+                    investigations, investigation_id, current_group
+                )
+                record = investigations[investigation_id]
             updated = deepcopy(self.availability_data)
             updated["investigations"] = investigations
-            record = investigations[investigation_id]
             updated.setdefault("events", []).append({
                 "occurred_at": now,
                 "action": f"investigation_status_{status}",
