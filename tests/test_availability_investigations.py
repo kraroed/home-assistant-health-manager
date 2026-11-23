@@ -170,3 +170,11 @@ def test_user_status_update_can_acknowledge_new_group_evidence():
     assert record["outage_started_at"] == "2026-11-23T13:00:00+00:00"
     assert record["reason"] == "A new outage cycle was observed."
     assert record["cause_confirmed"] is False
+
+
+def test_investigation_context_retains_latest_entity_return_timestamp():
+    records, investigation_id = INVESTIGATIONS.start_investigation({}, _group(), NOW)
+    group = _group()
+    group["latest_entity_returned_at"] = "2026-11-23T11:30:00+00:00"
+    updated = INVESTIGATIONS.refresh_investigation_context(records, investigation_id, group)
+    assert updated[investigation_id]["last_entity_returned_at"] == "2026-11-23T11:30:00+00:00"
