@@ -1,5 +1,5 @@
 """Track unavailable-entity transitions without treating disappearance as recovery."""
-from datetime import datetime
+from datetime import datetime, timezone
 
 MAX_OBSERVATIONS = 2000
 MAX_EVENTS = 1000
