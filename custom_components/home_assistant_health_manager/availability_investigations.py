@@ -110,3 +110,24 @@ def summarize_investigations(investigations):
             1 for record in records if record.get("status") == "needs_review"
         ),
     }
+
+
+
+def find_current_investigation(investigations, group_id):
+    """Find the latest saved record for a group, including reopened records."""
+    if not isinstance(investigations, dict) or not isinstance(group_id, str):
+        return None
+    direct = investigations.get(group_id)
+    matches = [
+        record for record in investigations.values()
+        if isinstance(record, dict) and record.get("group_id") == group_id
+    ]
+    if isinstance(direct, dict) and direct not in matches:
+        matches.append(direct)
+    if not matches:
+        return None
+    matches.sort(
+        key=lambda record: record.get("updated_at") or record.get("created_at") or "",
+        reverse=True,
+    )
+    return matches[0]
