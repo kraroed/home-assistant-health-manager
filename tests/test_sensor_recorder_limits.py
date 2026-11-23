@@ -145,3 +145,47 @@ def test_every_sensor_attribute_payload_is_recorder_safe_for_large_dataset():
     assert "health_overview" not in overflowed
     assert "status" not in overflowed
     assert overflowed, "Synthetic large data should exercise the explicit overflow guard"
+
+
+
+def test_dynamic_detail_pages_preserve_large_lists_and_mappings():
+    data = large_synthetic_data()
+    collections = SENSOR_MODULE.PAGED_COLLECTIONS
+    for collection_key in (
+        "classification_review_due_entities",
+        "unavailable_investigation_groups",
+        "unavailable_investigations",
+        "availability_observation_events",
+    ):
+        pages = SENSOR_MODULE._page_records(data, collection_key)
+        original = SENSOR_MODULE._collection_records(data, collection_key)
+        flattened = [record for page in pages for record in page]
+        assert flattened == original
+        assert all(
+            json_attribute_size({
+                "collection_key": collection_key,
+                "record_kind": collections[collection_key][1],
+                "records": page,
+            }) <= 12_000
+            for page in pages
+        )
+
+    pages = SENSOR_MODULE._page_records(data, "unknown_counts_by_domain")
+    flattened = [record for page in pages for record in page]
+    assert {item["key"]: item["value"] for item in flattened} == data["unknown_counts_by_domain"]
+    assert len(pages) > 1
+
+
+def test_detail_page_sensor_exposes_page_metadata_and_records():
+    data = large_synthetic_data()
+    coordinator = Coordinator(data)
+    entity = SENSOR_MODULE.HealthManagerDetailPageSensor(
+        coordinator, types.SimpleNamespace(entry_id="test-entry"),
+        "classification_review_due_entities", 1
+    )
+    attributes = entity.extra_state_attributes
+    assert attributes["collection_key"] == "classification_review_due_entities"
+    assert attributes["page"] == 1
+    assert attributes["page_count"] > 1
+    assert attributes["records"]
+    assert json_attribute_size(attributes) <= 12_000
