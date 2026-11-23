@@ -60,7 +60,7 @@ def start_investigation(investigations, group, now):
         "source_domains": sorted(set(group.get("source_domains", []))),
         "outage_started_at": group.get("earliest_unavailable_since"),
         "cause_confirmed": False,
-        "status": "needs_review" if isinstance(existing, dict) else "investigating",
+        "status": "investigating",
         "created_at": now_dt.isoformat(),
         "updated_at": now_dt.isoformat(),
     }
