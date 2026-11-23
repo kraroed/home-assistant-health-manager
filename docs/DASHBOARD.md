@@ -14,9 +14,11 @@ cards:
 
       **Active issues:** {{ states('sensor.active_issues') }}
       **Unavailable (actionable / raw):** {{ states('sensor.actionable_unavailable_entities') }} / {{ states('sensor.unavailable_entities') }}
+      **Newly unavailable this refresh:** {{ states('sensor.newly_unavailable_entities') }}
       **Persistent unavailable:** {{ states('sensor.persistent_unavailable_entities') }} / {{ states('sensor.tracked_unavailable_entities') }} tracked
       **Missing tracked entities:** {{ states('sensor.missing_tracked_entities') }}
       **Unavailable investigation groups:** {{ states('sensor.unavailable_investigation_group_count') }}
+      **Investigations:** {{ states('sensor.unavailable_investigation_count') }} total · {{ states('sensor.unavailable_investigations_needing_review') }} review · {{ states('sensor.unavailable_investigations_in_progress') }} in progress · {{ states('sensor.unavailable_investigations_waiting') }} waiting · {{ states('sensor.unavailable_investigations_expected') }} expected
       **Unknown (actionable / raw):** {{ states('sensor.actionable_unknown_entities') }} / {{ states('sensor.unknown_entities') }}
       **Classification reviews due:** {{ states('sensor.classification_reviews_due') }}
       **Last assessment:** {{ state_attr('sensor.health_overview', 'last_assessment') or 'Not yet assessed' }}
@@ -59,6 +61,8 @@ cards:
         name: Unavailable (raw)
       - entity: sensor.tracked_unavailable_entities
         name: Tracked unavailable
+      - entity: sensor.newly_unavailable_entities
+        name: Newly unavailable this refresh
       - entity: sensor.persistent_unavailable_entities
         name: Persistent unavailable
       - entity: sensor.missing_tracked_entities
@@ -69,6 +73,14 @@ cards:
         name: Saved unavailable investigations
       - entity: sensor.unavailable_investigations_needing_review
         name: Unavailable investigations needing review
+      - entity: sensor.unavailable_investigations_in_progress
+        name: Unavailable investigations in progress
+      - entity: sensor.unavailable_investigations_waiting
+        name: Unavailable investigations waiting
+      - entity: sensor.unavailable_investigations_expected
+        name: Unavailable investigations expected
+      - entity: sensor.unavailable_investigations_resolved
+        name: Unavailable investigations resolved
       - entity: sensor.selected_unavailable_investigation
         name: Selected unavailable investigation
       - entity: select.home_assistant_health_manager_unavailable_group_to_investigate
