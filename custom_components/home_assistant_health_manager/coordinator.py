@@ -78,8 +78,6 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.entity_classifications = normalize_classifications(stored_classifications)
         stored_availability = await self.availability_store.async_load()
         self.availability_data = normalize_availability_data(stored_availability)
-        if self.availability_data != stored_availability:
-            await self.availability_store.async_save(self.availability_data)
         self.availability_summary = {
             "persistent_unavailable_entity_ids": [],
             "missing_tracked_entity_ids": [],
@@ -94,6 +92,8 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         await async_reconcile_focused_prompt_transactions(
             self.hass, self.schedule.get("investigation_history", [])
         )
+        if self.availability_data != stored_availability:
+            await self.availability_store.async_save(self.availability_data)
         if self.entity_classifications != stored_classifications:
             await self.classification_store.async_save(self.entity_classifications)
 
