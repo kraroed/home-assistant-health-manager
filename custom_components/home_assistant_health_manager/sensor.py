@@ -3,6 +3,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .investigation_history import build_selected_investigation
+from .recorder_sizing import recorder_safe_attributes
 
 SENSORS = [
     ("status", "Health Status", None, None),
@@ -133,6 +134,16 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
+        attributes = self._raw_extra_state_attributes
+        data = self.coordinator.data or {}
+        return recorder_safe_attributes(
+            attributes,
+            report_path=data.get("last_report"),
+            entity_key=self.key,
+        )
+
+    @property
+    def _raw_extra_state_attributes(self):
         data = self.coordinator.data or {}
 
         # Summary entities intentionally stay small. Detailed records live on
