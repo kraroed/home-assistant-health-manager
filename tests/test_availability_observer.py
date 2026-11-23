@@ -183,3 +183,22 @@ def test_recovered_entity_that_becomes_unavailable_again_is_a_new_transition():
         NOW,
     )
     assert result["newly_unavailable_entity_ids"] == ["sensor.garage"]
+
+
+def test_device_metadata_is_retained_for_grouping_and_user_context():
+    result = OBSERVER.observe_unavailable_entities(
+        {},
+        [{
+            "entity_id": "sensor.garage",
+            "state": "unavailable",
+            "device_id": "private-device-id",
+            "device_name": "Garage Controller",
+            "device_manufacturer": "Acme",
+            "device_model": "GX-2",
+        }],
+        NOW,
+    )
+    record = result["observations"]["sensor.garage"]
+    assert record["device_name"] == "Garage Controller"
+    assert record["device_manufacturer"] == "Acme"
+    assert record["device_model"] == "GX-2"
