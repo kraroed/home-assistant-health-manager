@@ -170,6 +170,7 @@ def test_dynamic_detail_pages_preserve_large_lists_and_mappings():
             for page in pages
         )
 
+    data["unknown_counts_by_domain"] = {f"domain_{i}": i for i in range(2_000)}
     pages = SENSOR_MODULE._page_records(data, "unknown_counts_by_domain")
     flattened = [record for page in pages for record in page]
     assert {item["key"]: item["value"] for item in flattened} == data["unknown_counts_by_domain"]
