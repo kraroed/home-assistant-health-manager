@@ -837,7 +837,7 @@ def test_unavailable_investigation_controls_are_registered_and_user_driven():
     tree = _parse(INTEGRATION / "select.py")
     names = {node.name for node in tree.body if isinstance(node, ast.ClassDef)}
     assert {
-        "UnavailableEntityGroupSelect",
+        "UnavailableInvestigationGroupSelect",
         "UnavailableInvestigationHistorySelect",
         "UnavailableInvestigationStatusSelect",
     } <= names
