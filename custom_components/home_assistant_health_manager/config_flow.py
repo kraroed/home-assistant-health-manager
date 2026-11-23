@@ -41,5 +41,7 @@ class HealthManagerOptionsFlow(config_entries.OptionsFlowWithReload):
             vol.Optional("retention_days", default=options.get("retention_days", 90)): vol.All(int, vol.Range(min=7, max=365)),
             vol.Optional("unavailable_persistence_minutes", default=options.get("unavailable_persistence_minutes", DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES)): vol.All(int, vol.Range(min=5, max=1440)),
             vol.Optional("group_related_unavailable_entities", default=options.get("group_related_unavailable_entities", True)): bool,
+            vol.Optional("unavailable_investigation_notifications", default=options.get("unavailable_investigation_notifications", True)): bool,
+            vol.Optional("unavailable_investigation_reminder_days", default=options.get("unavailable_investigation_reminder_days", 7)): vol.All(int, vol.Range(min=1, max=30)),
         })
         return self.async_show_form(step_id="init", data_schema=schema)
