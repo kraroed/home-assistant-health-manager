@@ -74,27 +74,12 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
         if self.key == "integration_attention_domains":
             return data.get("integration_inventory", {}).get("attention_domain_count", 0)
-        if self.key == "selected_unavailable_investigation":
-            selected_id = self.coordinator.selected_unavailable_investigation_id
-            record = next(
-                (item for item in data.get("unavailable_investigations", [])
-                 if item.get("investigation_id") == selected_id),
-                None,
-            )
-            return {
-                "selected_investigation_id": selected_id,
-                "investigation": record,
-                "selection_required": record is None,
-                "note": "Status and notes are user-managed tracking metadata. Expected and Resolved never classify or suppress entities.",
-            }
         if self.key == "integration_trend_domains":
             return data.get("integration_trend_summary", {}).get("active_attention_domain_count", 0)
         if self.key == "repair_plan_items":
             return data.get("repair_plan", {}).get("item_count", 0)
         if self.key == "repair_investigations":
             return data.get("investigation_count", 0)
-        if self.key == "unavailable_investigations":
-            return data.get("unavailable_investigation_count", 0)
         if self.key == "selected_unavailable_investigation":
             selected_id = self.coordinator.selected_unavailable_investigation_id
             record = next(
