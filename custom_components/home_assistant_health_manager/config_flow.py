@@ -2,7 +2,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 
-from .const import DEFAULT_NAME, DOMAIN
+from .const import DEFAULT_NAME, DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES, DOMAIN
 
 
 class HealthManagerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -39,5 +39,6 @@ class HealthManagerOptionsFlow(config_entries.OptionsFlowWithReload):
             vol.Optional("include_core_log", default=options.get("include_core_log", True)): bool,
             vol.Optional("classification_review_notifications", default=options.get("classification_review_notifications", False)): bool,
             vol.Optional("retention_days", default=options.get("retention_days", 90)): vol.All(int, vol.Range(min=7, max=365)),
+            vol.Optional("unavailable_persistence_minutes", default=options.get("unavailable_persistence_minutes", DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES)): vol.All(int, vol.Range(min=5, max=1440)),
         })
         return self.async_show_form(step_id="init", data_schema=schema)
