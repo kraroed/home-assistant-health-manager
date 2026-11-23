@@ -40,6 +40,7 @@ from .availability_investigations import (
     start_investigation as start_unavailable_investigation,
     set_investigation_status as set_unavailable_investigation_status,
     summarize_investigations as summarize_unavailable_investigations,
+    find_current_investigation,
 )
 from .entity_classifications import (
     normalize_classifications,
@@ -608,7 +609,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             for group in groups:
                 if not isinstance(group, dict):
                     continue
-                record = investigations.get(group.get("group_id"))
+                record = find_current_investigation(investigations, group.get("group_id"))
                 if not isinstance(record, dict):
                     due_groups.append(group)
                     continue
