@@ -144,6 +144,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "report_count": data.get("report_count", 0),
                 "active_issues": data.get("active_issues", 0),
                 "unavailable_entity_count": data.get("unavailable_entity_count", 0),
+                "actionable_unavailable_entity_count": data.get("actionable_unavailable_entity_count", 0),
                 "persistent_unavailable_entity_count": data.get("persistent_unavailable_entity_count", 0),
                 "unknown_entity_count": data.get("unknown_entity_count", 0),
                 "actionable_unknown_entity_count": data.get("actionable_unknown_entity_count", 0),
