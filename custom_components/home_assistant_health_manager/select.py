@@ -6,6 +6,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .focused_repair_prompt import build_repair_plan_options
 from .investigation_history import VALID_STATUSES, build_investigation_options
+from .availability_investigations import VALID_STATUSES as UNAVAILABLE_INVESTIGATION_STATUSES
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -18,6 +19,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
         ConfirmEntityClassificationReviewSelect(coordinator, entry),
         EntityClassificationValueSelect(coordinator, entry),
         ClassificationReviewIntervalSelect(coordinator, entry),
+        UnavailableInvestigationGroupSelect(coordinator, entry),
+        UnavailableInvestigationHistorySelect(coordinator, entry),
+        UnavailableInvestigationStatusSelect(coordinator, entry),
     ])
 
 
@@ -160,6 +164,159 @@ class InvestigationStatusSelect(CoordinatorEntity, SelectEntity):
         if not plan_id:
             raise ValueError("Choose an investigation in the Investigation to Update dropdown first.")
         await self.coordinator.async_set_investigation_status(plan_id, option)
+
+
+class UnavailableInvestigationGroupSelect(CoordinatorEntity, SelectEntity):
+    """Choose a persistent unavailable group to begin tracking."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Unavailable Group to Investigate"
+    _attr_icon = "mdi:alert-circle-check-outline"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_unavailable_group_to_investigate"
+        self._option_to_group_id = {}
+
+    @property
+    def options(self):
+        groups = (self.coordinator.data or {}).get("unavailable_investigation_groups", [])
+        self._option_to_group_id = {
+            f"{group.get('title', 'Unavailable entities')} — {group.get('group_id')}": group.get("group_id")
+            for group in groups if isinstance(group, dict) and group.get("group_id")
+        }
+        return list(self._option_to_group_id)
+
+    @property
+    def current_option(self):
+        _ = self.options
+        selected = self.coordinator.selected_unavailable_group_id
+        return next((label for label, group_id in self._option_to_group_id.items() if group_id == selected), None)
+
+    @property
+    def extra_state_attributes(self):
+        selected = self.coordinator.selected_unavailable_group_id
+        groups = (self.coordinator.data or {}).get("unavailable_investigation_groups", [])
+        group = next((item for item in groups if item.get("group_id") == selected), None)
+        return {
+            "selected_group_id": selected,
+            "selected_group": group,
+            "note": "Only groups past the persistence threshold appear here. Use the manual investigation service to bypass the threshold for selected entities.",
+        }
+
+    async def async_select_option(self, option):
+        _ = self.options
+        group_id = self._option_to_group_id.get(option)
+        if group_id is None:
+            raise ValueError("That unavailable group is no longer available. Refresh diagnostics and select a current group.")
+        self.coordinator.selected_unavailable_group_id = group_id
+        self.coordinator.async_update_listeners()
+
+
+class UnavailableInvestigationHistorySelect(CoordinatorEntity, SelectEntity):
+    """Choose a saved unavailable investigation to update."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Unavailable Investigation to Update"
+    _attr_icon = "mdi:clipboard-text-clock-outline"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_unavailable_investigation_to_update"
+        self._option_to_investigation_id = {}
+
+    @property
+    def options(self):
+        records = (self.coordinator.data or {}).get("unavailable_investigations", [])
+        self._option_to_investigation_id = {
+            f"{item.get('status', 'needs_review')} — {item.get('title', 'Unavailable entities')} [{item.get('investigation_id')}]": item.get("investigation_id")
+            for item in records if isinstance(item, dict) and item.get("investigation_id")
+        }
+        return list(self._option_to_investigation_id)
+
+    @property
+    def current_option(self):
+        _ = self.options
+        selected = self.coordinator.selected_unavailable_investigation_id
+        return next(
+            (label for label, investigation_id in self._option_to_investigation_id.items()
+             if investigation_id == selected),
+            None,
+        )
+
+    @property
+    def extra_state_attributes(self):
+        selected = self.coordinator.selected_unavailable_investigation_id
+        records = (self.coordinator.data or {}).get("unavailable_investigations", [])
+        record = next(
+            (item for item in records if item.get("investigation_id") == selected),
+            None,
+        )
+        return {
+            "selected_investigation_id": selected,
+            "selected_investigation": record,
+            "selection_required": record is None,
+        }
+
+    async def async_select_option(self, option):
+        _ = self.options
+        investigation_id = self._option_to_investigation_id.get(option)
+        if investigation_id is None:
+            raise ValueError("That unavailable investigation is no longer in retained history.")
+        self.coordinator.selected_unavailable_investigation_id = investigation_id
+        record = next(
+            item for item in (self.coordinator.data or {}).get("unavailable_investigations", [])
+            if item.get("investigation_id") == investigation_id
+        )
+        self.coordinator.selected_unavailable_investigation_note = record.get("user_note", "")
+        self.coordinator.async_update_listeners()
+
+
+class UnavailableInvestigationStatusSelect(CoordinatorEntity, SelectEntity):
+    """Set the user's status for the selected unavailable investigation."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Unavailable Investigation Status"
+    _attr_icon = "mdi:list-status"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_unavailable_investigation_status"
+
+    @property
+    def options(self):
+        return sorted(UNAVAILABLE_INVESTIGATION_STATUSES)
+
+    @property
+    def current_option(self):
+        selected = self.coordinator.selected_unavailable_investigation_id
+        records = (self.coordinator.data or {}).get("unavailable_investigations", [])
+        record = next((item for item in records if item.get("investigation_id") == selected), None)
+        return record.get("status") if record else None
+
+    @property
+    def extra_state_attributes(self):
+        selected = self.coordinator.selected_unavailable_investigation_id
+        records = (self.coordinator.data or {}).get("unavailable_investigations", [])
+        record = next((item for item in records if item.get("investigation_id") == selected), None)
+        return {
+            "selected_investigation_id": selected,
+            "selection_required": record is None,
+            "next_reminder_at": record.get("next_reminder_at") if record else None,
+            "note": "Waiting schedules a reminder. Resolved and Expected are user tracking decisions; neither suppresses entities or confirms a technical fix.",
+        }
+
+    async def async_select_option(self, option):
+        if option not in UNAVAILABLE_INVESTIGATION_STATUSES:
+            raise ValueError("Unsupported unavailable investigation status.")
+        investigation_id = self.coordinator.selected_unavailable_investigation_id
+        if not investigation_id:
+            raise ValueError("Choose an unavailable investigation first.")
+        await self.coordinator.async_set_unavailable_investigation_status(
+            investigation_id,
+            option,
+            self.coordinator.selected_unavailable_investigation_note,
+        )
 
 
 class EntityClassificationReviewSelect(CoordinatorEntity, SelectEntity):
