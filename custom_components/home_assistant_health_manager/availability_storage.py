@@ -59,7 +59,7 @@ def _normalize_observation(entity_id, value):
             result[key] = timestamp
     if isinstance(value.get("present"), bool):
         result["present"] = value["present"]
-    for key in ("source_domain", "device_id"):
+    for key in ("source_domain", "device_id", "device_name", "device_manufacturer", "device_model"):
         text = _clean_text(value.get(key), 255)
         if text:
             result[key] = text
@@ -86,7 +86,7 @@ def _normalize_investigation(investigation_id, value):
         "entity_ids": clean_ids[:MAX_OBSERVATIONS],
         "status": status,
     }
-    for key in ("title", "reason", "user_note", "confidence", "group_type", "group_id"):
+    for key in ("title", "reason", "user_note", "confidence", "group_type", "group_id", "device_name", "device_manufacturer", "device_model"):
         text = _clean_text(value.get(key), 1000)
         if text:
             result[key] = text
