@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 
 from homeassistant.helpers.storage import Store
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .collector import collect_snapshot, read_core_log
@@ -175,14 +175,23 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     async def async_update_availability_observations(self, states):
         """Persist unavailable durations and distinguish missing from recovered."""
         entity_registry = er.async_get(self.hass)
+        device_registry = dr.async_get(self.hass)
         current_entities = []
         for state in states:
             registry_entry = entity_registry.async_get(state.entity_id)
+            device_id = getattr(registry_entry, "device_id", None)
+            device = device_registry.async_get(device_id) if device_id else None
             current_entities.append({
                 "entity_id": state.entity_id,
                 "state": state.state,
                 "source_domain": getattr(registry_entry, "platform", None),
-                "device_id": getattr(registry_entry, "device_id", None),
+                "device_id": device_id,
+                "device_name": (
+                    getattr(device, "name_by_user", None) or getattr(device, "name", None)
+                    if device else None
+                ),
+                "device_manufacturer": getattr(device, "manufacturer", None) if device else None,
+                "device_model": getattr(device, "model", None) if device else None,
             })
         async with self._state_lock:
             updated = observe_unavailable_entities(
