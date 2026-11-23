@@ -546,6 +546,7 @@ class UnavailableInvestigationHistorySelect(CoordinatorEntity, SelectEntity):
 
     @property
     def current_option(self):
+        _ = self.options
         selected = self.coordinator.selected_unavailable_investigation_id
         return next(
             (label for label, investigation_id in self._option_to_investigation_id.items() if investigation_id == selected),
