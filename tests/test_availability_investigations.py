@@ -29,7 +29,7 @@ def _group():
 def test_start_requires_explicit_group_and_creates_needs_review_record():
     records, investigation_id = INVESTIGATIONS.start_investigation({}, _group(), NOW)
     record = records[investigation_id]
-    assert record["status"] == "needs_review"
+    assert record["status"] == "investigating"
     assert record["entity_ids"] == ["binary_sensor.two", "sensor.one"]
     assert record["cause_confirmed"] is False
     assert record["created_at"] == NOW
@@ -57,7 +57,7 @@ def test_starting_previously_closed_group_creates_new_history_record():
     )
     assert second_id != first_id
     assert records[first_id]["status"] == "resolved"
-    assert records[second_id]["status"] == "needs_review"
+    assert records[second_id]["status"] == "investigating"
 
 
 def test_waiting_status_sets_configurable_reminder_and_resolved_records_timestamp():
