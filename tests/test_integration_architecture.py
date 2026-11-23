@@ -854,3 +854,56 @@ def test_unavailable_investigation_details_are_exposed_in_health_overview():
         '"unavailable_investigations_needing_review":',
     ):
         assert attribute in source
+
+
+def test_unavailable_investigation_workflow_has_native_controls_and_services():
+    select_tree = _parse(INTEGRATION / "select.py")
+    button_tree = _parse(INTEGRATION / "button.py")
+    text_tree = _parse(INTEGRATION / "text.py")
+    service_source = (INTEGRATION / "services.py").read_text(encoding="utf-8")
+    init_source = (INTEGRATION / "__init__.py").read_text(encoding="utf-8")
+    select_classes = {node.name for node in select_tree.body if isinstance(node, ast.ClassDef)}
+    button_classes = {node.name for node in button_tree.body if isinstance(node, ast.ClassDef)}
+    text_classes = {node.name for node in text_tree.body if isinstance(node, ast.ClassDef)}
+    assert {
+        "UnavailableInvestigationGroupSelect",
+        "UnavailableInvestigationHistorySelect",
+        "UnavailableInvestigationStatusSelect",
+    } <= select_classes
+    assert {
+        "StartUnavailableInvestigationButton",
+        "StartManualUnavailableInvestigationButton",
+    } <= button_classes
+    assert {
+        "UnavailableInvestigationEntityText",
+        "UnavailableInvestigationNoteText",
+    } <= text_classes
+    assert 'async_register(DOMAIN, "start_unavailable_investigation"' in service_source
+    assert 'async_register(DOMAIN, "set_unavailable_investigation_status"' in service_source
+    assert 'async_remove(DOMAIN, "start_unavailable_investigation")' in init_source
+    assert 'async_remove(DOMAIN, "set_unavailable_investigation_status")' in init_source
+
+
+def test_unavailable_investigation_options_include_notifications_and_reminders():
+    config = (INTEGRATION / "config_flow.py").read_text(encoding="utf-8")
+    strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))
+    translations = json.loads((INTEGRATION / "translations" / "en.json").read_text(encoding="utf-8"))
+    for option in (
+        "unavailable_persistence_minutes",
+        "group_related_unavailable_entities",
+        "unavailable_investigation_notifications",
+        "unavailable_investigation_reminder_days",
+    ):
+        assert option in config
+        assert option in strings["options"]["step"]["init"]["data"]
+        assert option in translations["options"]["step"]["init"]["data"]
+
+
+def test_health_overview_exposes_unavailable_investigation_history():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    for attribute in (
+        '"unavailable_investigations":',
+        '"unavailable_investigation_status_counts":',
+        '"unavailable_investigations_needing_review":',
+    ):
+        assert attribute in source
