@@ -111,3 +111,13 @@ def test_group_output_does_not_expose_raw_device_registry_identifier():
     assert "private-device-registry-id" not in rendered
     assert groups[0]["cause_confirmed"] is False
     assert "root cause is not confirmed" in groups[0]["confidence_scope"]
+
+
+def test_automatic_grouping_includes_only_entities_past_persistence_threshold():
+    groups = GROUPING.build_unavailable_groups({
+        "sensor.persistent": _record("sensor.persistent", device_id="device-1"),
+        "sensor.transient": _record("sensor.transient", device_id="device-1"),
+    }, now=NOW, persistent_entity_ids=["sensor.persistent"])
+    assert len(groups) == 1
+    assert groups[0]["entity_ids"] == ["sensor.persistent"]
+    assert groups[0]["group_type"] == "entity"
