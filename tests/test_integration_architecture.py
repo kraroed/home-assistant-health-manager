@@ -929,3 +929,13 @@ def test_unavailable_investigation_sensor_entities_use_scalar_states_and_unique_
     assert "unavailable_investigations" not in keys
     assert 'if self.key == "unavailable_investigations":' not in source
     assert 'if self.key == "selected_unavailable_investigation":' in source
+
+
+def test_availability_observations_collect_device_registry_context():
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    observer = (INTEGRATION / "availability_observer.py").read_text(encoding="utf-8")
+    assert "device_registry as dr" in coordinator
+    assert "device_registry.async_get(device_id)" in coordinator
+    for field in ("device_name", "device_manufacturer", "device_model"):
+        assert f'"{field}"' in coordinator
+        assert f'"{field}"' in observer
