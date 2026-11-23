@@ -9,7 +9,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .collector import collect_snapshot, read_core_log
 from .compatibility import assess_compatibility
-from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL
+from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL, DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES
 from .history import summarize_issue_history, update_issue_history
 from .change_history import update_change_history
 from .collection_coverage import build_collection_coverage
@@ -31,6 +31,8 @@ from .repair_plan import build_repair_plan
 from .focused_repair_prompt import build_focused_repair_prompt
 from .investigation_history import record_investigation, set_investigation_status, summarize_investigations
 from .storage import normalize_schedule_data
+from .availability_storage import normalize_availability_data
+from .availability_observer import observe_unavailable_entities
 from .entity_classifications import (
     normalize_classifications,
     set_entity_classification,
@@ -51,6 +53,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
         # Keep user classifications isolated from diagnostic/report history.
         self.classification_store = Store(hass, 1, f'{DOMAIN}_entity_classifications')
+        # Keep availability observations separate from reports and classifications.
+        self.availability_store = Store(hass, 1, f'{DOMAIN}_availability_investigations')
+        self.availability_data = normalize_availability_data({})
+        self.availability_summary = {}
         self.entity_classifications = normalize_classifications({})
         self.schedule = {}
         self.last_report_path = None
@@ -70,6 +76,18 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule = normalize_schedule_data(stored_data)
         stored_classifications = await self.classification_store.async_load()
         self.entity_classifications = normalize_classifications(stored_classifications)
+        stored_availability = await self.availability_store.async_load()
+        self.availability_data = normalize_availability_data(stored_availability)
+        if self.availability_data != stored_availability:
+            await self.availability_store.async_save(self.availability_data)
+        self.availability_summary = {
+            "persistent_unavailable_entity_ids": [],
+            "missing_tracked_entity_ids": [],
+            "persistent_unavailable_entity_count": 0,
+            "missing_tracked_entity_count": 0,
+            "tracked_unavailable_entity_count": 0,
+            "availability_observation_event_count": 0,
+        }
         await async_reconcile_report_transactions(
             self.hass, self.schedule.get("last_report_path")
         )
@@ -136,6 +154,48 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 self.entity_classifications = updated
         self.async_update_listeners()
         await self.async_notify_classification_reviews()
+
+    async def async_update_availability_observations(self, states):
+        """Persist unavailable durations and distinguish missing from recovered."""
+        entity_registry = er.async_get(self.hass)
+        current_entities = []
+        for state in states:
+            registry_entry = entity_registry.async_get(state.entity_id)
+            current_entities.append({
+                "entity_id": state.entity_id,
+                "state": state.state,
+                "source_domain": getattr(registry_entry, "platform", None),
+                "device_id": getattr(registry_entry, "device_id", None),
+            })
+        updated = observe_unavailable_entities(
+            self.availability_data,
+            current_entities,
+            datetime.now(timezone.utc).isoformat(),
+            self.entry.options.get(
+                "unavailable_persistence_minutes",
+                DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES,
+            ),
+        )
+        persisted = normalize_availability_data({
+            "schema_version": updated["schema_version"],
+            "observations": updated["observations"],
+            "investigations": self.availability_data.get("investigations", {}),
+            "events": updated["events"],
+        })
+        if persisted != self.availability_data:
+            await self.availability_store.async_save(persisted)
+            self.availability_data = persisted
+        self.availability_summary = {
+            "persistent_unavailable_entity_ids": updated["persistent_entity_ids"],
+            "missing_tracked_entity_ids": updated["missing_entity_ids"],
+            "persistent_unavailable_entity_count": len(updated["persistent_entity_ids"]),
+            "missing_tracked_entity_count": len(updated["missing_entity_ids"]),
+            "tracked_unavailable_entity_count": sum(
+                1 for record in self.availability_data["observations"].values()
+                if record.get("state") == "unavailable" and record.get("present") is True
+            ),
+            "availability_observation_event_count": len(self.availability_data["events"]),
+        }
 
     async def async_update_classification_observations(self, states):
         """Record presence, registry source and availability for classified entities."""
@@ -225,6 +285,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             # event loop; only blocking filesystem work belongs in the executor.
             current_states = list(self.hass.states.async_all())
             await self.async_update_classification_observations(current_states)
+            await self.async_update_availability_observations(current_states)
             await self.async_notify_classification_reviews()
             snapshot = collect_snapshot(self.hass, self.entity_classifications)
             snapshot["collection_coverage"] = build_collection_coverage(snapshot)
@@ -256,6 +317,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "integration_trend_summary": summarize_integration_trends(schedule_snapshot.get("integration_trend_history", [])),
                 "repair_plan": schedule_snapshot.get("last_repair_plan", {}),
                 **summarize_investigations(schedule_snapshot.get("investigation_history", [])),
+                **self.availability_summary,
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
@@ -265,6 +327,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         async with self._report_lock:
             current_states = list(self.hass.states.async_all())
             await self.async_update_classification_observations(current_states)
+            await self.async_update_availability_observations(current_states)
             async with self._state_lock:
                 return await self._async_generate_report_locked(comprehensive, scheduled_period)
 
