@@ -121,3 +121,16 @@ def test_automatic_grouping_includes_only_entities_past_persistence_threshold():
     assert len(groups) == 1
     assert groups[0]["entity_ids"] == ["sensor.persistent"]
     assert groups[0]["group_type"] == "entity"
+
+
+def test_group_exposes_latest_entity_return_time_for_reassessment():
+    returned_at = "2026-11-23T11:30:00+00:00"
+    groups = GROUPING.build_unavailable_groups({
+        "sensor.one": {
+            **_record("sensor.one", device_id="device-1"),
+            "last_returned_at": returned_at,
+        },
+        "sensor.two": _record("sensor.two", device_id="device-1"),
+    }, now=NOW)
+    device = next(group for group in groups if group["group_type"] == "device")
+    assert device["latest_entity_returned_at"] == returned_at
