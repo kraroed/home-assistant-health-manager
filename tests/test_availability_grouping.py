@@ -100,3 +100,14 @@ def test_invalid_clock_is_rejected():
         assert "ISO 8601" in str(err)
     else:
         raise AssertionError("Invalid grouping time must be rejected")
+
+
+def test_group_output_does_not_expose_raw_device_registry_identifier():
+    groups = GROUPING.build_unavailable_groups({
+        "sensor.one": _record("sensor.one", device_id="private-device-registry-id"),
+        "sensor.two": _record("sensor.two", device_id="private-device-registry-id"),
+    }, now=NOW)
+    rendered = str(groups)
+    assert "private-device-registry-id" not in rendered
+    assert groups[0]["cause_confirmed"] is False
+    assert "root cause is not confirmed" in groups[0]["confidence_scope"]
