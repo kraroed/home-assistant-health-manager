@@ -1,10 +1,19 @@
-import pytest
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
 
-from custom_components.home_assistant_health_manager.recorder_sizing import (
-    RecordTooLargeError,
-    json_attribute_size,
-    pack_json_records,
+MODULE_PATH = (
+    Path(__file__).parents[1]
+    / "custom_components"
+    / "home_assistant_health_manager"
+    / "recorder_sizing.py"
 )
+SPEC = spec_from_file_location("health_manager_recorder_sizing", MODULE_PATH)
+SIZING = module_from_spec(SPEC)
+SPEC.loader.exec_module(SIZING)
+
+RecordTooLargeError = SIZING.RecordTooLargeError
+json_attribute_size = SIZING.json_attribute_size
+pack_json_records = SIZING.pack_json_records
 
 
 def test_pages_fit_complete_attribute_budget_and_preserve_every_record():
