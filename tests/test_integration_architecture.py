@@ -907,3 +907,23 @@ def test_health_overview_exposes_unavailable_investigation_history():
         '"unavailable_investigations_needing_review":',
     ):
         assert attribute in source
+
+
+def test_unavailable_investigation_sensor_entities_use_scalar_states_and_unique_keys():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    sensors = next(
+        node for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "SENSORS" for target in node.targets)
+    )
+    keys = [
+        element.elts[0].value
+        for element in sensors.value.elts
+        if isinstance(element, ast.Tuple) and isinstance(element.elts[0], ast.Constant)
+    ]
+    assert len(keys) == len(set(keys))
+    assert "unavailable_investigation_count" in keys
+    assert "unavailable_investigations" not in keys
+    assert 'if self.key == "unavailable_investigations":' not in source
+    assert 'if self.key == "selected_unavailable_investigation":' in source
