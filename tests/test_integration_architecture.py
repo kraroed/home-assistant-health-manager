@@ -980,3 +980,10 @@ def test_unavailable_investigation_dashboard_uses_generated_entity_ids():
     for entity_id in expected:
         assert entity_id in dashboard
     assert "home_assistant_health_manager_unavailable_" not in dashboard
+
+
+def test_unavailable_duration_uses_home_assistant_state_last_changed():
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    observer = (INTEGRATION / "availability_observer.py").read_text(encoding="utf-8")
+    assert '"last_changed": state.last_changed.isoformat()' in coordinator
+    assert 'state_changed_at = _timestamp(item.get("last_changed"))' in observer
