@@ -90,8 +90,11 @@ def set_investigation_status(investigations, investigation_id, status, now, remi
         record["next_reminder_at"] = (now_dt + timedelta(days=days)).isoformat()
     if status == "resolved":
         record["resolved_at"] = now_dt.isoformat()
-    if isinstance(user_note, str) and user_note.strip():
-        record["user_note"] = user_note.strip()[:1000]
+    if isinstance(user_note, str):
+        if user_note.strip():
+            record["user_note"] = user_note.strip()[:1000]
+        else:
+            record.pop("user_note", None)
     result[investigation_id] = record
     return result
 
@@ -137,3 +140,37 @@ def find_current_investigation(investigations, group_id):
         reverse=True,
     )
     return matches[0]
+
+
+
+def refresh_investigation_context(investigations, investigation_id, group):
+    """Acknowledge the latest observed evidence when a user updates status."""
+    if not isinstance(investigations, dict):
+        return {}
+    existing = investigations.get(investigation_id)
+    if not isinstance(existing, dict) or not isinstance(group, dict):
+        return dict(investigations)
+    expected_group_id = existing.get("group_id") or existing.get("investigation_id")
+    if group.get("group_id") != expected_group_id:
+        return dict(investigations)
+    updated = dict(existing)
+    updated["entity_ids"] = sorted(set(
+        entity_id for entity_id in group.get("entity_ids", [])
+        if isinstance(entity_id, str)
+    ))
+    updated["title"] = str(group.get("title") or updated.get("title") or "Unavailable entities")[:1000]
+    evidence = group.get("evidence", [])
+    if not isinstance(evidence, list):
+        evidence = []
+    updated["evidence"] = [item[:1000] for item in evidence if isinstance(item, str)][:50]
+    updated["reason"] = "; ".join(updated["evidence"])[:1000]
+    updated["confidence"] = group.get("confidence", "unassessed")
+    updated["group_type"] = group.get("group_type", "entity")
+    updated["source_domains"] = sorted({
+        item for item in group.get("source_domains", []) if isinstance(item, str)
+    })
+    updated["outage_started_at"] = group.get("earliest_unavailable_since")
+    updated["cause_confirmed"] = False
+    result = dict(investigations)
+    result[investigation_id] = updated
+    return result
