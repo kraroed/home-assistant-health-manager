@@ -51,7 +51,7 @@ def start_investigation(investigations, group, now):
 
     investigation_id = group_id
     if isinstance(existing, dict):
-        investigation_id = f"{group_id}@{now_dt.strftime('%Y%m%dT%H%M%S')}"
+        investigation_id = f"{group_id}@{now_dt.strftime('%Y%m%dT%H%M%S%f')}"
     record = {
         "investigation_id": investigation_id,
         "group_id": group_id,
