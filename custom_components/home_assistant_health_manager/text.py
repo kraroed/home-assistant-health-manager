@@ -12,6 +12,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([
         EntityClassificationTargetText(coordinator, entry),
         EntityClassificationReasonText(coordinator, entry),
+        UnavailableInvestigationEntityText(coordinator, entry),
+        UnavailableInvestigationNoteText(coordinator, entry),
     ])
 
 
@@ -65,4 +67,52 @@ class EntityClassificationTargetText(CoordinatorEntity, TextEntity):
         self.coordinator.selected_entity_classification_id = entity_id
         self.coordinator.selected_entity_classification = record.get("classification", "actionable")
         self.coordinator.selected_entity_classification_reason = record.get("reason", "")
+        self.coordinator.async_update_listeners()
+
+
+class UnavailableInvestigationEntityText(CoordinatorEntity, TextEntity):
+    """Select one currently unavailable entity for immediate manual review."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Unavailable Entity to Investigate"
+    _attr_icon = "mdi:alert-box-outline"
+    _attr_native_min = 3
+    _attr_native_max = 255
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_unavailable_entity_to_investigate"
+
+    @property
+    def native_value(self):
+        return self.coordinator.selected_manual_unavailable_entity_id or ""
+
+    async def async_set_value(self, value):
+        entity_id = value.strip()
+        state = self.hass.states.get(entity_id)
+        if state is None or state.state != "unavailable":
+            raise ValueError("Enter an entity ID that is currently unavailable.")
+        self.coordinator.selected_manual_unavailable_entity_id = entity_id
+        self.coordinator.async_update_listeners()
+
+
+class UnavailableInvestigationNoteText(CoordinatorEntity, TextEntity):
+    """Edit a user note for the selected unavailable investigation."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Unavailable Investigation Note"
+    _attr_icon = "mdi:text-box-edit-outline"
+    _attr_native_min = 0
+    _attr_native_max = 1000
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_unavailable_investigation_note"
+
+    @property
+    def native_value(self):
+        return self.coordinator.selected_unavailable_investigation_note
+
+    async def async_set_value(self, value):
+        self.coordinator.selected_unavailable_investigation_note = value.strip()
         self.coordinator.async_update_listeners()
