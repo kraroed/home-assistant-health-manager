@@ -81,7 +81,8 @@ def large_synthetic_data():
     return {
         "status": "attention",
         "last_assessment": "2026-11-23T12:00:00Z",
-        "last_report": "/config/health_manager/reports/health_report_test.zip",
+        "last_report": "2026-11-23T12:00:00Z",
+        "last_report_path": "/config/health_manager/reports/health_report_test.zip",
         "report_count": 4,
         "active_issues": 500,
         "unavailable_entity_count": 500,
@@ -139,7 +140,7 @@ def test_every_sensor_attribute_payload_is_recorder_safe_for_large_dataset():
         if attributes.get("recorder_attribute_overflow"):
             overflowed.append(key)
             assert attributes["details_preserved_in_report"] is True
-            assert attributes["full_details_report"] == data["last_report"]
+            assert attributes["full_details_report"] == data["last_report_path"]
 
     assert "health_overview" not in overflowed
     assert "status" not in overflowed
