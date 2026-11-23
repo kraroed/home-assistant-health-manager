@@ -146,3 +146,24 @@ def test_malformed_unhashable_investigation_status_is_discarded():
         }
     })
     assert set(result["investigations"]) == {"valid"}
+
+
+def test_presence_and_recovery_metadata_survive_store_normalization():
+    result = STORAGE.normalize_availability_data({
+        "observations": {
+            "sensor.garage": {
+                "state": "unavailable",
+                "present": False,
+                "missing_since": "2026-11-23T12:00:00+00:00",
+                "unavailable_since": "2026-11-23T10:00:00+00:00",
+                "last_unavailable_since": "2026-11-22T10:00:00+00:00",
+                "last_recovered_at": "2026-11-22T12:00:00+00:00",
+            }
+        }
+    })
+    record = result["observations"]["sensor.garage"]
+    assert record["present"] is False
+    assert record["missing_since"] == "2026-11-23T12:00:00+00:00"
+    assert record["unavailable_since"] == "2026-11-23T10:00:00+00:00"
+    assert record["last_unavailable_since"] == "2026-11-22T10:00:00+00:00"
+    assert record["last_recovered_at"] == "2026-11-22T12:00:00+00:00"
