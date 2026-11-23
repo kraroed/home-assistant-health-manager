@@ -749,3 +749,50 @@ def test_dashboard_displays_consolidated_health_metrics_and_raw_context():
     assert "sensor.classification_reviews_due" in dashboard
     assert "last_assessment" in dashboard
     assert "last_report" in dashboard
+
+
+def test_unavailable_observations_use_an_isolated_store_and_refresh_cycle():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    source = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    assert 'f'{DOMAIN}_availability_investigations'' in source
+    assert "normalize_availability_data" in source
+    assert "observe_unavailable_entities" in source
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_update_availability_observations"
+    )
+    assert any(
+        isinstance(node, ast.AsyncWith)
+        and any(
+            isinstance(item.context_expr, ast.Attribute)
+            and item.context_expr.attr == "_state_lock"
+            for item in node.items
+        )
+        for node in ast.walk(method)
+    )
+    assert "async_update_availability_observations(current_states)" in source
+
+
+def test_unavailable_persistence_threshold_is_configurable_and_exposed():
+    config = (INTEGRATION / "config_flow.py").read_text(encoding="utf-8")
+    const = (INTEGRATION / "const.py").read_text(encoding="utf-8")
+    assert "unavailable_persistence_minutes" in config
+    assert "DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES = 60" in const
+    assert "vol.Range(min=5, max=1440)" in config
+
+
+def test_health_overview_exposes_persistent_and_missing_unavailable_metrics():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    for metric in (
+        '"persistent_unavailable_entity_count":',
+        '"persistent_unavailable_entity_ids":',
+        '"missing_tracked_entity_count":',
+        '"missing_tracked_entity_ids":',
+        '"tracked_unavailable_entity_count":',
+    ):
+        assert metric in source
