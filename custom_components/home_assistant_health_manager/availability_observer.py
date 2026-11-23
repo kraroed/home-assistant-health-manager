@@ -75,6 +75,9 @@ def observe_unavailable_entities(data, current_entities, now, persistence_minute
             "last_seen": now,
             "present": True,
         }
+        state_changed_at = _timestamp(item.get("last_changed"))
+        if state_changed_at is not None:
+            record["last_changed"] = state_changed_at.isoformat()
         if isinstance(source_domain, str) and source_domain:
             record["source_domain"] = source_domain[:255]
         elif isinstance(previous, dict) and previous.get("source_domain"):
@@ -101,7 +104,7 @@ def observe_unavailable_entities(data, current_entities, now, persistence_minute
 
         if state == "unavailable":
             since = previous.get("unavailable_since") if previous_state == "unavailable" else None
-            record["unavailable_since"] = since or now
+            record["unavailable_since"] = since or (state_changed_at.isoformat() if state_changed_at else now)
             if previous_state != "unavailable":
                 newly_unavailable_entity_ids.append(entity_id)
                 _append_event(events, now, "became_unavailable", entity_id)
