@@ -48,6 +48,7 @@ def observe_unavailable_entities(data, current_entities, now, persistence_minute
     observations = dict(data.get("observations", {})) if isinstance(data, dict) else {}
     events = list(data.get("events", [])) if isinstance(data, dict) else []
     seen = set()
+    newly_unavailable_entity_ids = []
 
     for item in current_entities if isinstance(current_entities, list) else []:
         if not isinstance(item, dict):
@@ -96,6 +97,7 @@ def observe_unavailable_entities(data, current_entities, now, persistence_minute
             since = previous.get("unavailable_since") if previous_state == "unavailable" else None
             record["unavailable_since"] = since or now
             if previous_state != "unavailable":
+                newly_unavailable_entity_ids.append(entity_id)
                 _append_event(events, now, "became_unavailable", entity_id)
         else:
             if previous_state == "unavailable":
@@ -144,5 +146,6 @@ def observe_unavailable_entities(data, current_entities, now, persistence_minute
         "observations": observations,
         "events": events[-MAX_EVENTS:],
         "persistent_entity_ids": sorted(persistent_entity_ids),
+        "newly_unavailable_entity_ids": sorted(newly_unavailable_entity_ids),
         "missing_entity_ids": sorted(missing_entity_ids),
     }
