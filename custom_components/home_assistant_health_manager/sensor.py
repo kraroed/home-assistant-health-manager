@@ -3,10 +3,21 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .investigation_history import build_selected_investigation
+from .recorder_sizing import (
+    RecordTooLargeError,
+    pack_json_records,
+    recorder_safe_attributes,
+)
 
 SENSORS = [
     ("status", "Health Status", None, None),
     ("health_overview", "Health Overview", None, None),
+    ("unavailable_details", "Unavailable Details", None, None),
+    ("unknown_details", "Unknown Details", None, None),
+    ("integration_details", "Integration Details", None, None),
+    ("investigation_details", "Investigation Details", None, None),
+    ("diagnostic_details", "Diagnostic Details", None, None),
+    *[(f"repair_plan_page_{page}", f"Repair Plan Page {page}", "items", SensorStateClass.MEASUREMENT) for page in range(1, 11)],
     ("active_issues", "Active Issues", "issues", SensorStateClass.MEASUREMENT),
     ("unavailable_entity_count", "Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
     ("tracked_unavailable_entity_count", "Tracked Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
@@ -52,12 +63,89 @@ SENSORS = [
 ]
 
 
+PAGED_COLLECTIONS = {
+    "newly_unavailable_entity_ids": ("newly_unavailable_entity_ids", "list"),
+    "persistent_unavailable_entity_ids": ("persistent_unavailable_entity_ids", "list"),
+    "missing_tracked_entity_ids": ("missing_tracked_entity_ids", "list"),
+    "unavailable_investigation_groups": ("unavailable_investigation_groups", "list"),
+    "classification_review_due_entities": ("classification_review_due_entities", "list"),
+    "unknown_counts_by_domain": ("unknown_counts_by_domain", "mapping"),
+    "integration_attention_domains": ("integration_inventory.attention_domains", "list"),
+    "failed_config_entry_domains": ("failed_config_entry_domains", "mapping"),
+    "config_entry_states": ("config_entry_states", "mapping"),
+    "unavailable_investigations": ("unavailable_investigations", "list"),
+    "diagnostic_change_events": ("diagnostic_change_history.events", "list"),
+    "repair_investigations": ("investigations", "list"),
+    "recurring_issues": ("recurring_issues", "list"),
+    "entity_counts_by_domain": ("entity_counts_by_domain", "mapping"),
+    "unavailable_counts_by_domain": ("unavailable_counts_by_domain", "mapping"),
+    "actionable_unknown_counts_by_domain": ("actionable_unknown_counts_by_domain", "mapping"),
+    "availability_observation_events": ("availability_observation_events", "list"),
+}
+
+
+def _nested_value(data, path):
+    value = data
+    for part in path.split("."):
+        value = value.get(part, {}) if isinstance(value, dict) else {}
+    return value
+
+
+def _collection_records(data, collection_key):
+    path, kind = PAGED_COLLECTIONS[collection_key]
+    value = _nested_value(data, path)
+    if kind == "mapping":
+        if not isinstance(value, dict):
+            return []
+        return [{"key": key, "value": item} for key, item in value.items()]
+    return value if isinstance(value, list) else []
+
+
+def _page_records(data, collection_key):
+    records = _collection_records(data, collection_key)
+    if not records:
+        return []
+    return pack_json_records(
+        records,
+        attribute_key="records",
+        metadata={"collection_key": collection_key, "record_kind": PAGED_COLLECTIONS[collection_key][1]},
+    )
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         HealthManagerSensor(coordinator, entry, key, name, unit, state_class)
         for key, name, unit, state_class in SENSORS
     )
+
+    added_page_keys = set()
+
+    def add_detail_pages():
+        data = coordinator.data or {}
+        entities = []
+        for collection_key in PAGED_COLLECTIONS:
+            try:
+                pages = _page_records(data, collection_key)
+            except RecordTooLargeError:
+                # The source detail sensor exposes an explicit report pointer
+                # through recorder_safe_attributes; no record is discarded.
+                continue
+            for page_number in range(1, len(pages) + 1):
+                key = f"detail_page_{collection_key}_{page_number}"
+                if key in added_page_keys:
+                    continue
+                added_page_keys.add(key)
+                entities.append(
+                    HealthManagerDetailPageSensor(
+                        coordinator, entry, collection_key, page_number
+                    )
+                )
+        if entities:
+            async_add_entities(entities)
+
+    add_detail_pages()
+    entry.async_on_unload(coordinator.async_add_listener(add_detail_pages))
 
 
 class HealthManagerSensor(CoordinatorEntity, SensorEntity):
@@ -74,6 +162,13 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
+        if self.key.startswith("detail_page_"):
+            try:
+                collection_key, page_text = self.key[len("detail_page_"):].rsplit("_", 1)
+                pages = _page_records(data, collection_key)
+                return len(pages[int(page_text) - 1])
+            except (KeyError, ValueError, IndexError, RecordTooLargeError):
+                return 0
         if self.key == "health_overview":
             return data.get("status", "unknown")
         if self.key == "compatibility_status":
@@ -84,6 +179,12 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             return data.get("integration_trend_summary", {}).get("active_attention_domain_count", 0)
         if self.key == "repair_plan_items":
             return data.get("repair_plan", {}).get("item_count", 0)
+        if self.key.startswith("repair_plan_page_"):
+            page = int(self.key.rsplit("_", 1)[1])
+            items = data.get("repair_plan", {}).get("items", [])
+            return len(items[(page - 1) * 5:page * 5])
+        if self.key.endswith("_details"):
+            return "available"
         if self.key == "repair_investigations":
             return data.get("investigation_count", 0)
         if self.key == "availability_observation_event_count":
@@ -121,46 +222,118 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
+        attributes = self._raw_extra_state_attributes
         data = self.coordinator.data or {}
+        return recorder_safe_attributes(
+            attributes,
+            report_path=data.get("last_report_path"),
+            entity_key=self.key,
+        )
+
+    @property
+    def _raw_extra_state_attributes(self):
+        data = self.coordinator.data or {}
+
+        if self.key.startswith("detail_page_"):
+            try:
+                collection_key, page_text = self.key[len("detail_page_"):].rsplit("_", 1)
+                pages = _page_records(data, collection_key)
+                page_number = int(page_text)
+                records = pages[page_number - 1]
+                return {
+                    "collection_key": collection_key,
+                    "record_kind": PAGED_COLLECTIONS[collection_key][1],
+                    "page": page_number,
+                    "page_count": len(pages),
+                    "total_records": len(_collection_records(data, collection_key)),
+                    "records": records,
+                    "note": "Records are paginated by serialized UTF-8 size; no records are silently truncated.",
+                }
+            except (KeyError, ValueError, IndexError, RecordTooLargeError) as err:
+                return {
+                    "collection_key": self.key,
+                    "page_error": str(err),
+                    "details_preserved_in_report": bool(data.get("last_report_path")),
+                    "full_details_report": data.get("last_report_path"),
+                }
+
+        # Summary entities intentionally stay small. Detailed records live on
+        # dedicated entities so Recorder can persist them independently.
         if self.key in {"status", "health_overview"}:
             return {
                 "last_assessment": data.get("last_assessment"),
                 "last_report": data.get("last_report"),
-                "last_ai_repair_prompt_path": data.get("last_ai_repair_prompt_path"),
                 "report_count": data.get("report_count", 0),
                 "active_issues": data.get("active_issues", 0),
-                "config_entry_count": data.get("config_entry_count", 0),
+                "unavailable_entity_count": data.get("unavailable_entity_count", 0),
+                "actionable_unavailable_entity_count": data.get("actionable_unavailable_entity_count", 0),
+                "persistent_unavailable_entity_count": data.get("persistent_unavailable_entity_count", 0),
+                "unknown_entity_count": data.get("unknown_entity_count", 0),
+                "actionable_unknown_entity_count": data.get("actionable_unknown_entity_count", 0),
                 "failed_config_entry_count": data.get("failed_config_entry_count", 0),
-                "core_update_status": data.get("platform_updates", {}).get("core", {}),
-                "supervisor_update_status": data.get("platform_updates", {}).get("supervisor", {}),
-                "operating_system_update_status": data.get("platform_updates", {}).get("operating_system", {}),
-                "home_assistant_version": data.get("home_assistant_version"),
-                "platform_updates": data.get("platform_updates", {}),
-                "update_entity_inventory": data.get("update_entity_inventory", {}),
-                "compatibility_assessment": data.get("compatibility_assessment", {}),
-                "diagnostic_change_history": data.get("diagnostic_change_history", {}),
-                "collection_coverage": data.get("collection_coverage", {}),
-                "diagnostic_trend": data.get("diagnostic_trend", {}),
-                "integration_trend_summary": data.get("integration_trend_summary", {}),
-                "prioritized_repair_plan": data.get("repair_plan", {}),
-                "repair_investigations": data.get("investigations", []),
-                "investigation_status_counts": data.get("investigation_status_counts", {}),
-                "recurring_issues": data.get("recurring_issues", []),
-                "recurring_issue_count": data.get("recurring_issue_count", 0),
-                "active_recurring_issue_count": data.get("active_recurring_issue_count", 0),
-                "entity_count": data.get("entity_count"),
-                "entity_counts_by_domain": data.get("entity_counts_by_domain", {}),
-                "unavailable_entity_count": data.get("unavailable_entity_count"),
+                "classification_review_due_count": data.get("classification_review_due_count", 0),
+                "config_entry_count": data.get("config_entry_count", 0),
+                "collection_coverage": {
+                    "coverage_percent": data.get("collection_coverage", {}).get("coverage_percent")
+                },
+                "compatibility_assessment": {
+                    "overall_status": data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
+                },
+                "diagnostic_trend": {
+                    "overall_direction": data.get("diagnostic_trend", {}).get("overall_direction", "insufficient_data")
+                },
+                "platform_update_states": {
+                    key: value.get("state", "unknown")
+                    for key, value in data.get("platform_updates", {}).items()
+                    if isinstance(value, dict)
+                },
+                "detail_entities": [
+                    "sensor.unavailable_details", "sensor.unknown_details",
+                    "sensor.integration_details", "sensor.investigation_details",
+                    "sensor.diagnostic_details",
+                ],
+                "repair_plan_item_count": data.get("repair_plan", {}).get("item_count", 0),
+                "repair_plan_page_count": min(
+                    10, (len(data.get("repair_plan", {}).get("items", [])) + 4) // 5
+                ),
+            }
+
+        if self.key == "unavailable_details":
+            return {
+                "newly_unavailable_entity_ids": data.get("newly_unavailable_entity_ids", []),
+                "persistent_unavailable_entity_ids": data.get("persistent_unavailable_entity_ids", []),
+                "missing_tracked_entity_ids": data.get("missing_tracked_entity_ids", []),
+                "unavailable_investigation_groups": data.get("unavailable_investigation_groups", []),
+                "unavailable_entity_count": data.get("unavailable_entity_count", 0),
                 "tracked_unavailable_entity_count": data.get("tracked_unavailable_entity_count", 0),
                 "newly_unavailable_entity_count": data.get("newly_unavailable_entity_count", 0),
-                "newly_unavailable_entity_ids": data.get("newly_unavailable_entity_ids", []),
                 "persistent_unavailable_entity_count": data.get("persistent_unavailable_entity_count", 0),
-                "persistent_unavailable_entity_ids": data.get("persistent_unavailable_entity_ids", []),
                 "missing_tracked_entity_count": data.get("missing_tracked_entity_count", 0),
-                "missing_tracked_entity_ids": data.get("missing_tracked_entity_ids", []),
-                "availability_observation_event_count": data.get("availability_observation_event_count", 0),
                 "unavailable_investigation_group_count": data.get("unavailable_investigation_group_count", 0),
-                "unavailable_investigation_groups": data.get("unavailable_investigation_groups", []),
+            }
+        if self.key == "unknown_details":
+            return {
+                "entity_classification_counts": data.get("entity_classification_counts", {}),
+                "unknown_counts_by_domain": data.get("unknown_counts_by_domain", {}),
+                "classification_review_due_entities": data.get("classification_review_due_entities", []),
+                "unknown_entity_count": data.get("unknown_entity_count", 0),
+                "actionable_unknown_entity_count": data.get("actionable_unknown_entity_count", 0),
+                "raw_actionable_unknown_entity_count": data.get("raw_actionable_unknown_entity_count", 0),
+                "classified_unknown_entity_count": data.get("classified_unknown_entity_count", 0),
+                "classification_review_due_count": data.get("classification_review_due_count", 0),
+            }
+        if self.key == "integration_details":
+            return {
+                "integration_inventory": data.get("integration_inventory", {}),
+                "failed_config_entry_domains": data.get("failed_config_entry_domains", {}),
+                "config_entry_states": data.get("config_entry_states", {}),
+                "integration_trend_summary": data.get("integration_trend_summary", {}),
+                "config_entry_count": data.get("config_entry_count", 0),
+                "failed_config_entry_count": data.get("failed_config_entry_count", 0),
+                "integration_attention_domains": data.get("integration_inventory", {}).get("attention_domains", []),
+            }
+        if self.key == "investigation_details":
+            return {
                 "unavailable_investigations": data.get("unavailable_investigations", []),
                 "unavailable_investigation_count": data.get("unavailable_investigation_count", 0),
                 "unavailable_investigation_status_counts": data.get("unavailable_investigation_status_counts", {}),
@@ -169,29 +342,54 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "unavailable_investigations_waiting": data.get("unavailable_investigations_waiting", 0),
                 "unavailable_investigations_expected": data.get("unavailable_investigations_expected", 0),
                 "unavailable_investigations_resolved": data.get("unavailable_investigations_resolved", 0),
-                "actionable_unavailable_entity_count": data.get("actionable_unavailable_entity_count"),
-                "unknown_entity_count": data.get("unknown_entity_count"),
-                "actionable_unknown_entity_count": data.get("actionable_unknown_entity_count"),
-                "raw_actionable_unknown_entity_count": data.get("raw_actionable_unknown_entity_count"),
-                "classified_unknown_entity_count": data.get("classified_unknown_entity_count"),
-                "classified_unavailable_entity_count": data.get("classified_unavailable_entity_count"),
-                "entity_classification_counts": data.get("entity_classification_counts", {}),
-                "classification_review_due_count": data.get("classification_review_due_count", 0),
-                "classification_review_due_entities": data.get("classification_review_due_entities", []),
-                "expected_unknown_entity_count": data.get("expected_unknown_entity_count"),
-                "failed_config_entry_count": data.get("failed_config_entry_count"),
-                "failed_config_entry_domains": data.get("failed_config_entry_domains", {}),
-                "config_entry_states": data.get("config_entry_states", {}),
-                "integration_inventory": data.get("integration_inventory", {}),
-                "integration_attention_domains": data.get("integration_inventory", {}).get("attention_domains", []),
+            }
+        if self.key == "diagnostic_details":
+            return {
+                "platform_updates": data.get("platform_updates", {}),
+                "compatibility_assessment": data.get("compatibility_assessment", {}),
+                "diagnostic_change_history": data.get("diagnostic_change_history", {}),
+                "collection_coverage": data.get("collection_coverage", {}),
+                "diagnostic_trend": data.get("diagnostic_trend", {}),
+                "integration_trend_summary": data.get("integration_trend_summary", {}),
+                "report_count": data.get("report_count", 0),
+                "last_ai_repair_prompt_path": data.get("last_ai_repair_prompt_path"),
+                "repair_investigations": data.get("investigations", []),
+                "investigation_status_counts": data.get("investigation_status_counts", {}),
+                "recurring_issues": data.get("recurring_issues", []),
+                "recurring_issue_count": data.get("recurring_issue_count", 0),
+                "active_recurring_issue_count": data.get("active_recurring_issue_count", 0),
+                "entity_count": data.get("entity_count"),
+                "entity_counts_by_domain": data.get("entity_counts_by_domain", {}),
                 "unavailable_counts_by_domain": data.get("unavailable_counts_by_domain", {}),
                 "unknown_counts_by_domain": data.get("unknown_counts_by_domain", {}),
                 "actionable_unknown_counts_by_domain": data.get("actionable_unknown_counts_by_domain", {}),
             }
+        if self.key == "repair_plan_items":
+            plan = data.get("repair_plan", {})
+            return {
+                "item_count": plan.get("item_count", 0),
+                "page_count": min(10, (len(plan.get("items", [])) + 4) // 5),
+                "priority_order": plan.get("priority_order", []),
+                "omitted_item_count": plan.get("omitted_item_count", 0),
+                "scope_note": plan.get("scope_note"),
+                "detail_entities": [
+                    f"sensor.repair_plan_page_{page}"
+                    for page in range(1, min(10, (len(plan.get("items", [])) + 4) // 5) + 1)
+                ],
+            }
+        if self.key.startswith("repair_plan_page_"):
+            page = int(self.key.rsplit("_", 1)[1])
+            plan = data.get("repair_plan", {})
+            items = plan.get("items", [])
+            return {
+                "items": items[(page - 1) * 5:page * 5],
+                "page": page,
+                "page_size": 5,
+                "total_items": plan.get("item_count", 0),
+                "note": "All plan entries are advisory; each repair requires explicit user approval.",
+            }
         if self.key == "integration_trend_domains":
             return data.get("integration_trend_summary", {})
-        if self.key == "repair_plan_items":
-            return data.get("repair_plan", {})
         if self.key == "repair_investigations":
             return {
                 "investigations": data.get("investigations", []),
@@ -235,3 +433,20 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             platform = self.key.removesuffix("_update_status")
             return data.get("platform_updates", {}).get(platform, {})
         return {}
+
+
+
+class HealthManagerDetailPageSensor(HealthManagerSensor):
+    """A size-aware page of one diagnostic collection."""
+
+    def __init__(self, coordinator, entry, collection_key, page_number):
+        key = f"detail_page_{collection_key}_{page_number}"
+        super().__init__(
+            coordinator,
+            entry,
+            key,
+            f"Detail Page {collection_key.replace('_', ' ').title()} {page_number}",
+            "records",
+            SensorStateClass.MEASUREMENT,
+        )
+        self._attr_suggested_object_id = key
