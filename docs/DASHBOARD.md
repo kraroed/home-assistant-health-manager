@@ -67,7 +67,7 @@ cards:
         name: Unavailable investigation groups
       - entity: sensor.unavailable_investigation_count
         name: Saved unavailable investigations
-      - entity: sensor.unavailable_investigation_count_needing_review
+      - entity: sensor.unavailable_investigations_needing_review
         name: Unavailable investigations needing review
       - entity: sensor.selected_unavailable_investigation
         name: Selected unavailable investigation
