@@ -16,6 +16,7 @@ SPEC.loader.exec_module(SIZING)
 RecordTooLargeError = SIZING.RecordTooLargeError
 json_attribute_size = SIZING.json_attribute_size
 pack_json_records = SIZING.pack_json_records
+recorder_safe_attributes = SIZING.recorder_safe_attributes
 
 
 def test_pages_fit_complete_attribute_budget_and_preserve_every_record():
@@ -56,3 +57,31 @@ def test_empty_input_returns_one_empty_page():
 def test_reserved_metadata_key_is_rejected():
     with pytest.raises(ValueError, match="reserved key"):
         pack_json_records([], metadata={"items": []})
+
+
+
+def test_oversized_attributes_are_replaced_with_explicit_report_reference():
+    attributes = {"entities": [{"entity_id": f"sensor.test_{i}", "reason": "x" * 200} for i in range(100)]}
+    safe = recorder_safe_attributes(
+        attributes,
+        report_path="/config/www/health_report.zip",
+        entity_key="unknown_details",
+        max_bytes=500,
+    )
+    assert safe["recorder_attribute_overflow"] is True
+    assert safe["details_preserved_in_report"] is True
+    assert safe["full_details_report"] == "/config/www/health_report.zip"
+    assert safe["overflowed_collection_counts"]["entities"] == 100
+    assert json_attribute_size(safe) <= 500
+
+
+def test_oversized_attributes_without_report_are_explicitly_flagged():
+    safe = recorder_safe_attributes(
+        {"records": [{"detail": "x" * 1000}]},
+        report_path=None,
+        entity_key="diagnostic_details",
+        max_bytes=500,
+    )
+    assert safe["recorder_attribute_overflow"] is True
+    assert safe["details_preserved_in_report"] is False
+    assert "Run diagnostics" in safe["note"]
