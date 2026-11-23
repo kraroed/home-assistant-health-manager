@@ -184,6 +184,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             current_entities.append({
                 "entity_id": state.entity_id,
                 "state": state.state,
+                "last_changed": state.last_changed.isoformat(),
                 "source_domain": getattr(registry_entry, "platform", None),
                 "device_id": device_id,
                 "device_name": (
