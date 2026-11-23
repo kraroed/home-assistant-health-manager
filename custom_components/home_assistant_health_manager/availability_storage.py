@@ -53,7 +53,7 @@ def _normalize_observation(entity_id, value):
         "entity_id": entity_id,
         "state": state,
     }
-    for key in ("first_seen", "last_seen", "unavailable_since", "last_changed", "missing_since", "last_unavailable_since", "last_recovered_at"):
+    for key in ("first_seen", "last_seen", "unavailable_since", "last_changed", "missing_since", "last_missing_since", "last_returned_at", "last_unavailable_since", "last_recovered_at"):
         timestamp = _valid_timestamp(value.get(key))
         if timestamp:
             result[key] = timestamp
@@ -101,7 +101,7 @@ def _normalize_investigation(investigation_id, value):
             text for item in evidence
             if (text := _clean_text(item, 1000))
         ][:50]
-    for key in ("created_at", "updated_at", "next_reminder_at", "resolved_at", "outage_started_at"):
+    for key in ("created_at", "updated_at", "next_reminder_at", "resolved_at", "outage_started_at", "last_entity_returned_at"):
         timestamp = _valid_timestamp(value.get(key))
         if timestamp:
             result[key] = timestamp
