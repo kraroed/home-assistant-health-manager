@@ -73,6 +73,8 @@ cards:
         name: Saved unavailable investigations
       - entity: sensor.unavailable_investigations_needing_review
         name: Unavailable investigations needing review
+      - entity: sensor.unavailable_entity_history_events
+        name: Unavailable entity history events
       - entity: sensor.unavailable_investigations_in_progress
         name: Unavailable investigations in progress
       - entity: sensor.unavailable_investigations_waiting
@@ -381,3 +383,6 @@ Choose a saved record in **Unavailable Investigation to Update**, enter an optio
 `Resolved` and `Expected` are not technical verification, entity classifications, or suppression rules. Raw and actionable unavailable counts continue to include those entities. A changed group membership, changed evidence, or a new outage cycle can prompt another review. Investigation history is retained separately from entity classifications and diagnostic report history.
 
 Persistent notifications can be enabled in the integration options. They update when the due group set or its evidence changes, and reminders follow the configured interval. The notification does not attempt repairs.
+
+
+The **Unavailable Entity History Events** sensor exposes the latest 100 retained transition and investigation events as attributes, including new outages, recoveries, missing/returned entities, source changes, and user status updates. The full local event store retains up to 1,000 events.
