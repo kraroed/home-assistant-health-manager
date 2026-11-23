@@ -830,3 +830,27 @@ def test_dashboard_documents_live_unavailable_investigation_metrics():
 def test_automatic_unavailable_groups_are_filtered_by_persistence_threshold():
     coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
     assert coordinator.count("persistent_entity_ids=self.availability_summary.get") >= 2
+
+
+def test_unavailable_investigation_controls_are_registered_and_user_driven():
+    source = (INTEGRATION / "select.py").read_text(encoding="utf-8")
+    tree = _parse(INTEGRATION / "select.py")
+    names = {node.name for node in tree.body if isinstance(node, ast.ClassDef)}
+    assert {
+        "UnavailableEntityGroupSelect",
+        "UnavailableInvestigationHistorySelect",
+        "UnavailableInvestigationStatusSelect",
+    } <= names
+    assert "async_start_unavailable_investigation" in source
+    assert "async_set_unavailable_investigation_status" in source
+    assert "UnavailableEntityGroupSelect(coordinator, entry)" in source
+
+
+def test_unavailable_investigation_details_are_exposed_in_health_overview():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    for attribute in (
+        '"unavailable_investigations":',
+        '"unavailable_investigation_status_counts":',
+        '"unavailable_investigations_needing_review":',
+    ):
+        assert attribute in source
