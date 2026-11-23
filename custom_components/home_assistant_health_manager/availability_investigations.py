@@ -26,7 +26,8 @@ def start_investigation(investigations, group, now):
     if not isinstance(group_id, str) or not group_id or not isinstance(entity_ids, list) or not entity_ids:
         raise ValueError("The selected unavailable entity group is incomplete.")
 
-    existing = investigations.get(group_id)
+    existing = find_current_investigation(investigations, group_id)
+    existing_id = existing.get("investigation_id") if isinstance(existing, dict) else None
     if isinstance(existing, dict) and existing.get("status") in {"needs_review", "investigating", "waiting"}:
         updated = dict(existing)
         updated["entity_ids"] = sorted(set(entity_ids))
@@ -46,8 +47,8 @@ def start_investigation(investigations, group, now):
         updated["last_entity_returned_at"] = group.get("latest_entity_returned_at")
         updated["updated_at"] = now_dt.isoformat()
         result = dict(investigations)
-        result[group_id] = updated
-        return result, group_id
+        result[existing_id] = updated
+        return result, existing_id
 
     investigation_id = group_id
     if isinstance(existing, dict):
