@@ -23,6 +23,7 @@ def _group():
         "confidence": "strong",
         "evidence": ["Multiple unavailable entities share the same registered device."],
         "cause_confirmed": False,
+        "source_domains": ["mqtt"],
     }
 
 
@@ -32,6 +33,7 @@ def test_start_requires_explicit_group_and_creates_investigating_record():
     assert record["status"] == "investigating"
     assert record["entity_ids"] == ["binary_sensor.two", "sensor.one"]
     assert record["cause_confirmed"] is False
+    assert record["source_domains"] == ["mqtt"]
     assert record["created_at"] == NOW
     assert "classifications" not in record
 
