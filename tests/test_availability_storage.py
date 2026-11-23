@@ -167,3 +167,21 @@ def test_presence_and_recovery_metadata_survive_store_normalization():
     assert record["unavailable_since"] == "2026-11-23T10:00:00+00:00"
     assert record["last_unavailable_since"] == "2026-11-22T10:00:00+00:00"
     assert record["last_recovered_at"] == "2026-11-22T12:00:00+00:00"
+
+
+def test_store_retains_active_unavailable_records_before_inactive_history():
+    observations = {
+        f"sensor.old_{index}": {
+            "state": "available",
+            "last_seen": f"2026-11-{(index % 20) + 1:02d}T00:00:00+00:00",
+        }
+        for index in range(STORAGE.MAX_OBSERVATIONS)
+    }
+    observations["sensor.new_outage"] = {
+        "state": "unavailable",
+        "unavailable_since": "2026-11-23T10:00:00+00:00",
+        "last_seen": "2026-11-23T10:00:00+00:00",
+    }
+    result = STORAGE.normalize_availability_data({"observations": observations})
+    assert "sensor.new_outage" in result["observations"]
+    assert len(result["observations"]) == STORAGE.MAX_OBSERVATIONS
