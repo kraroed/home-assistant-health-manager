@@ -16,7 +16,7 @@ cards:
       **Unavailable (actionable / raw):** {{ states('sensor.actionable_unavailable_entities') }} / {{ states('sensor.unavailable_entities') }}
       **Persistent unavailable:** {{ states('sensor.persistent_unavailable_entities') }} / {{ states('sensor.tracked_unavailable_entities') }} tracked
       **Missing tracked entities:** {{ states('sensor.missing_tracked_entities') }}
-      **Unavailable investigation groups:** {{ states('sensor.unavailable_investigation_group_count') }}
+      **Unavailable investigation groups:** {{ states('sensor.unavailable_investigation_groups') }}
       **Unknown (actionable / raw):** {{ states('sensor.actionable_unknown_entities') }} / {{ states('sensor.unknown_entities') }}
       **Classification reviews due:** {{ states('sensor.classification_reviews_due') }}
       **Last assessment:** {{ state_attr('sensor.health_overview', 'last_assessment') or 'Not yet assessed' }}
@@ -63,9 +63,9 @@ cards:
         name: Persistent unavailable
       - entity: sensor.missing_tracked_entities
         name: Missing tracked entities
-      - entity: sensor.unavailable_investigation_group_count
+      - entity: sensor.unavailable_investigation_groups
         name: Unavailable investigation groups
-      - entity: sensor.unavailable_investigation_count
+      - entity: sensor.unavailable_investigations
         name: Saved unavailable investigations
       - entity: sensor.unavailable_investigations_needing_review
         name: Unavailable investigations needing review
