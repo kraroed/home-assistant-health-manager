@@ -86,10 +86,18 @@ def _normalize_investigation(investigation_id, value):
         "entity_ids": clean_ids[:MAX_OBSERVATIONS],
         "status": status,
     }
-    for key in ("title", "reason", "user_note"):
+    for key in ("title", "reason", "user_note", "confidence", "group_type", "group_id"):
         text = _clean_text(value.get(key), 1000)
         if text:
             result[key] = text
+    if value.get("cause_confirmed") is False:
+        result["cause_confirmed"] = False
+    evidence = value.get("evidence", [])
+    if isinstance(evidence, list):
+        result["evidence"] = [
+            text for item in evidence
+            if (text := _clean_text(item, 1000))
+        ][:50]
     for key in ("created_at", "updated_at", "next_reminder_at", "resolved_at"):
         timestamp = _valid_timestamp(value.get(key))
         if timestamp:
@@ -157,9 +165,17 @@ def normalize_availability_data(data):
                 "entity_ids": clean_ids[:MAX_OBSERVATIONS],
             })
 
-    return {
+    result = {
         "schema_version": STORE_VERSION,
         "observations": observations,
         "investigations": investigations,
         "events": events,
     }
+    fingerprint = _clean_text(data.get("last_notification_fingerprint"), 10000)
+    if fingerprint:
+        result["last_notification_fingerprint"] = fingerprint
+    for key in ("last_notification_at", "last_reminder_at"):
+        timestamp = _valid_timestamp(data.get(key))
+        if timestamp:
+            result[key] = timestamp
+    return result
