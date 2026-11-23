@@ -796,3 +796,20 @@ def test_health_overview_exposes_persistent_and_missing_unavailable_metrics():
         '"tracked_unavailable_entity_count":',
     ):
         assert metric in source
+
+
+def test_unavailable_investigation_grouping_is_evidence_gated_and_configurable():
+    config = (INTEGRATION / "config_flow.py").read_text(encoding="utf-8")
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    grouping = (INTEGRATION / "availability_grouping.py").read_text(encoding="utf-8")
+    assert "group_related_unavailable_entities" in config
+    assert "build_unavailable_groups" in coordinator
+    assert "SIMULTANEOUS_WINDOW_MINUTES = 5" in grouping
+    assert "requires_user_review" in grouping
+    assert "cause_confirmed" in grouping
+
+
+def test_health_overview_includes_unavailable_investigation_group_details():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    assert '"unavailable_investigation_groups":' in source
+    assert '"unavailable_investigation_group_count":' in source
