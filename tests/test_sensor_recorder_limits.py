@@ -190,3 +190,77 @@ def test_detail_page_sensor_exposes_page_metadata_and_records():
     assert attributes["page_count"] > 1
     assert attributes["records"]
     assert json_attribute_size(attributes) <= 12_000
+
+
+
+def test_all_registered_paged_collections_preserve_every_record_within_budget():
+    data = large_synthetic_data()
+    data["unknown_counts_by_domain"] = {f"domain_{i}": i for i in range(2_000)}
+    for collection_key, (_path, kind) in SENSOR_MODULE.PAGED_COLLECTIONS.items():
+        records = SENSOR_MODULE._collection_records(data, collection_key)
+        pages = SENSOR_MODULE._page_records(data, collection_key)
+        flattened = [record for page in pages for record in page]
+        assert flattened == records, collection_key
+        assert all(
+            json_attribute_size({
+                "collection_key": collection_key,
+                "record_kind": kind,
+                "records": page,
+            }) <= 12_000
+            for page in pages
+        ), collection_key
+
+
+def test_setup_adds_detail_pages_and_adds_more_when_collection_grows():
+    import asyncio
+
+    class ListeningCoordinator(Coordinator):
+        def __init__(self, data):
+            super().__init__(data)
+            self.listeners = []
+
+        def async_add_listener(self, listener):
+            self.listeners.append(listener)
+            return lambda: self.listeners.remove(listener)
+
+    class Entry:
+        entry_id = "test-entry"
+
+        def async_on_unload(self, callback):
+            self.unload_callback = callback
+
+    data = large_synthetic_data()
+    coordinator = ListeningCoordinator(data)
+    entry = Entry()
+    hass = types.SimpleNamespace(
+        data={SENSOR_MODULE.DOMAIN: {entry.entry_id: coordinator}}
+    )
+    added = []
+
+    def async_add_entities(entities):
+        added.extend(list(entities))
+
+    asyncio.run(SENSOR_MODULE.async_setup_entry(hass, entry, async_add_entities))
+    initial_page_keys = {
+        entity.key for entity in added
+        if entity.key.startswith("detail_page_")
+    }
+    assert any(
+        key.startswith("detail_page_classification_review_due_entities_")
+        for key in initial_page_keys
+    )
+    assert coordinator.listeners
+
+    data["classification_review_due_entities"].extend([
+        {"entity_id": f"sensor.extra_{index}", "reason": "more evidence " * 30}
+        for index in range(1_000)
+    ])
+    coordinator.listeners[0]()
+    updated_page_keys = {
+        entity.key for entity in added
+        if entity.key.startswith("detail_page_classification_review_due_entities_")
+    }
+    assert len(updated_page_keys) > len({
+        key for key in initial_page_keys
+        if key.startswith("detail_page_classification_review_due_entities_")
+    })
