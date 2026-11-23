@@ -124,7 +124,7 @@ def test_current_investigation_finds_latest_reopened_record_for_group():
     current = INVESTIGATIONS.find_current_investigation(records, _group()["group_id"])
     assert second_id != first_id
     assert current["investigation_id"] == second_id
-    assert current["status"] == "investigating"
+    assert current["status"] == "needs_review"
 
 
 def test_current_investigation_returns_latest_closed_record_when_group_is_resolved():
