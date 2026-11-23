@@ -30,6 +30,8 @@ def start_investigation(investigations, group, now):
     if isinstance(existing, dict) and existing.get("status") in {"needs_review", "investigating", "waiting"}:
         updated = dict(existing)
         updated["entity_ids"] = sorted(set(entity_ids))
+        updated["status"] = "investigating"
+        updated.pop("next_reminder_at", None)
         updated["title"] = str(group.get("title") or existing.get("title") or "Unavailable entities")[:1000]
         updated["reason"] = "; ".join(group.get("evidence", []))[:1000]
         updated["evidence"] = list(group.get("evidence", []))[:50]
@@ -56,7 +58,7 @@ def start_investigation(investigations, group, now):
         "group_type": group.get("group_type", "entity"),
         "outage_started_at": group.get("earliest_unavailable_since"),
         "cause_confirmed": False,
-        "status": "needs_review",
+        "status": "investigating",
         "created_at": now_dt.isoformat(),
         "updated_at": now_dt.isoformat(),
     }
