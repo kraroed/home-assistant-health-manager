@@ -77,6 +77,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.selected_unavailable_group_id = None
         self.selected_unavailable_investigation_id = None
         self.selected_manual_unavailable_entity_id = None
+        self.selected_unavailable_investigation_note = ""
         self._schedule_unsub = None
         self._report_lock = asyncio.Lock()
         self._state_lock = asyncio.Lock()
