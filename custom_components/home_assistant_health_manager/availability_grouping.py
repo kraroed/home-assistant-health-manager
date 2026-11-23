@@ -72,6 +72,7 @@ def build_unavailable_groups(
     now=None,
     group_related=True,
     simultaneous_window_minutes=SIMULTANEOUS_WINDOW_MINUTES,
+    persistent_entity_ids=None,
 ):
     """Group only entities with concrete shared-device or integration evidence."""
     now = _parse_time(now) if now else datetime.now(timezone.utc)
@@ -86,6 +87,9 @@ def build_unavailable_groups(
         and record.get("present", True) is True
         and isinstance(record.get("entity_id"), str)
     ]
+    if persistent_entity_ids is not None:
+        persistent_ids = set(persistent_entity_ids)
+        active = [record for record in active if record["entity_id"] in persistent_ids]
     active.sort(key=lambda record: record["entity_id"])
     if not group_related:
         return [
