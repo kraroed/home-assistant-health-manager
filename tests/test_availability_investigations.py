@@ -140,3 +140,33 @@ def test_investigation_records_outage_cycle_for_later_reassessment():
     group["earliest_unavailable_since"] = "2026-11-23T10:00:00+00:00"
     records, investigation_id = INVESTIGATIONS.start_investigation({}, group, NOW)
     assert records[investigation_id]["outage_started_at"] == "2026-11-23T10:00:00+00:00"
+
+
+def test_status_update_can_clear_an_existing_user_note():
+    records, investigation_id = INVESTIGATIONS.start_investigation({}, _group(), NOW)
+    records = INVESTIGATIONS.set_investigation_status(
+        records, investigation_id, "waiting", NOW, user_note="Old note",
+    )
+    cleared = INVESTIGATIONS.set_investigation_status(
+        records, investigation_id, "investigating", "2026-11-23T13:00:00+00:00",
+        user_note="",
+    )
+    assert "user_note" not in cleared[investigation_id]
+
+
+def test_user_status_update_can_acknowledge_new_group_evidence():
+    records, investigation_id = INVESTIGATIONS.start_investigation({}, _group(), NOW)
+    changed_group = _group()
+    changed_group["entity_ids"].append("sensor.three")
+    changed_group["source_domains"] = ["mqtt", "zha"]
+    changed_group["earliest_unavailable_since"] = "2026-11-23T13:00:00+00:00"
+    changed_group["evidence"] = ["A new outage cycle was observed."]
+    updated = INVESTIGATIONS.refresh_investigation_context(
+        records, investigation_id, changed_group,
+    )
+    record = updated[investigation_id]
+    assert "sensor.three" in record["entity_ids"]
+    assert record["source_domains"] == ["mqtt", "zha"]
+    assert record["outage_started_at"] == "2026-11-23T13:00:00+00:00"
+    assert record["reason"] == "A new outage cycle was observed."
+    assert record["cause_confirmed"] is False
