@@ -138,12 +138,25 @@ def normalize_availability_data(data):
     investigations = {}
     raw_investigations = data.get("investigations", {})
     if isinstance(raw_investigations, dict):
+        valid_investigations = []
         for investigation_id, value in raw_investigations.items():
             record = _normalize_investigation(investigation_id, value)
             if record:
-                investigations[record["investigation_id"]] = record
-            if len(investigations) >= MAX_INVESTIGATIONS:
-                break
+                valid_investigations.append((record["investigation_id"], record))
+        active_investigations = [
+            item for item in valid_investigations
+            if item[1].get("status") in {"needs_review", "investigating", "waiting"}
+        ]
+        closed_investigations = [
+            item for item in valid_investigations
+            if item[1].get("status") in {"resolved", "expected"}
+        ]
+        closed_investigations.sort(
+            key=lambda item: item[1].get("updated_at", ""),
+            reverse=True,
+        )
+        remaining = max(0, MAX_INVESTIGATIONS - len(active_investigations))
+        investigations = dict(active_investigations + closed_investigations[:remaining])
 
     events = []
     raw_events = data.get("events", [])
