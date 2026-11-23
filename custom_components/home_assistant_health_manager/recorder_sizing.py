@@ -79,3 +79,49 @@ def pack_json_records(
         pages.append(current)
 
     return pages
+
+
+def recorder_safe_attributes(
+    attributes: Mapping[str, Any],
+    *,
+    report_path: str | None,
+    entity_key: str,
+    max_bytes: int = DEFAULT_ATTRIBUTE_BUDGET,
+) -> dict[str, Any]:
+    """Return attributes unchanged when safe, otherwise an explicit report pointer.
+
+    This is a last-resort guard while record collections are being paginated.
+    It never silently truncates: the replacement payload identifies the
+    overflow, measured size, affected keys, and whether a full report exists.
+    """
+    size = json_attribute_size(attributes)
+    if size <= max_bytes:
+        return dict(attributes)
+
+    record_counts = {
+        key: len(value)
+        for key, value in attributes.items()
+        if isinstance(value, (list, dict))
+    }
+    fallback = {
+        "recorder_attribute_overflow": True,
+        "overflowed_entity_key": entity_key,
+        "original_attribute_bytes": size,
+        "attribute_budget_bytes": max_bytes,
+        "overflowed_attribute_keys": list(attributes),
+        "overflowed_collection_counts": record_counts,
+        "details_preserved_in_report": bool(report_path),
+        "full_details_report": report_path,
+        "note": (
+            "Attributes exceeded the Recorder-safe budget. No records were "
+            "truncated; consult the full diagnostic report."
+            if report_path else
+            "Attributes exceeded the Recorder-safe budget. No records were "
+            "truncated, but no report path is available yet. Run diagnostics "
+            "to generate a full report."
+        ),
+    }
+    if json_attribute_size(fallback) > max_bytes:
+        # The fallback is deliberately compact and contains no source records.
+        raise RecordTooLargeError("Recorder overflow fallback exceeds its budget")
+    return fallback
