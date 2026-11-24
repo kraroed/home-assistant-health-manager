@@ -231,7 +231,11 @@ def test_explicit_classification_update_clears_outstanding_review_triggers():
     stored = CLASSIFICATIONS.set_entity_classification(
         {}, "sensor.example", "expected", "Seasonal device.", now=NOW
     )
-    flagged = CLASSIFICATIONS.mark_entity_observations(stored, set(), now=NOW)
+    missing = CLASSIFICATIONS.mark_entity_observations(stored, set(), now=NOW)
+    flagged = CLASSIFICATIONS.mark_entity_observations(
+        missing, set(),
+        now=datetime(2026, 11, 18, 12, 16, tzinfo=timezone.utc),
+    )
     assert flagged["entities"]["sensor.example"]["review_due"] is True
     updated = CLASSIFICATIONS.set_entity_classification(
         flagged, "sensor.example", "actionable", "Now needs attention.", now=NOW
