@@ -347,7 +347,7 @@ def test_legacy_brief_restart_missing_return_flags_are_reconciled_without_reclas
         "review_due": True,
         "review_due_reason": "entity_returned",
         "review_due_reasons": ["entity_missing", "entity_returned"],
-        "review_due_at": NOW.isoformat(),
+        "review_due_at": datetime(2026, 11, 18, 12, 5, tzinfo=timezone.utc).isoformat(),
         "entity_missing": False,
         "missing_since": NOW.isoformat(),
         "returned_at": datetime(2026, 11, 18, 12, 5, tzinfo=timezone.utc).isoformat(),
@@ -385,3 +385,110 @@ def test_legacy_restart_reconciliation_preserves_other_review_triggers():
     updated = result["entities"]["sensor.example"]
     assert updated["review_due"] is True
     assert "source_changed" in updated["review_due_reasons"]
+
+
+
+def test_exact_grace_boundary_and_later_returns_require_review():
+    for seconds in (900, 907, 1800):
+        stored = CLASSIFICATIONS.set_entity_classification(
+            {}, "sensor.example", "expected", "Restart test.", now=NOW
+        )
+        missing = CLASSIFICATIONS.mark_entity_observations(
+            stored, set(), now=NOW, missing_grace_minutes=15
+        )
+        returned_at = datetime.fromtimestamp(NOW.timestamp() + seconds, timezone.utc)
+        returned = CLASSIFICATIONS.mark_entity_observations(
+            missing, {"sensor.example"}, now=returned_at, missing_grace_minutes=15
+        )
+        record = returned["entities"]["sensor.example"]
+        assert record["review_due"] is True
+        assert record["review_due_reason"] == "entity_returned"
+        assert record["last_presence_recovery"] == "after_grace_period"
+        assert record["last_missing_duration_seconds"] == float(seconds)
+
+
+def test_just_under_grace_boundary_does_not_require_review():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Restart test.", now=NOW
+    )
+    missing = CLASSIFICATIONS.mark_entity_observations(
+        stored, set(), now=NOW, missing_grace_minutes=15
+    )
+    returned_at = datetime.fromtimestamp(NOW.timestamp() + 899, timezone.utc)
+    returned = CLASSIFICATIONS.mark_entity_observations(
+        missing, {"sensor.example"}, now=returned_at, missing_grace_minutes=15
+    )
+    record = returned["entities"]["sensor.example"]
+    assert record["review_due"] is False
+    assert record["last_presence_recovery"] == "within_grace_period"
+    assert record["last_missing_duration_seconds"] == 899.0
+
+
+def test_new_missing_episode_clears_stale_recovery_metadata():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Restart test.", now=NOW
+    )
+    first_missing = CLASSIFICATIONS.mark_entity_observations(
+        stored, set(), now=NOW, missing_grace_minutes=15
+    )
+    first_return = datetime.fromtimestamp(NOW.timestamp() + 300, timezone.utc)
+    recovered = CLASSIFICATIONS.mark_entity_observations(
+        first_missing, {"sensor.example"}, now=first_return, missing_grace_minutes=15
+    )
+    second_missing_at = datetime.fromtimestamp(NOW.timestamp() + 600, timezone.utc)
+    second_missing = CLASSIFICATIONS.mark_entity_observations(
+        recovered, set(), now=second_missing_at, missing_grace_minutes=15
+    )
+    record = second_missing["entities"]["sensor.example"]
+    assert record["entity_missing"] is True
+    assert record["missing_since"] == second_missing_at.isoformat()
+    assert "returned_at" not in record
+    assert "last_missing_duration_seconds" not in record
+    assert "last_presence_recovery" not in record
+    assert "last_presence_recovery_at" not in record
+
+
+def test_long_outage_review_is_not_cleared_by_a_later_short_restart():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Keep genuine outage review.", now=NOW
+    )
+    first_missing = CLASSIFICATIONS.mark_entity_observations(
+        stored, set(), now=NOW, missing_grace_minutes=15
+    )
+    long_return_at = datetime.fromtimestamp(NOW.timestamp() + 901, timezone.utc)
+    long_return = CLASSIFICATIONS.mark_entity_observations(
+        first_missing, {"sensor.example"}, now=long_return_at, missing_grace_minutes=15
+    )
+    assert long_return["entities"]["sensor.example"]["review_due"] is True
+
+    second_missing_at = datetime.fromtimestamp(NOW.timestamp() + 1200, timezone.utc)
+    second_missing = CLASSIFICATIONS.mark_entity_observations(
+        long_return, set(), now=second_missing_at, missing_grace_minutes=15
+    )
+    short_return_at = datetime.fromtimestamp(NOW.timestamp() + 1500, timezone.utc)
+    second_return = CLASSIFICATIONS.mark_entity_observations(
+        second_missing, {"sensor.example"}, now=short_return_at, missing_grace_minutes=15
+    )
+    record = second_return["entities"]["sensor.example"]
+    assert record["review_due"] is True
+    assert "entity_returned" in record["review_due_reasons"]
+    assert record["last_presence_recovery"] == "within_grace_period"
+
+
+def test_repeated_short_restart_cycles_do_not_accumulate_review_flags():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Normal restart gaps.", now=NOW
+    )
+    for offset in (0, 600, 1200, 1800):
+        missing_at = datetime.fromtimestamp(NOW.timestamp() + offset, timezone.utc)
+        returned_at = datetime.fromtimestamp(NOW.timestamp() + offset + 300, timezone.utc)
+        missing = CLASSIFICATIONS.mark_entity_observations(
+            stored, set(), now=missing_at, missing_grace_minutes=15
+        )
+        stored = CLASSIFICATIONS.mark_entity_observations(
+            missing, {"sensor.example"}, now=returned_at, missing_grace_minutes=15
+        )
+    record = stored["entities"]["sensor.example"]
+    assert record["review_due"] is False
+    assert record["last_presence_recovery"] == "within_grace_period"
+    assert record["last_missing_duration_seconds"] == 300.0
