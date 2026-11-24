@@ -72,7 +72,7 @@ GitHub Actions runs Python tests, Home Assistant hassfest, and HACS integration 
 
 ## Status
 
-The published default-branch release and the feature-branch beta are separate. The `feature/unavailable-entity-investigations` branch contains the persistent entity investigation work, consolidated health overview, and Recorder attribute-size improvements. Its next candidate is `0.1.0-beta.6`, intended as a pre-release for controlled Home Assistant OS testing. It has passed automated Python tests, Home Assistant validation, and HACS validation on the preceding code commit; the beta.6 version/checklist commits must also pass CI before tagging.
+The published default-branch release and the feature-branch beta are separate. The `feature/unavailable-entity-investigations` branch contains the persistent entity investigation work, consolidated health overview, and Recorder attribute-size improvements. Its next candidate is `0.1.0-beta.7`, intended as a pre-release for controlled Home Assistant OS testing. The beta.6 tag was mistakenly published against `main` and does not contain the feature-branch Recorder changes; do not install beta.6 for this test. The beta.7 tag must target this feature branch and pass automated Python tests, Home Assistant validation, and HACS validation on the exact tagged commit.
 
 Live HA OS verification is still outstanding. In particular, verify Recorder attribute-size warnings, dynamically paged detail sensors, the six Lovelace card views, report accessibility, and persistence after restart using the [controlled HA OS test checklist](docs/HA_OS_TEST_CHECKLIST.md). A successful beta installation is not a stable-release certification.
 
