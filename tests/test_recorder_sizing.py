@@ -85,7 +85,8 @@ def test_oversized_attributes_without_report_are_explicitly_flagged():
     )
     assert safe["recorder_attribute_overflow"] is True
     assert safe["details_preserved_in_report"] is False
-    assert "Run diagnostics" in safe["note"]
+    assert "not verified" in safe["note"]
+    assert safe["report_verification_status"] == "unverified"
 
 
 
