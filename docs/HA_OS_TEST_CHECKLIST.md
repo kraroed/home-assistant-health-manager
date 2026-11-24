@@ -48,7 +48,7 @@ Stop if backup creation fails or you cannot restore the system.
 
 ## 2. Install from the Home Assistant Marketplace and restart
 
-> **Release gate:** The `0.1.0-beta.7` feature pre-release is intended for controlled HA OS testing. Confirm the exact Marketplace version and tagged commit before installing. Wait for beta.4 to be published after merge and final validation. Do not install beta.3 expecting the new classification controls or `sensor.health_overview`.
+> **Release gate:** The `0.1.0-beta.8` feature pre-release is intended for controlled HA OS testing. Confirm the exact Marketplace version and tagged commit before installing. The beta.6 and beta.7 tags point to `main` and do not contain the Recorder attribute-size changes. Do not install either tag for this test.
 
 **Test type:** Safe on production with the backup above.
 
@@ -63,15 +63,15 @@ Repository URL:
 3. In the upper-right corner, select **Add from link**.
 4. Enter the repository URL above under **GitHub link**, then select **Add**. If the Marketplace cannot identify the content type automatically, choose **Integration**.
 5. Open the Home Assistant Health Manager repository page.
-6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.7`; pre-releases are not offered by default.
-7. Select **Install**, verify the version shown is `0.1.0-beta.7`, and confirm.
+6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.8`; pre-releases are not offered by default.
+7. Select **Install**, verify the version shown is `0.1.0-beta.8`, and confirm.
 8. Follow the Marketplace prompt if a restart is required. Otherwise, restart Home Assistant normally before adding the integration.
 9. Wait for startup to finish.
 
 - [ ] Marketplace accepts the custom repository.
 - [ ] Repository is identified as an integration.
 - [ ] Pre-release switch is enabled.
-- [ ] Install dialog offers `0.1.0-beta.7`.
+- [ ] Install dialog offers `0.1.0-beta.8`.
 - [ ] Integration installation completes.
 - [ ] Home Assistant starts normally.
 - [ ] No new import/setup errors for `home_assistant_health_manager` appear.
@@ -499,9 +499,9 @@ Next action:
 
 The beta exists specifically to enable controlled installation and live testing. Do not require live HA OS test results before publishing this clearly labeled pre-release; those results are the purpose of the beta.
 
-Before publishing `0.1.0-beta.7`, verify:
+Before publishing `0.1.0-beta.8`, verify:
 
-1. The manifest version is exactly `0.1.0-beta.7` and the Git tag uses the same value.
+1. The manifest version is exactly `0.1.0-beta.8` and the Git tag uses the same value.
 2. The GitHub release is explicitly marked **pre-release**.
 3. The release notes identify this as a feature beta and state that live HA OS validation is outstanding.
 4. The latest GitHub Actions run passes Python syntax and unit tests, hassfest, and HACS validation on the exact tagged commit.
