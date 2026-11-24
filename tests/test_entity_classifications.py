@@ -202,8 +202,12 @@ def test_manual_interval_still_allows_event_triggered_review():
         {}, "sensor.example", "expected", "Seasonal source.", now=NOW
     )
     manual = CLASSIFICATIONS.set_review_interval(stored, "manual")
-    due = CLASSIFICATIONS.mark_entity_observations(manual, set(), now=NOW)
-    assert CLASSIFICATIONS.get_review_due_entities(due, now=NOW) == ["sensor.example"]
+    missing = CLASSIFICATIONS.mark_entity_observations(manual, set(), now=NOW)
+    after_grace = datetime(2026, 11, 18, 12, 16, tzinfo=timezone.utc)
+    due = CLASSIFICATIONS.mark_entity_observations(
+        missing, set(), now=after_grace
+    )
+    assert CLASSIFICATIONS.get_review_due_entities(due, now=after_grace) == ["sensor.example"]
 
 
 def test_bulk_review_confirmation_clears_due_without_changing_classification_or_reason():
@@ -227,7 +231,11 @@ def test_explicit_classification_update_clears_outstanding_review_triggers():
     stored = CLASSIFICATIONS.set_entity_classification(
         {}, "sensor.example", "expected", "Seasonal device.", now=NOW
     )
-    flagged = CLASSIFICATIONS.mark_entity_observations(stored, set(), now=NOW)
+    missing = CLASSIFICATIONS.mark_entity_observations(stored, set(), now=NOW)
+    flagged = CLASSIFICATIONS.mark_entity_observations(
+        missing, set(),
+        now=datetime(2026, 11, 18, 12, 16, tzinfo=timezone.utc),
+    )
     assert flagged["entities"]["sensor.example"]["review_due"] is True
     updated = CLASSIFICATIONS.set_entity_classification(
         flagged, "sensor.example", "actionable", "Now needs attention.", now=NOW
@@ -272,3 +280,108 @@ def test_malformed_unhashable_values_in_persisted_store_are_ignored_safely():
         pass
     else:
         raise AssertionError("unhashable review interval should be rejected")
+
+
+
+def test_short_missing_and_return_during_restart_grace_does_not_trigger_review():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Restored after restart.", now=NOW
+    )
+    missing = CLASSIFICATIONS.mark_entity_observations(
+        stored, set(), now=NOW, missing_grace_minutes=15
+    )
+    assert missing["entities"]["sensor.example"]["entity_missing"] is True
+    assert missing["entities"]["sensor.example"]["review_due"] is False
+    returned_at = datetime(2026, 11, 18, 12, 5, tzinfo=timezone.utc)
+    returned = CLASSIFICATIONS.mark_entity_observations(
+        missing, {"sensor.example"}, now=returned_at, missing_grace_minutes=15
+    )
+    record = returned["entities"]["sensor.example"]
+    assert record["entity_missing"] is False
+    assert record["review_due"] is False
+    assert record["last_presence_recovery"] == "within_grace_period"
+    assert record["last_missing_duration_seconds"] == 300.0
+    assert CLASSIFICATIONS.get_review_due_entities(returned, now=returned_at) == []
+
+
+def test_entity_still_missing_after_grace_period_triggers_review():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Should return after restart.", now=NOW
+    )
+    missing = CLASSIFICATIONS.mark_entity_observations(
+        stored, set(), now=NOW, missing_grace_minutes=10
+    )
+    still_missing_at = datetime(2026, 11, 18, 12, 11, tzinfo=timezone.utc)
+    due = CLASSIFICATIONS.mark_entity_observations(
+        missing, set(), now=still_missing_at, missing_grace_minutes=10
+    )
+    record = due["entities"]["sensor.example"]
+    assert record["entity_missing"] is True
+    assert record["review_due"] is True
+    assert record["review_due_reason"] == "entity_missing"
+
+
+def test_return_after_grace_period_triggers_review():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Unexpectedly absent.", now=NOW
+    )
+    missing = CLASSIFICATIONS.mark_entity_observations(
+        stored, set(), now=NOW, missing_grace_minutes=10
+    )
+    returned_at = datetime(2026, 11, 18, 12, 11, tzinfo=timezone.utc)
+    returned = CLASSIFICATIONS.mark_entity_observations(
+        missing, {"sensor.example"}, now=returned_at, missing_grace_minutes=10
+    )
+    record = returned["entities"]["sensor.example"]
+    assert record["entity_missing"] is False
+    assert record["review_due"] is True
+    assert record["review_due_reason"] == "entity_returned"
+
+
+def test_legacy_brief_restart_missing_return_flags_are_reconciled_without_reclassification():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Expected during restart.", now=NOW
+    )
+    record = stored["entities"]["sensor.example"]
+    record.update({
+        "review_due": True,
+        "review_due_reason": "entity_returned",
+        "review_due_reasons": ["entity_missing", "entity_returned"],
+        "review_due_at": NOW.isoformat(),
+        "entity_missing": False,
+        "missing_since": NOW.isoformat(),
+        "returned_at": datetime(2026, 11, 18, 12, 5, tzinfo=timezone.utc).isoformat(),
+    })
+    current = datetime(2026, 11, 18, 12, 6, tzinfo=timezone.utc)
+    result = CLASSIFICATIONS.mark_entity_observations(
+        stored, {"sensor.example"}, now=current, missing_grace_minutes=15
+    )
+    updated = result["entities"]["sensor.example"]
+    assert updated["review_due"] is False
+    assert updated["classification"] == "expected"
+    assert updated["reason"] == "Expected during restart."
+    assert updated["last_presence_recovery"] == "within_grace_period"
+    assert updated["last_missing_duration_seconds"] == 300.0
+
+
+def test_legacy_restart_reconciliation_preserves_other_review_triggers():
+    stored = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.example", "expected", "Keep source changes reviewable.", now=NOW
+    )
+    record = stored["entities"]["sensor.example"]
+    record.update({
+        "review_due": True,
+        "review_due_reason": "source_changed",
+        "review_due_reasons": ["entity_missing", "entity_returned", "source_changed"],
+        "entity_missing": False,
+        "missing_since": NOW.isoformat(),
+        "returned_at": datetime(2026, 11, 18, 12, 5, tzinfo=timezone.utc).isoformat(),
+    })
+    result = CLASSIFICATIONS.mark_entity_observations(
+        stored, {"sensor.example"},
+        now=datetime(2026, 11, 18, 12, 6, tzinfo=timezone.utc),
+        missing_grace_minutes=15,
+    )
+    updated = result["entities"]["sensor.example"]
+    assert updated["review_due"] is True
+    assert "source_changed" in updated["review_due_reasons"]

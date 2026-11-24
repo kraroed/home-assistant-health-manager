@@ -104,8 +104,52 @@ def _flag_review(record, reason, timestamp):
     record["review_due_reasons"] = reasons
     record["review_due_at"] = timestamp
 
-def mark_entity_observations(stored, present_entity_ids, *, entity_sources=None, entity_states=None, now=None):
-    """Track presence, source identity and availability transitions for review."""
+def _missing_duration_seconds(missing_since, now):
+    """Return a non-negative missing duration, or None for invalid timestamps."""
+    try:
+        started = datetime.fromisoformat(missing_since)
+        current = now if isinstance(now, datetime) else datetime.fromisoformat(now)
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=timezone.utc)
+        return max(0.0, (current - started).total_seconds())
+    except (TypeError, ValueError):
+        return None
+
+
+def _clear_transient_missing_review(record, grace_minutes):
+    """Clear legacy review flags caused only by a brief missing/return cycle."""
+    reasons = record.get("review_due_reasons", [])
+    if not isinstance(reasons, list):
+        return
+    reason_set = {reason for reason in reasons if isinstance(reason, str)}
+    if len(reason_set) != len(reasons) or reason_set != {"entity_missing", "entity_returned"}:
+        return
+    duration = _missing_duration_seconds(
+        record.get("missing_since"), record.get("returned_at")
+    )
+    if duration is None or duration >= max(1, int(grace_minutes)) * 60:
+        return
+    record["review_due"] = False
+    record.pop("review_due_reason", None)
+    record.pop("review_due_reasons", None)
+    record.pop("review_due_at", None)
+    record["last_missing_duration_seconds"] = round(duration, 1)
+    record["last_presence_recovery"] = "within_grace_period"
+    record["last_presence_recovery_at"] = record.get("returned_at")
+
+
+def mark_entity_observations(
+    stored, present_entity_ids, *, entity_sources=None, entity_states=None,
+    now=None, missing_grace_minutes=15,
+):
+    """Track presence, source identity and availability transitions for review.
+
+    Short missing/return cycles are retained as observations but do not require
+    classification review. A continuously missing entity, or a return after the
+    grace period, remains review-worthy.
+    """
     data = normalize_classifications(stored)
     present = set(present_entity_ids)
     sources = entity_sources or {}
@@ -113,11 +157,22 @@ def mark_entity_observations(stored, present_entity_ids, *, entity_sources=None,
     timestamp = _now_iso(now)
     for entity_id, record in data["entities"].items():
         if entity_id in present:
+            _clear_transient_missing_review(record, missing_grace_minutes)
             if record.get("entity_missing"):
+                duration = _missing_duration_seconds(
+                    record.get("missing_since"), now or timestamp
+                )
                 record["entity_missing"] = False
                 record["returned_at"] = timestamp
                 record["last_seen"] = timestamp
-                _flag_review(record, "entity_returned", timestamp)
+                if duration is not None:
+                    record["last_missing_duration_seconds"] = round(duration, 1)
+                grace_seconds = max(1, int(missing_grace_minutes)) * 60
+                if duration is None or duration >= grace_seconds:
+                    _flag_review(record, "entity_returned", timestamp)
+                else:
+                    record["last_presence_recovery"] = "within_grace_period"
+                    record["last_presence_recovery_at"] = timestamp
             elif not record.get("last_seen"):
                 record["last_seen"] = timestamp
             source = sources.get(entity_id, {})
@@ -144,7 +199,17 @@ def mark_entity_observations(stored, present_entity_ids, *, entity_sources=None,
         elif not record.get("entity_missing"):
             record["entity_missing"] = True
             record["missing_since"] = timestamp
-            _flag_review(record, "entity_missing", timestamp)
+            record["missing_review_due_after"] = (
+                datetime.fromisoformat(timestamp)
+                + timedelta(minutes=max(1, int(missing_grace_minutes)))
+            ).isoformat()
+        else:
+            duration = _missing_duration_seconds(
+                record.get("missing_since"), now or timestamp
+            )
+            grace_seconds = max(1, int(missing_grace_minutes)) * 60
+            if duration is None or duration >= grace_seconds:
+                _flag_review(record, "entity_missing", timestamp)
     return data
 
 def set_review_interval(stored, interval):

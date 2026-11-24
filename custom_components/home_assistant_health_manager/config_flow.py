@@ -2,7 +2,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 
-from .const import DEFAULT_NAME, DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES, DOMAIN
+from .const import DEFAULT_NAME, DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES, DEFAULT_CLASSIFICATION_MISSING_GRACE_MINUTES, DOMAIN
 
 
 class HealthManagerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -38,6 +38,7 @@ class HealthManagerOptionsFlow(config_entries.OptionsFlowWithReload):
             vol.Optional("monthly_reviews", default=options.get("monthly_reviews", True)): bool,
             vol.Optional("include_core_log", default=options.get("include_core_log", True)): bool,
             vol.Optional("classification_review_notifications", default=options.get("classification_review_notifications", False)): bool,
+            vol.Optional("classification_missing_grace_minutes", default=options.get("classification_missing_grace_minutes", DEFAULT_CLASSIFICATION_MISSING_GRACE_MINUTES)): vol.All(int, vol.Range(min=1, max=120)),
             vol.Optional("retention_days", default=options.get("retention_days", 90)): vol.All(int, vol.Range(min=7, max=365)),
             vol.Optional("unavailable_persistence_minutes", default=options.get("unavailable_persistence_minutes", DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES)): vol.All(int, vol.Range(min=5, max=1440)),
             vol.Optional("group_related_unavailable_entities", default=options.get("group_related_unavailable_entities", True)): bool,

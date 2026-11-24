@@ -11,7 +11,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .collector import collect_snapshot, read_core_log
 from .compatibility import assess_compatibility
-from .const import DOMAIN, REPORT_DIR, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL, DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES
+from .const import DOMAIN, REPORT_DIR, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL, DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES, DEFAULT_CLASSIFICATION_MISSING_GRACE_MINUTES
 from .history import summarize_issue_history, update_issue_history
 from .change_history import update_change_history
 from .collection_coverage import build_collection_coverage
@@ -247,6 +247,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             updated = mark_entity_observations(
                 self.entity_classifications, present_ids,
                 entity_sources=entity_sources, entity_states=entity_states,
+                missing_grace_minutes=self.entry.options.get(
+                    "classification_missing_grace_minutes",
+                    DEFAULT_CLASSIFICATION_MISSING_GRACE_MINUTES,
+                ),
             )
             if updated != self.entity_classifications:
                 await self.classification_store.async_save(updated)
