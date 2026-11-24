@@ -123,8 +123,8 @@ def _clear_transient_missing_review(record, grace_minutes):
     reasons = record.get("review_due_reasons", [])
     if not isinstance(reasons, list):
         return
-    reason_set = set(reasons)
-    if reason_set != {"entity_missing", "entity_returned"}:
+    reason_set = {reason for reason in reasons if isinstance(reason, str)}
+    if len(reason_set) != len(reasons) or reason_set != {"entity_missing", "entity_returned"}:
         return
     duration = _missing_duration_seconds(
         record.get("missing_since"), record.get("returned_at")
