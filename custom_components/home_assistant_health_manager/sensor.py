@@ -17,6 +17,7 @@ SENSORS = [
     ("integration_details", "Integration Details", None, None),
     ("investigation_details", "Investigation Details", None, None),
     ("diagnostic_details", "Diagnostic Details", None, None),
+    ("report_verification", "Diagnostic Report Verification", None, None),
     *[(f"repair_plan_page_{page}", f"Repair Plan Page {page}", "items", SensorStateClass.MEASUREMENT) for page in range(1, 11)],
     ("active_issues", "Active Issues", "issues", SensorStateClass.MEASUREMENT),
     ("unavailable_entity_count", "Unavailable Entities", "entities", SensorStateClass.MEASUREMENT),
@@ -162,6 +163,9 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
+        if self.key == "report_verification":
+            return data.get("report_verification", {})
+
         if self.key.startswith("detail_page_"):
             try:
                 collection_key, page_text = self.key[len("detail_page_"):].rsplit("_", 1)
@@ -171,6 +175,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 return 0
         if self.key == "health_overview":
             return data.get("status", "unknown")
+        if self.key == "report_verification":
+            return data.get("report_verification", {}).get("status", "missing")
         if self.key == "compatibility_status":
             return data.get("compatibility_assessment", {}).get("overall_status", "not_assessed")
         if self.key == "integration_attention_domains":
@@ -228,6 +234,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
             attributes,
             report_path=data.get("last_report_path"),
             entity_key=self.key,
+            report_verified=data.get("report_verification", {}).get("status") == "verified",
         )
 
     @property
