@@ -15,10 +15,20 @@ class RecordTooLargeError(ValueError):
 
 def json_attribute_size(attributes: Mapping[str, Any]) -> int:
     """Return the UTF-8 byte length of a JSON-serialized attribute mapping."""
-    return len(json.dumps(attributes, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    return len(
+        json.dumps(
+            attributes, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+        ).encode("utf-8")
+    )
 
 
-def pack_json_records(records: Sequence[Mapping[str, Any]], *, attribute_key: str = "items", metadata: Mapping[str, Any] | None = None, max_bytes: int = DEFAULT_ATTRIBUTE_BUDGET) -> list[list[Mapping[str, Any]]]:
+def pack_json_records(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    attribute_key: str = "items",
+    metadata: Mapping[str, Any] | None = None,
+    max_bytes: int = DEFAULT_ATTRIBUTE_BUDGET,
+) -> list[list[Mapping[str, Any]]]:
     """Pack records into pages without dropping or truncating records."""
     if max_bytes <= 0:
         raise ValueError("max_bytes must be positive")
@@ -41,13 +51,22 @@ def pack_json_records(records: Sequence[Mapping[str, Any]], *, attribute_key: st
         current = [record]
         size = json_attribute_size(payload(current))
         if size > max_bytes:
-            raise RecordTooLargeError(f"Record {index} requires {size} bytes; page budget is {max_bytes}")
+            raise RecordTooLargeError(
+                f"Record {index} requires {size} bytes; page budget is {max_bytes}"
+            )
     if current or not pages:
         pages.append(current)
     return pages
 
 
-def recorder_safe_attributes(attributes: Mapping[str, Any], *, report_path: str | None, entity_key: str, report_verified: bool = False, max_bytes: int = DEFAULT_ATTRIBUTE_BUDGET) -> dict[str, Any]:
+def recorder_safe_attributes(
+    attributes: Mapping[str, Any],
+    *,
+    report_path: str | None,
+    entity_key: str,
+    report_verified: bool = False,
+    max_bytes: int = DEFAULT_ATTRIBUTE_BUDGET,
+) -> dict[str, Any]:
     """Return safe attributes or an explicit overflow reference.
 
     A path is metadata, not proof of preservation. Callers may set
@@ -74,9 +93,9 @@ def recorder_safe_attributes(attributes: Mapping[str, Any], *, report_path: str 
         "full_details_report": report_path,
         "report_verification_status": "verified" if verified else "unverified",
         "note": (
-            "Attributes exceeded the Recorder-safe budget. No records were truncated; the diagnostic report was verified."
-            if verified else
-            "Attributes exceeded the Recorder-safe budget. No records were truncated, but the diagnostic report is not verified. Review report verification before relying on preservation."
+            "Overflow: report verified."
+            if verified
+            else "Overflow: report not verified; preservation is unconfirmed."
         ),
     }
     if json_attribute_size(fallback) > max_bytes:
