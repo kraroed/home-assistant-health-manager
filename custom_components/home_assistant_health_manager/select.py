@@ -363,7 +363,17 @@ class EntityClassificationReviewSelect(CoordinatorEntity, SelectEntity):
             "missing_since": record.get("missing_since"),
             "missing_review_due_after": record.get("missing_review_due_after"),
             "last_missing_duration_seconds": record.get("last_missing_duration_seconds"),
+            "last_missing_duration_minutes": (
+                round(record["last_missing_duration_seconds"] / 60, 1)
+                if isinstance(record.get("last_missing_duration_seconds"), (int, float))
+                else None
+            ),
             "last_presence_recovery": record.get("last_presence_recovery"),
+            "last_presence_recovery_label": {
+                "within_grace_period": "Recovered within grace period",
+                "after_grace_period": "Returned after grace period",
+                "duration_unknown": "Recovery duration unknown",
+            }.get(record.get("last_presence_recovery")),
             "last_presence_recovery_at": record.get("last_presence_recovery_at"),
             "source_domain": record.get("source_domain"),
             "source_unique_id": record.get("source_unique_id"),
