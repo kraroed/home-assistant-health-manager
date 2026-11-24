@@ -987,3 +987,17 @@ def test_unavailable_duration_uses_home_assistant_state_last_changed():
     observer = (INTEGRATION / "availability_observer.py").read_text(encoding="utf-8")
     assert '"last_changed": state.last_changed.isoformat()' in coordinator
     assert 'state_changed_at = _timestamp(item.get("last_changed"))' in observer
+
+
+def test_classification_missing_grace_period_is_configurable_and_used():
+    config = (INTEGRATION / "config_flow.py").read_text(encoding="utf-8")
+    const = (INTEGRATION / "const.py").read_text(encoding="utf-8")
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))
+    translations = json.loads((INTEGRATION / "translations" / "en.json").read_text(encoding="utf-8"))
+    assert "DEFAULT_CLASSIFICATION_MISSING_GRACE_MINUTES = 15" in const
+    assert "classification_missing_grace_minutes" in config
+    assert "vol.Range(min=1, max=120)" in config
+    assert "missing_grace_minutes=self.entry.options.get(" in coordinator
+    assert "classification_missing_grace_minutes" in strings["options"]["step"]["init"]["data"]
+    assert "classification_missing_grace_minutes" in translations["options"]["step"]["init"]["data"]
