@@ -25,6 +25,10 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 - `home_assistant_health_manager.set_entity_classification`, `remove_entity_classification`, and `review_entity_classifications` (manage user-approved entity classifications and review records)
 - `home_assistant_health_manager.set_classification_review_interval` (configure 30-, 60-, 90-day, or manual review cadence)
 
+## Entity classification review
+
+Saved entity classifications are retained independently of diagnostic reports. Brief missing/return cycles during Home Assistant restarts are recorded but do not trigger review by default. The configurable **Entity classification missing grace period** defaults to 15 minutes (1–120 minutes); entities still missing beyond that period, or returning after a prolonged absence, trigger review. Source identity changes and availability transitions remain review triggers. A short legacy missing/return pair is reconciled without changing the saved classification or explanation.
+
 ## AI repair and validation prompt
 
 Every generated report includes a standalone `*_ai_repair_prompt.md` file, also bundled in the report ZIP. The `generate_ai_repair_prompt` service creates a fresh report and fires the `home_assistant_health_manager_ai_repair_prompt_created` event with the report and prompt file paths. The prompt is copy-ready for an AI assistant or agent and includes a bounded, redacted diagnostic summary, platform versions/update state, configured integration-domain inventory, and the integration's findings. It asks the AI to verify the live installation, research current official documentation and release notes, cite version-specific sources, explain risks and rollback, guide one repair at a time, and validate each approved change. It explicitly forbids changes without the user's separate approval.
