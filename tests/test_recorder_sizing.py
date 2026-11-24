@@ -85,3 +85,15 @@ def test_oversized_attributes_without_report_are_explicitly_flagged():
     assert safe["recorder_attribute_overflow"] is True
     assert safe["details_preserved_in_report"] is False
     assert "Run diagnostics" in safe["note"]
+
+
+
+def test_report_path_alone_does_not_claim_details_preserved():
+    safe = recorder_safe_attributes(
+        {"records": [{"detail": "x" * 1000}]},
+        report_path="/config/health_manager/reports/health_report.zip",
+        entity_key="diagnostic_details",
+        max_bytes=500,
+    )
+    assert safe["details_preserved_in_report"] is False
+    assert safe["report_verification_status"] == "unverified"
