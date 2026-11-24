@@ -104,3 +104,18 @@ def test_directory_at_report_path_is_unreadable(tmp_path):
     assert result["status"] == "unreadable"
     assert result["exists"] is True
     assert result["readable"] is False
+
+
+def test_permission_error_is_reported_as_unreadable(tmp_path, monkeypatch):
+    path = tmp_path / "permission_denied.zip"
+    _make_report(path)
+
+    def raise_permission_error(_path):
+        raise PermissionError("permission denied")
+
+    monkeypatch.setattr(MODULE.zipfile, "is_zipfile", raise_permission_error)
+    result = verify_report(tmp_path, str(path))
+    assert result["status"] == "unreadable"
+    assert result["exists"] is True
+    assert result["readable"] is False
+    assert "permission denied" in result["error"]
