@@ -298,7 +298,7 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 "detail_entities": [
                     "sensor.unavailable_details", "sensor.unknown_details",
                     "sensor.integration_details", "sensor.investigation_details",
-                    "sensor.diagnostic_details",
+                    "sensor.diagnostic_details", "sensor.report_verification",
                 ],
                 "repair_plan_item_count": data.get("repair_plan", {}).get("item_count", 0),
                 "repair_plan_page_count": min(
