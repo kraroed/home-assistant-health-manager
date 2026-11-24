@@ -1,16 +1,32 @@
 import json
 import zipfile
 
-from importlib.util import module_from_spec, spec_from_file_location\nfrom pathlib import Path\n\nMODULE_PATH = Path(__file__).parents[1] / "custom_components" / "home_assistant_health_manager" / "report_verification.py"\nSPEC = spec_from_file_location("health_manager_report_verification", MODULE_PATH)\nMODULE = module_from_spec(SPEC)\nSPEC.loader.exec_module(MODULE)\nverify_report = MODULE.verify_report
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+
+MODULE_PATH = (
+    Path(__file__).parents[1]
+    / "custom_components"
+    / "home_assistant_health_manager"
+    / "report_verification.py"
+)
+SPEC = spec_from_file_location("health_manager_report_verification", MODULE_PATH)
+MODULE = module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+verify_report = MODULE.verify_report
 
 
 def _make_report(path, members=None):
-    with zipfile.ZipFile(path, "w") as archive:
-        for name, payload in (members or {
-            "health_report.json": json.dumps({"schema_version": 1, "system": {"entity_count": 1}}),
+    if members is None:
+        members = {
+            "health_report.json": json.dumps(
+                {"schema_version": 1, "system": {"entity_count": 1}}
+            ),
             "summary.txt": "summary",
             "ai_repair_prompt.md": "prompt",
-        }).items():
+        }
+    with zipfile.ZipFile(path, "w") as archive:
+        for name, payload in members.items():
             archive.writestr(name, payload)
 
 
@@ -50,6 +66,22 @@ def test_incomplete_report_is_not_verified(tmp_path):
     assert set(result["missing_members"]) == {"summary.txt", "ai_repair_prompt.md"}
 
 
+def test_invalid_json_report_is_not_verified(tmp_path):
+    path = tmp_path / "invalid_json.zip"
+    _make_report(
+        path,
+        {
+            "health_report.json": "{not valid JSON",
+            "summary.txt": "summary",
+            "ai_repair_prompt.md": "prompt",
+        },
+    )
+    result = verify_report(tmp_path, str(path))
+    assert result["status"] == "unreadable"
+    assert result["exists"] is True
+    assert result["readable"] is False
+
+
 def test_corrupt_archive_is_not_verified(tmp_path):
     path = tmp_path / "corrupt.zip"
     path.write_text("not a zip", encoding="utf-8")
@@ -63,7 +95,6 @@ def test_missing_path_is_not_verified(tmp_path):
     result = verify_report(tmp_path, None)
     assert result["status"] == "missing"
     assert result["path"] is None
-
 
 
 def test_directory_at_report_path_is_unreadable(tmp_path):
