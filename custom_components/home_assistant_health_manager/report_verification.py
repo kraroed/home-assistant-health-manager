@@ -70,8 +70,11 @@ def verify_report(report_directory: str | Path, report_path: str | None) -> dict
             else:
                 # Parse the JSON too: a ZIP entry's presence alone is insufficient.
                 import json
-                json.loads(archive.read("health_report.json"))
-                result.update(status="verified", readable=True, error=None)
+                report_data = json.loads(archive.read("health_report.json"))
+                if not isinstance(report_data, dict) or report_data.get("schema_version") != 1 or not isinstance(report_data.get("system"), dict):
+                    result.update(status="incomplete", error="The diagnostic JSON is missing its expected schema or system snapshot.")
+                else:
+                    result.update(status="verified", readable=True, error=None)
         return result
     except (OSError, zipfile.BadZipFile, RuntimeError, ValueError) as err:
         result.update(status="unreadable", error=f"Unable to verify report: {err}")
