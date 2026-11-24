@@ -1,0 +1,191 @@
+"""Explicit user-managed history for unavailable-entity investigations."""
+from datetime import datetime, timedelta, timezone
+
+VALID_STATUSES = {"needs_review", "investigating", "waiting", "resolved", "expected"}
+
+
+def _parse_now(value):
+    if not isinstance(value, str):
+        raise ValueError("now must be an ISO 8601 timestamp")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as err:
+        raise ValueError("now must be an ISO 8601 timestamp") from err
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def start_investigation(investigations, group, now):
+    """Create or refresh a record only in response to an explicit user action."""
+    now_dt = _parse_now(now)
+    if not isinstance(investigations, dict):
+        investigations = {}
+    if not isinstance(group, dict):
+        raise ValueError("Choose a current unavailable entity group first.")
+    group_id = group.get("group_id")
+    entity_ids = group.get("entity_ids")
+    if not isinstance(group_id, str) or not group_id or not isinstance(entity_ids, list) or not entity_ids:
+        raise ValueError("The selected unavailable entity group is incomplete.")
+
+    existing = find_current_investigation(investigations, group_id)
+    existing_id = existing.get("investigation_id") if isinstance(existing, dict) else None
+    if isinstance(existing, dict) and existing.get("status") in {"needs_review", "investigating", "waiting"}:
+        updated = dict(existing)
+        updated["entity_ids"] = sorted(set(entity_ids))
+        updated["status"] = "investigating"
+        updated.pop("next_reminder_at", None)
+        updated["title"] = str(group.get("title") or existing.get("title") or "Unavailable entities")[:1000]
+        updated["reason"] = "; ".join(group.get("evidence", []))[:1000]
+        updated["evidence"] = list(group.get("evidence", []))[:50]
+        updated["cause_confirmed"] = False
+        updated["confidence"] = group.get("confidence", "unassessed")
+        updated["group_type"] = group.get("group_type", "entity")
+        updated["device_name"] = group.get("device_name")
+        updated["device_manufacturer"] = group.get("device_manufacturer")
+        updated["device_model"] = group.get("device_model")
+        updated["source_domains"] = sorted(set(group.get("source_domains", [])))
+        updated["outage_started_at"] = group.get("earliest_unavailable_since")
+        updated["last_entity_returned_at"] = group.get("latest_entity_returned_at")
+        updated["updated_at"] = now_dt.isoformat()
+        result = dict(investigations)
+        result[existing_id] = updated
+        return result, existing_id
+
+    investigation_id = group_id
+    if isinstance(existing, dict):
+        investigation_id = f"{group_id}@{now_dt.strftime('%Y%m%dT%H%M%S%f')}"
+    record = {
+        "investigation_id": investigation_id,
+        "group_id": group_id,
+        "entity_ids": sorted(set(entity_ids)),
+        "title": str(group.get("title") or "Unavailable entities")[:1000],
+        "reason": "; ".join(group.get("evidence", []))[:1000],
+        "evidence": list(group.get("evidence", []))[:50],
+        "confidence": group.get("confidence", "unassessed"),
+        "group_type": group.get("group_type", "entity"),
+        "device_name": group.get("device_name"),
+        "device_manufacturer": group.get("device_manufacturer"),
+        "device_model": group.get("device_model"),
+        "source_domains": sorted(set(group.get("source_domains", []))),
+        "outage_started_at": group.get("earliest_unavailable_since"),
+        "last_entity_returned_at": group.get("latest_entity_returned_at"),
+        "cause_confirmed": False,
+        "status": "investigating",
+        "created_at": now_dt.isoformat(),
+        "updated_at": now_dt.isoformat(),
+    }
+    result = dict(investigations)
+    result[investigation_id] = record
+    return result, investigation_id
+
+
+def set_investigation_status(investigations, investigation_id, status, now, reminder_days=7, user_note=None):
+    """Persist an explicit user status; never changes entity classifications."""
+    now_dt = _parse_now(now)
+    if not isinstance(status, str) or status not in VALID_STATUSES:
+        raise ValueError("Unsupported unavailable investigation status.")
+    if not isinstance(investigations, dict) or not isinstance(investigations.get(investigation_id), dict):
+        raise ValueError("No unavailable investigation exists with that ID.")
+    result = dict(investigations)
+    record = dict(result[investigation_id])
+    record["status"] = status
+    record["updated_at"] = now_dt.isoformat()
+    record.pop("next_reminder_at", None)
+    record.pop("resolved_at", None)
+    if status == "waiting":
+        try:
+            days = min(30, max(1, int(reminder_days)))
+        except (TypeError, ValueError):
+            days = 7
+        record["next_reminder_at"] = (now_dt + timedelta(days=days)).isoformat()
+    if status == "resolved":
+        record["resolved_at"] = now_dt.isoformat()
+    if isinstance(user_note, str):
+        if user_note.strip():
+            record["user_note"] = user_note.strip()[:1000]
+        else:
+            record.pop("user_note", None)
+    result[investigation_id] = record
+    return result
+
+
+def summarize_investigations(investigations):
+    """Return a bounded dashboard summary of saved user investigation records."""
+    if not isinstance(investigations, dict):
+        investigations = {}
+    records = [
+        dict(record) for record in investigations.values()
+        if isinstance(record, dict) and record.get("status") in VALID_STATUSES
+    ]
+    records.sort(key=lambda item: item.get("updated_at", ""), reverse=True)
+    counts = {status: 0 for status in sorted(VALID_STATUSES)}
+    for record in records:
+        counts[record["status"]] += 1
+    return {
+        "unavailable_investigations": records[:100],
+        "unavailable_investigation_count": len(records),
+        "unavailable_investigation_status_counts": counts,
+        "unavailable_investigations_needing_review": counts["needs_review"],
+        "unavailable_investigations_in_progress": counts["investigating"],
+        "unavailable_investigations_waiting": counts["waiting"],
+        "unavailable_investigations_resolved": counts["resolved"],
+        "unavailable_investigations_expected": counts["expected"],
+    }
+
+
+
+def find_current_investigation(investigations, group_id):
+    """Find the latest saved record for a group, including reopened records."""
+    if not isinstance(investigations, dict) or not isinstance(group_id, str):
+        return None
+    direct = investigations.get(group_id)
+    matches = [
+        record for record in investigations.values()
+        if isinstance(record, dict) and record.get("group_id") == group_id
+    ]
+    if isinstance(direct, dict) and direct not in matches:
+        matches.append(direct)
+    if not matches:
+        return None
+    matches.sort(
+        key=lambda record: record.get("updated_at") or record.get("created_at") or "",
+        reverse=True,
+    )
+    return matches[0]
+
+
+
+def refresh_investigation_context(investigations, investigation_id, group):
+    """Acknowledge the latest observed evidence when a user updates status."""
+    if not isinstance(investigations, dict):
+        return {}
+    existing = investigations.get(investigation_id)
+    if not isinstance(existing, dict) or not isinstance(group, dict):
+        return dict(investigations)
+    expected_group_id = existing.get("group_id") or existing.get("investigation_id")
+    if group.get("group_id") != expected_group_id:
+        return dict(investigations)
+    updated = dict(existing)
+    updated["entity_ids"] = sorted(set(
+        entity_id for entity_id in group.get("entity_ids", [])
+        if isinstance(entity_id, str)
+    ))
+    updated["title"] = str(group.get("title") or updated.get("title") or "Unavailable entities")[:1000]
+    evidence = group.get("evidence", [])
+    if not isinstance(evidence, list):
+        evidence = []
+    updated["evidence"] = [item[:1000] for item in evidence if isinstance(item, str)][:50]
+    updated["reason"] = "; ".join(updated["evidence"])[:1000]
+    updated["confidence"] = group.get("confidence", "unassessed")
+    updated["group_type"] = group.get("group_type", "entity")
+    updated["device_name"] = group.get("device_name")
+    updated["device_manufacturer"] = group.get("device_manufacturer")
+    updated["device_model"] = group.get("device_model")
+    updated["source_domains"] = sorted({
+        item for item in group.get("source_domains", []) if isinstance(item, str)
+    })
+    updated["outage_started_at"] = group.get("earliest_unavailable_since")
+    updated["last_entity_returned_at"] = group.get("latest_entity_returned_at")
+    updated["cause_confirmed"] = False
+    result = dict(investigations)
+    result[investigation_id] = updated
+    return result

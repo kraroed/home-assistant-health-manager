@@ -14,6 +14,11 @@ cards:
 
       **Active issues:** {{ states('sensor.active_issues') }}
       **Unavailable (actionable / raw):** {{ states('sensor.actionable_unavailable_entities') }} / {{ states('sensor.unavailable_entities') }}
+      **Newly unavailable this refresh:** {{ states('sensor.newly_unavailable_entities') }}
+      **Persistent unavailable:** {{ states('sensor.persistent_unavailable_entities') }} / {{ states('sensor.tracked_unavailable_entities') }} tracked
+      **Missing tracked entities:** {{ states('sensor.missing_tracked_entities') }}
+      **Unavailable investigation groups:** {{ states('sensor.unavailable_investigation_groups') }}
+      **Investigations:** {{ states('sensor.unavailable_investigations') }} total · {{ states('sensor.unavailable_investigations_needing_review') }} review · {{ states('sensor.unavailable_investigations_in_progress') }} in progress · {{ states('sensor.unavailable_investigations_waiting') }} waiting · {{ states('sensor.unavailable_investigations_expected') }} expected
       **Unknown (actionable / raw):** {{ states('sensor.actionable_unknown_entities') }} / {{ states('sensor.unknown_entities') }}
       **Classification reviews due:** {{ states('sensor.classification_reviews_due') }}
       **Last assessment:** {{ state_attr('sensor.health_overview', 'last_assessment') or 'Not yet assessed' }}
@@ -25,6 +30,15 @@ cards:
       **Diagnostic trend:** {{ states('sensor.diagnostic_trend') | replace('_', ' ') | title }}
       **Diagnostic coverage:** {{ states('sensor.diagnostic_coverage') }}%
       **Compatibility:** {{ states('sensor.compatibility_status') | replace('_', ' ') | title }}
+
+      {% set groups = state_attr('sensor.health_overview', 'unavailable_investigation_groups') or [] %}
+      **Unavailable entity groups needing review**
+      {% for group in groups[:8] %}
+      - **{{ group.title }}** ({{ group.confidence }}) — {{ group.entity_ids | join(', ') }}
+        - Evidence: {{ group.evidence | join('; ') }}
+      {% else %}
+      - No unavailable entity groups currently meet the grouping criteria
+      {% endfor %}
 
       {% set attention = state_attr('sensor.health_status', 'integration_attention_domains') or [] %}
       **Integration attention areas**
@@ -45,6 +59,46 @@ cards:
         name: Active issues
       - entity: sensor.unavailable_entities
         name: Unavailable (raw)
+      - entity: sensor.tracked_unavailable_entities
+        name: Tracked unavailable
+      - entity: sensor.newly_unavailable_entities
+        name: Newly unavailable this refresh
+      - entity: sensor.persistent_unavailable_entities
+        name: Persistent unavailable
+      - entity: sensor.missing_tracked_entities
+        name: Missing tracked entities
+      - entity: sensor.unavailable_investigation_groups
+        name: Unavailable investigation groups
+      - entity: sensor.unavailable_investigations
+        name: Saved unavailable investigations
+      - entity: sensor.unavailable_investigations_needing_review
+        name: Unavailable investigations needing review
+      - entity: sensor.unavailable_entity_history_events
+        name: Unavailable entity history events
+      - entity: sensor.unavailable_investigations_in_progress
+        name: Unavailable investigations in progress
+      - entity: sensor.unavailable_investigations_waiting
+        name: Unavailable investigations waiting
+      - entity: sensor.unavailable_investigations_expected
+        name: Unavailable investigations expected
+      - entity: sensor.unavailable_investigations_resolved
+        name: Unavailable investigations resolved
+      - entity: sensor.selected_unavailable_investigation
+        name: Selected unavailable investigation
+      - entity: select.unavailable_group_to_investigate
+        name: Persistent unavailable group to investigate
+      - entity: button.start_unavailable_investigation
+        name: Start selected group investigation
+      - entity: text.unavailable_entity_to_investigate
+        name: Entity ID for immediate manual investigation
+      - entity: button.start_manual_unavailable_investigation
+        name: Start immediate manual investigation
+      - entity: select.unavailable_investigation_to_update
+        name: Unavailable investigation to update
+      - entity: select.unavailable_investigation_status
+        name: Unavailable investigation status
+      - entity: text.unavailable_investigation_note
+        name: Unavailable investigation note
       - entity: sensor.actionable_unavailable_entities
         name: Unavailable (actionable)
       - entity: sensor.unknown_entities
@@ -290,3 +344,45 @@ Use the **Entity Classification to Review** selector to inspect a saved record. 
 To create or change a classification in the dashboard, enter an existing entity ID in **Entity ID to Classify** (or choose an existing saved record in **Entity Classification to Review**), choose the value in **Classification Value**, enter a meaningful explanation in **Entity Classification Reason**, then press **Apply Entity Classification**. The reason is required. To remove only the saved classification, select the entity and press **Remove Entity Classification**. This removes only the saved metadata; it does not delete or alter the Home Assistant entity. The equivalent explicit services remain available: `home_assistant_health_manager.set_entity_classification` and `home_assistant_health_manager.remove_entity_classification`. A classification is never changed automatically.
 
 Scheduled review cadence is configured with the **Classification Review Interval** selector (`30`, `60`, `90`, or `manual`); the equivalent service is `home_assistant_health_manager.set_classification_review_interval`. Manual disables calendar-based reviews but event-triggered reviews remain active. Optional persistent notifications are disabled by default; enable **Entity classification review notifications** in the integration options to receive one notification when the set of due entities changes. The notification is updated rather than repeated for an unchanged set and is dismissed when no reviews remain due.
+
+
+## Unavailable entity observation and grouping
+
+The integration keeps a separate local observation store for entities that become unavailable. The default persistence threshold is 60 minutes and can be adjusted in the integration options (5 minutes to 24 hours). Shorter outages remain visible in the raw unavailable count but do not enter the persistent-unavailable count until the threshold is reached.
+
+An entity that disappears from the state registry is recorded as missing, not recovered. Its original unavailable timestamp is retained. Recovery is recorded only when the entity is seen again in a non-unavailable state.
+
+The overview lists groups only after the configured persistence threshold has been reached, and only when there is supporting association evidence: multiple entities on the same registered device, multiple entities from an integration with a setup error/retry, or multiple entities from one integration whose unavailable transitions began within five minutes. Same-integration entities with no such evidence remain separate. Grouping can be disabled in the options. A group is an investigation lead, not a confirmed root cause; every group remains subject to user review and no entity is automatically classified or suppressed.
+
+
+## Managing unavailable-entity investigations
+
+Use **Start Unavailable Investigation** to begin tracking a persistent group. This records your decision locally; it does not alter Home Assistant entities or their classifications. For a transient outage that needs immediate attention, the `home_assistant_health_manager.start_unavailable_investigation` service accepts an explicit list of currently unavailable entity IDs and bypasses the persistence threshold.
+
+Use **Unavailable Investigation to Update** to inspect saved records, then **Unavailable Investigation Status** to choose `needs_review`, `investigating`, `waiting`, `resolved`, or `expected`. The `waiting` status schedules a reminder using the configured interval. An `expected` status is only a user tracking decision; it does not suppress the entity from health counts or create an entity classification. The Health Overview exposes the saved records, status counts, evidence, and reminder timestamps.
+
+## Unavailable entity investigations
+
+Automatic unavailable-entity groups appear only after the configured persistence threshold. Select a group in **Persistent Unavailable Group to Investigate**, then press **Start Selected Group Investigation**. For an outage that needs attention before the threshold, enter one currently unavailable entity ID in **Entity ID for Immediate Manual Investigation** and press **Start Immediate Manual Investigation**. The equivalent service supports multiple entity IDs:
+
+```yaml
+action: home_assistant_health_manager.start_unavailable_investigation
+data:
+  entity_ids:
+    - sensor.example
+```
+
+Choose a saved record in **Unavailable Investigation to Update**, enter an optional note, then choose a status:
+
+- `needs_review` — awaiting your review
+- `investigating` — you are actively investigating it
+- `waiting` — defer it; a reminder is scheduled using the configured interval
+- `resolved` — your tracking decision that the issue is resolved
+- `expected` — your decision that this outage is expected in its current context
+
+`Resolved` and `Expected` are not technical verification, entity classifications, or suppression rules. Raw and actionable unavailable counts continue to include those entities. A changed group membership, changed evidence, or a new outage cycle can prompt another review. Investigation history is retained separately from entity classifications and diagnostic report history.
+
+Persistent notifications can be enabled in the integration options. They update when the due group set or its evidence changes, and reminders follow the configured interval. The notification does not attempt repairs.
+
+
+The **Unavailable Entity History Events** sensor exposes the latest 100 retained transition and investigation events as attributes, including new outages, recoveries, missing/returned entities, source changes, and user status updates. The full local event store retains up to 1,000 events.

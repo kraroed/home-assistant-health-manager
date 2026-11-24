@@ -32,6 +32,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_remove(DOMAIN, "generate_ai_repair_prompt")
         hass.services.async_remove(DOMAIN, "generate_focused_repair_prompt")
         hass.services.async_remove(DOMAIN, "set_repair_investigation_status")
+        hass.services.async_remove(DOMAIN, "start_unavailable_investigation")
+        hass.services.async_remove(DOMAIN, "set_unavailable_investigation_status")
         hass.services.async_remove(DOMAIN, "set_entity_classification")
         hass.services.async_remove(DOMAIN, "remove_entity_classification")
         hass.services.async_remove(DOMAIN, "set_classification_review_interval")

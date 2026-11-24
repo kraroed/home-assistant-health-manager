@@ -1,15 +1,17 @@
 import asyncio
+import hashlib
+import json
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import logging
 
 from homeassistant.helpers.storage import Store
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .collector import collect_snapshot, read_core_log
 from .compatibility import assess_compatibility
-from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL
+from .const import DOMAIN, REPORT_DIR, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL, DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES
 from .history import summarize_issue_history, update_issue_history
 from .change_history import update_change_history
 from .collection_coverage import build_collection_coverage
@@ -18,6 +20,7 @@ from .integration_trends import summarize_integration_trends, update_integration
 from .log_analyzer import analyze_log
 from .recommendations import add_integration_trend_recommendations, add_recurring_issue_recommendations, build_recommendations
 from .redactor import redact_object, redact_text
+from .report_verification import verify_report
 from .report import (
     async_commit_focused_prompt,
     async_commit_report,
@@ -31,6 +34,17 @@ from .repair_plan import build_repair_plan
 from .focused_repair_prompt import build_focused_repair_prompt
 from .investigation_history import record_investigation, set_investigation_status, summarize_investigations
 from .storage import normalize_schedule_data
+from .availability_storage import normalize_availability_data
+from .availability_observer import observe_unavailable_entities
+from .availability_grouping import build_unavailable_groups
+from .availability_investigations import (
+    start_investigation as start_unavailable_investigation,
+    set_investigation_status as set_unavailable_investigation_status,
+    summarize_investigations as summarize_unavailable_investigations,
+    find_current_investigation as find_current_unavailable_investigation,
+    find_current_investigation,
+    refresh_investigation_context,
+)
 from .entity_classifications import (
     normalize_classifications,
     set_entity_classification,
@@ -51,6 +65,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
         # Keep user classifications isolated from diagnostic/report history.
         self.classification_store = Store(hass, 1, f'{DOMAIN}_entity_classifications')
+        # Keep availability observations separate from reports and classifications.
+        self.availability_store = Store(hass, 1, f'{DOMAIN}_availability_investigations')
+        self.availability_data = normalize_availability_data({})
+        self.availability_summary = {}
         self.entity_classifications = normalize_classifications({})
         self.schedule = {}
         self.last_report_path = None
@@ -60,6 +78,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.selected_entity_classification_id = None
         self.selected_entity_classification = None
         self.selected_entity_classification_reason = ""
+        self.selected_unavailable_group_id = None
+        self.selected_unavailable_investigation_id = None
+        self.selected_manual_unavailable_entity_id = None
+        self.selected_unavailable_investigation_note = ""
         self._schedule_unsub = None
         self._report_lock = asyncio.Lock()
         self._state_lock = asyncio.Lock()
@@ -70,12 +92,26 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self.schedule = normalize_schedule_data(stored_data)
         stored_classifications = await self.classification_store.async_load()
         self.entity_classifications = normalize_classifications(stored_classifications)
+        stored_availability = await self.availability_store.async_load()
+        self.availability_data = normalize_availability_data(stored_availability)
+        self.availability_summary = {
+            "persistent_unavailable_entity_ids": [],
+            "missing_tracked_entity_ids": [],
+            "persistent_unavailable_entity_count": 0,
+            "missing_tracked_entity_count": 0,
+            "tracked_unavailable_entity_count": 0,
+            "newly_unavailable_entity_ids": [],
+            "newly_unavailable_entity_count": 0,
+            "availability_observation_event_count": 0,
+        }
         await async_reconcile_report_transactions(
             self.hass, self.schedule.get("last_report_path")
         )
         await async_reconcile_focused_prompt_transactions(
             self.hass, self.schedule.get("investigation_history", [])
         )
+        if self.availability_data != stored_availability:
+            await self.availability_store.async_save(self.availability_data)
         if self.entity_classifications != stored_classifications:
             await self.classification_store.async_save(self.entity_classifications)
 
@@ -136,6 +172,62 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 self.entity_classifications = updated
         self.async_update_listeners()
         await self.async_notify_classification_reviews()
+
+    async def async_update_availability_observations(self, states):
+        """Persist unavailable durations and distinguish missing from recovered."""
+        entity_registry = er.async_get(self.hass)
+        device_registry = dr.async_get(self.hass)
+        current_entities = []
+        for state in states:
+            registry_entry = entity_registry.async_get(state.entity_id)
+            device_id = getattr(registry_entry, "device_id", None)
+            device = device_registry.async_get(device_id) if device_id else None
+            current_entities.append({
+                "entity_id": state.entity_id,
+                "state": state.state,
+                "last_changed": state.last_changed.isoformat(),
+                "source_domain": getattr(registry_entry, "platform", None),
+                "device_id": device_id,
+                "device_name": (
+                    getattr(device, "name_by_user", None) or getattr(device, "name", None)
+                    if device else None
+                ),
+                "device_manufacturer": getattr(device, "manufacturer", None) if device else None,
+                "device_model": getattr(device, "model", None) if device else None,
+            })
+        async with self._state_lock:
+            updated = observe_unavailable_entities(
+                self.availability_data,
+                current_entities,
+                datetime.now(timezone.utc).isoformat(),
+                self.entry.options.get(
+                    "unavailable_persistence_minutes",
+                    DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES,
+                ),
+            )
+            persisted = normalize_availability_data({
+                "schema_version": updated["schema_version"],
+                "observations": updated["observations"],
+                "investigations": self.availability_data.get("investigations", {}),
+                "events": updated["events"],
+            })
+            if persisted != self.availability_data:
+                await self.availability_store.async_save(persisted)
+                self.availability_data = persisted
+            self.availability_summary = {
+                "persistent_unavailable_entity_ids": updated["persistent_entity_ids"],
+                "missing_tracked_entity_ids": updated["missing_entity_ids"],
+                "persistent_unavailable_entity_count": len(updated["persistent_entity_ids"]),
+                "missing_tracked_entity_count": len(updated["missing_entity_ids"]),
+                "newly_unavailable_entity_ids": updated["newly_unavailable_entity_ids"],
+                "newly_unavailable_entity_count": len(updated["newly_unavailable_entity_ids"]),
+                "tracked_unavailable_entity_count": sum(
+                    1 for record in self.availability_data["observations"].values()
+                    if record.get("state") == "unavailable" and record.get("present") is True
+                ),
+                "availability_observation_event_count": len(self.availability_data["events"]),
+                "availability_observation_events": self.availability_data["events"][-100:],
+            }
 
     async def async_update_classification_observations(self, states):
         """Record presence, registry source and availability for classified entities."""
@@ -225,9 +317,18 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             # event loop; only blocking filesystem work belongs in the executor.
             current_states = list(self.hass.states.async_all())
             await self.async_update_classification_observations(current_states)
+            await self.async_update_availability_observations(current_states)
             await self.async_notify_classification_reviews()
             snapshot = collect_snapshot(self.hass, self.entity_classifications)
             snapshot["collection_coverage"] = build_collection_coverage(snapshot)
+            availability_groups = build_unavailable_groups(
+                self.availability_data.get("observations", {}),
+                snapshot.get("integration_inventory"),
+                now=datetime.now(timezone.utc).isoformat(),
+                group_related=self.entry.options.get("group_related_unavailable_entities", True),
+                persistent_entity_ids=self.availability_summary.get("persistent_unavailable_entity_ids", []),
+            )
+            await self.async_notify_unavailable_investigations(availability_groups)
             async with self._state_lock:
                 change_history, change_summary = update_change_history(self.schedule.get('change_history', []), snapshot, snapshot['collected_at'])
                 if change_history != self.schedule.get('change_history', []):
@@ -237,6 +338,11 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                     self.schedule = schedule
                 schedule_snapshot = deepcopy(self.schedule)
             history_summary = summarize_issue_history(schedule_snapshot.get("issue_history", {}))
+            report_verification = await self.hass.async_add_executor_job(
+                verify_report,
+                self.hass.config.path(REPORT_DIR),
+                schedule_snapshot.get("last_report_path"),
+            )
             return {
                 **snapshot,
                 **history_summary,
@@ -246,6 +352,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "last_report": schedule_snapshot.get("last_report"),
                 "report_count": schedule_snapshot.get("report_count", 0),
                 "last_report_path": schedule_snapshot.get("last_report_path"),
+                "report_verification": report_verification,
                 "last_ai_repair_prompt_path": (
                     schedule_snapshot.get("last_report_path", "")[:-4] + "_ai_repair_prompt.md"
                     if schedule_snapshot.get("last_report_path", "").endswith(".zip") else None
@@ -256,6 +363,10 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "integration_trend_summary": summarize_integration_trends(schedule_snapshot.get("integration_trend_history", [])),
                 "repair_plan": schedule_snapshot.get("last_repair_plan", {}),
                 **summarize_investigations(schedule_snapshot.get("investigation_history", [])),
+                **self.availability_summary,
+                **summarize_unavailable_investigations(self.availability_data.get("investigations", {})),
+                "unavailable_investigation_groups": availability_groups,
+                "unavailable_investigation_group_count": len(availability_groups),
             }
         except Exception as err:
             raise UpdateFailed(f"Unable to collect diagnostics: {err}") from err
@@ -265,6 +376,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         async with self._report_lock:
             current_states = list(self.hass.states.async_all())
             await self.async_update_classification_observations(current_states)
+            await self.async_update_availability_observations(current_states)
             async with self._state_lock:
                 return await self._async_generate_report_locked(comprehensive, scheduled_period)
 
@@ -275,6 +387,15 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         if scheduled_period and not _is_due(schedule.get(scheduled_period), datetime.now(timezone.utc)):
             return None
         snapshot = collect_snapshot(self.hass, self.entity_classifications)
+        snapshot["unavailable_investigation_groups"] = build_unavailable_groups(
+            self.availability_data.get("observations", {}),
+            snapshot.get("integration_inventory"),
+            now=datetime.now(timezone.utc).isoformat(),
+            group_related=self.entry.options.get("group_related_unavailable_entities", True),
+            persistent_entity_ids=self.availability_summary.get("persistent_unavailable_entity_ids", []),
+        )
+        snapshot["unavailable_investigation_group_count"] = len(snapshot["unavailable_investigation_groups"])
+        snapshot.update(summarize_unavailable_investigations(self.availability_data.get("investigations", {})))
         change_history, change_summary = update_change_history(schedule.get('change_history', []), snapshot, snapshot['collected_at'])
         schedule['change_history'] = change_history
         snapshot['diagnostic_change_history'] = change_summary
@@ -398,6 +519,212 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 _LOGGER.exception("Focused prompt was saved, but its commit marker could not be removed")
         await self.async_request_refresh()
         return prompt_path
+
+    async def async_start_unavailable_investigation(self, group_id):
+        """Start tracking one currently displayed persistent outage group."""
+        groups = (self.data or {}).get("unavailable_investigation_groups", [])
+        group = next(
+            (item for item in groups if isinstance(item, dict) and item.get("group_id") == group_id),
+            None,
+        )
+        if group is None:
+            raise ValueError("That unavailable entity group is no longer available. Refresh diagnostics and select a current group.")
+        return await self._async_create_unavailable_investigation(group)
+
+    async def async_start_manual_unavailable_investigation(self, entity_ids):
+        """Allow the user to investigate selected entities before the threshold."""
+        if not isinstance(entity_ids, list) or not entity_ids:
+            raise ValueError("Select at least one unavailable entity.")
+        clean_ids = sorted(set(entity_id for entity_id in entity_ids if isinstance(entity_id, str)))
+        if not clean_ids:
+            raise ValueError("Select at least one valid entity ID.")
+        for entity_id in clean_ids:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.state != "unavailable":
+                raise ValueError(f"{entity_id} is not currently unavailable.")
+        fingerprint = hashlib.sha256("|".join(clean_ids).encode()).hexdigest()[:12]
+        group = {
+            "group_id": f"manual:{fingerprint}",
+            "group_type": "manual",
+            "title": f"Manually selected {len(clean_ids)} unavailable entit{'y' if len(clean_ids) == 1 else 'ies'}",
+            "entity_ids": clean_ids,
+            "confidence": "user_selected",
+            "evidence": ["Manually selected by the user; the persistence threshold was intentionally bypassed."],
+            "cause_confirmed": False,
+            "requires_user_review": True,
+        }
+        return await self._async_create_unavailable_investigation(group)
+
+    async def _async_create_unavailable_investigation(self, group):
+        now = datetime.now(timezone.utc).isoformat()
+        async with self._state_lock:
+            investigations, investigation_id = start_unavailable_investigation(
+                self.availability_data.get("investigations", {}),
+                group,
+                now,
+            )
+            updated = deepcopy(self.availability_data)
+            updated["investigations"] = investigations
+            updated.setdefault("events", []).append({
+                "occurred_at": now,
+                "action": "investigation_started",
+                "entity_ids": list(group.get("entity_ids", [])),
+            })
+            updated = normalize_availability_data(updated)
+            await self.availability_store.async_save(updated)
+            self.availability_data = updated
+            self.selected_unavailable_investigation_id = investigation_id
+        self.async_update_listeners()
+        await self.async_request_refresh()
+        return investigation_id
+
+    async def async_set_unavailable_investigation_status(self, investigation_id, status, user_note=None):
+        """Save an explicit user status and reminder date for an investigation."""
+        now = datetime.now(timezone.utc).isoformat()
+        async with self._state_lock:
+            investigations = set_unavailable_investigation_status(
+                self.availability_data.get("investigations", {}),
+                investigation_id,
+                status,
+                now,
+                reminder_days=self.entry.options.get("unavailable_investigation_reminder_days", 7),
+                user_note=user_note,
+            )
+            record = investigations[investigation_id]
+            group_id = record.get("group_id") or record.get("investigation_id")
+            current_group = next(
+                (
+                    item for item in (self.data or {}).get("unavailable_investigation_groups", [])
+                    if item.get("group_id") == group_id
+                ),
+                None,
+            )
+            if current_group:
+                investigations = refresh_investigation_context(
+                    investigations, investigation_id, current_group
+                )
+                record = investigations[investigation_id]
+            updated = deepcopy(self.availability_data)
+            updated["investigations"] = investigations
+            updated.setdefault("events", []).append({
+                "occurred_at": now,
+                "action": f"investigation_status_{status}",
+                "entity_ids": list(record.get("entity_ids", [])),
+            })
+            updated = normalize_availability_data(updated)
+            await self.availability_store.async_save(updated)
+            self.availability_data = updated
+            self.selected_unavailable_investigation_id = investigation_id
+        self.async_update_listeners()
+        await self.async_request_refresh()
+
+    async def async_notify_unavailable_investigations(self, groups):
+        """Notify only for persistent groups needing review or a scheduled reminder."""
+        from homeassistant.components import persistent_notification
+
+        notification_id = f"{DOMAIN}_unavailable_investigations_due"
+        enabled = self.entry.options.get("unavailable_investigation_notifications", True)
+        now = datetime.now(timezone.utc)
+        async with self._state_lock:
+            updated = deepcopy(self.availability_data)
+            if not enabled:
+                if updated.get("last_notification_fingerprint") or updated.get("last_notification_at"):
+                    updated.pop("last_notification_fingerprint", None)
+                    updated.pop("last_notification_at", None)
+                    await self.availability_store.async_save(updated)
+                    self.availability_data = updated
+                persistent_notification.async_dismiss(self.hass, notification_id)
+                return
+
+            investigations = updated.get("investigations", {})
+            due_groups = []
+            reminder_days = self.entry.options.get("unavailable_investigation_reminder_days", 7)
+            try:
+                reminder_days = min(30, max(1, int(reminder_days)))
+            except (TypeError, ValueError):
+                reminder_days = 7
+            for group in groups:
+                if not isinstance(group, dict):
+                    continue
+                record = find_current_investigation(investigations, group.get("group_id"))
+                if not isinstance(record, dict):
+                    due_groups.append(group)
+                    continue
+                current_entities = sorted(group.get("entity_ids", []))
+                recorded_entities = sorted(record.get("entity_ids", []))
+                current_reason = "; ".join(group.get("evidence", []))
+                if (current_entities != recorded_entities or current_reason != record.get("reason", "")
+                        or group.get("earliest_unavailable_since") != record.get("outage_started_at")
+                        or group.get("latest_entity_returned_at") != record.get("last_entity_returned_at")
+                        or sorted(group.get("source_domains", [])) != sorted(record.get("source_domains", []))):
+                    due_groups.append(group)
+                    continue
+                status = record.get("status")
+                if status == "needs_review":
+                    due_groups.append(group)
+                elif status == "waiting":
+                    reminder_at = record.get("next_reminder_at")
+                    try:
+                        if reminder_at and now >= datetime.fromisoformat(reminder_at):
+                            due_groups.append(group)
+                    except (TypeError, ValueError):
+                        due_groups.append(group)
+
+            if not due_groups:
+                if updated.get("last_notification_fingerprint") or updated.get("last_notification_at"):
+                    updated.pop("last_notification_fingerprint", None)
+                    updated.pop("last_notification_at", None)
+                    await self.availability_store.async_save(updated)
+                    self.availability_data = updated
+                persistent_notification.async_dismiss(self.hass, notification_id)
+                return
+
+            fingerprint_data = [
+                {
+                    "group_id": group.get("group_id"),
+                    "entity_ids": sorted(group.get("entity_ids", [])),
+                    "evidence": sorted(group.get("evidence", [])),
+                    "outage_started_at": group.get("earliest_unavailable_since"),
+                    "latest_entity_returned_at": group.get("latest_entity_returned_at"),
+                    "source_domains": sorted(group.get("source_domains", [])),
+                }
+                for group in sorted(due_groups, key=lambda item: item.get("group_id", ""))
+            ]
+            fingerprint = hashlib.sha256(
+                json.dumps(fingerprint_data, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            previous = updated.get("last_notification_fingerprint")
+            last_at = updated.get("last_notification_at")
+            reminder_due = False
+            if last_at:
+                try:
+                    reminder_due = now >= datetime.fromisoformat(last_at) + timedelta(days=reminder_days)
+                except (TypeError, ValueError):
+                    reminder_due = True
+            if fingerprint == previous and not reminder_due:
+                return
+            updated["last_notification_fingerprint"] = fingerprint
+            updated["last_notification_at"] = now.isoformat()
+            await self.availability_store.async_save(updated)
+            self.availability_data = updated
+
+        lines = []
+        for group in due_groups[:10]:
+            lines.append(
+                f"- {group.get('title', 'Unavailable entities')}: "
+                f"{', '.join(group.get('entity_ids', []))}\n"
+                f"  Evidence: {'; '.join(group.get('evidence', []))}"
+            )
+        remainder = f"\n- Plus {len(due_groups) - 10} more group(s)" if len(due_groups) > 10 else ""
+        persistent_notification.async_create(
+            self.hass,
+            f"{len(due_groups)} persistent unavailable group(s) need your review. "
+            "These are investigation leads, not confirmed root causes.\n\n"
+            + "\n".join(lines) + remainder
+            + "\n\nOpen the Health Manager dashboard to investigate or defer a group.",
+            title="Home Assistant Health Manager: unavailable entities need review",
+            notification_id=notification_id,
+        )
 
     async def async_set_investigation_status(self, plan_id, status):
         """Record the user's tracking status; this never changes the system."""

@@ -11,6 +11,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([
         ApplyEntityClassificationButton(coordinator, entry),
         RemoveEntityClassificationButton(coordinator, entry),
+        StartUnavailableInvestigationButton(coordinator, entry),
+        StartManualUnavailableInvestigationButton(coordinator, entry),
     ])
 
 
@@ -64,3 +66,40 @@ class RemoveEntityClassificationButton(CoordinatorEntity, ButtonEntity):
         self.coordinator.selected_entity_classification_id = None
         self.coordinator.selected_entity_classification_reason = ""
         self.coordinator.async_update_listeners()
+
+
+class StartUnavailableInvestigationButton(CoordinatorEntity, ButtonEntity):
+    """Start tracking the selected persistent unavailable group."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Start Unavailable Investigation"
+    _attr_icon = "mdi:clipboard-alert-outline"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_start_unavailable_investigation"
+
+    async def async_press(self):
+        group_id = self.coordinator.selected_unavailable_group_id
+        if not group_id:
+            raise ValueError("Choose an unavailable group first.")
+        await self.coordinator.async_start_unavailable_investigation(group_id)
+
+
+class StartManualUnavailableInvestigationButton(CoordinatorEntity, ButtonEntity):
+    """Start an immediate investigation for one manually selected entity."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Start Manual Unavailable Investigation"
+    _attr_icon = "mdi:clipboard-plus-outline"
+
+    def __init__(self, coordinator, entry):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_start_manual_unavailable_investigation"
+
+    async def async_press(self):
+        entity_id = self.coordinator.selected_manual_unavailable_entity_id
+        if not entity_id:
+            raise ValueError("Enter an unavailable entity ID first.")
+        investigation_id = await self.coordinator.async_start_manual_unavailable_investigation([entity_id])
+        self.coordinator.selected_unavailable_investigation_id = investigation_id

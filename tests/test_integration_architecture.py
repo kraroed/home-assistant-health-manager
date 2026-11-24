@@ -749,3 +749,241 @@ def test_dashboard_displays_consolidated_health_metrics_and_raw_context():
     assert "sensor.classification_reviews_due" in dashboard
     assert "last_assessment" in dashboard
     assert "last_report" in dashboard
+
+
+def test_unavailable_observations_use_an_isolated_store_and_refresh_cycle():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    source = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    assert "f'{DOMAIN}_availability_investigations'" in source
+    assert "normalize_availability_data" in source
+    assert "observe_unavailable_entities" in source
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_update_availability_observations"
+    )
+    assert any(
+        isinstance(node, ast.AsyncWith)
+        and any(
+            isinstance(item.context_expr, ast.Attribute)
+            and item.context_expr.attr == "_state_lock"
+            for item in node.items
+        )
+        for node in ast.walk(method)
+    )
+    assert "async_update_availability_observations(current_states)" in source
+
+
+def test_unavailable_persistence_threshold_is_configurable_and_exposed():
+    config = (INTEGRATION / "config_flow.py").read_text(encoding="utf-8")
+    const = (INTEGRATION / "const.py").read_text(encoding="utf-8")
+    assert "unavailable_persistence_minutes" in config
+    assert "DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES = 60" in const
+    assert "vol.Range(min=5, max=1440)" in config
+
+
+def test_health_overview_exposes_persistent_and_missing_unavailable_metrics():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    for metric in (
+        '"persistent_unavailable_entity_count":',
+        '"persistent_unavailable_entity_ids":',
+        '"missing_tracked_entity_count":',
+        '"missing_tracked_entity_ids":',
+        '"tracked_unavailable_entity_count":',
+    ):
+        assert metric in source
+
+
+def test_unavailable_investigation_grouping_is_evidence_gated_and_configurable():
+    config = (INTEGRATION / "config_flow.py").read_text(encoding="utf-8")
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    grouping = (INTEGRATION / "availability_grouping.py").read_text(encoding="utf-8")
+    assert "group_related_unavailable_entities" in config
+    assert "build_unavailable_groups" in coordinator
+    assert "SIMULTANEOUS_WINDOW_MINUTES = 5" in grouping
+    assert "requires_user_review" in grouping
+    assert "cause_confirmed" in grouping
+
+
+def test_health_overview_includes_unavailable_investigation_group_details():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    assert '"unavailable_investigation_groups":' in source
+    assert '"unavailable_investigation_group_count":' in source
+
+
+def test_dashboard_documents_live_unavailable_investigation_metrics():
+    dashboard = (ROOT / "docs" / "DASHBOARD.md").read_text(encoding="utf-8")
+    for entity_id in (
+        "sensor.tracked_unavailable_entities",
+        "sensor.persistent_unavailable_entities",
+        "sensor.missing_tracked_entities",
+        "sensor.unavailable_investigation_groups",
+    ):
+        assert entity_id in dashboard
+    assert "root cause" in dashboard
+
+
+def test_automatic_unavailable_groups_are_filtered_by_persistence_threshold():
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    assert coordinator.count("persistent_entity_ids=self.availability_summary.get") >= 2
+
+
+def test_unavailable_investigation_controls_are_registered_and_user_driven():
+    select_source = (INTEGRATION / "select.py").read_text(encoding="utf-8")
+    button_source = (INTEGRATION / "button.py").read_text(encoding="utf-8")
+    coordinator_source = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    select_tree = _parse(INTEGRATION / "select.py")
+    names = {node.name for node in select_tree.body if isinstance(node, ast.ClassDef)}
+    assert {
+        "UnavailableInvestigationGroupSelect",
+        "UnavailableInvestigationHistorySelect",
+        "UnavailableInvestigationStatusSelect",
+    } <= names
+    assert "async_start_unavailable_investigation" in coordinator_source
+    assert "async_set_unavailable_investigation_status" in coordinator_source
+    assert "StartUnavailableInvestigationButton" in button_source
+    assert "UnavailableInvestigationGroupSelect(coordinator, entry)" in select_source
+
+def test_unavailable_investigation_details_are_exposed_in_health_overview():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    for attribute in (
+        '"unavailable_investigations":',
+        '"unavailable_investigation_status_counts":',
+        '"unavailable_investigations_needing_review":',
+    ):
+        assert attribute in source
+
+
+def test_unavailable_investigation_workflow_has_native_controls_and_services():
+    select_tree = _parse(INTEGRATION / "select.py")
+    button_tree = _parse(INTEGRATION / "button.py")
+    text_tree = _parse(INTEGRATION / "text.py")
+    service_source = (INTEGRATION / "services.py").read_text(encoding="utf-8")
+    init_source = (INTEGRATION / "__init__.py").read_text(encoding="utf-8")
+    select_classes = {node.name for node in select_tree.body if isinstance(node, ast.ClassDef)}
+    button_classes = {node.name for node in button_tree.body if isinstance(node, ast.ClassDef)}
+    text_classes = {node.name for node in text_tree.body if isinstance(node, ast.ClassDef)}
+    assert {
+        "UnavailableInvestigationGroupSelect",
+        "UnavailableInvestigationHistorySelect",
+        "UnavailableInvestigationStatusSelect",
+    } <= select_classes
+    assert {
+        "StartUnavailableInvestigationButton",
+        "StartManualUnavailableInvestigationButton",
+    } <= button_classes
+    assert {
+        "UnavailableInvestigationEntityText",
+        "UnavailableInvestigationNoteText",
+    } <= text_classes
+    assert 'async_register(DOMAIN, "start_unavailable_investigation"' in service_source
+    assert 'async_register(DOMAIN, "set_unavailable_investigation_status"' in service_source
+    assert 'async_remove(DOMAIN, "start_unavailable_investigation")' in init_source
+    assert 'async_remove(DOMAIN, "set_unavailable_investigation_status")' in init_source
+
+
+def test_unavailable_investigation_options_include_notifications_and_reminders():
+    config = (INTEGRATION / "config_flow.py").read_text(encoding="utf-8")
+    strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))
+    translations = json.loads((INTEGRATION / "translations" / "en.json").read_text(encoding="utf-8"))
+    for option in (
+        "unavailable_persistence_minutes",
+        "group_related_unavailable_entities",
+        "unavailable_investigation_notifications",
+        "unavailable_investigation_reminder_days",
+    ):
+        assert option in config
+        assert option in strings["options"]["step"]["init"]["data"]
+        assert option in translations["options"]["step"]["init"]["data"]
+
+
+def test_health_overview_exposes_unavailable_investigation_history():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    for attribute in (
+        '"unavailable_investigations":',
+        '"unavailable_investigation_status_counts":',
+        '"unavailable_investigations_needing_review":',
+    ):
+        assert attribute in source
+
+
+def test_unavailable_investigation_sensor_entities_use_scalar_states_and_unique_keys():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    sensors = next(
+        node for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "SENSORS" for target in node.targets)
+    )
+    keys = [
+        element.elts[0].value
+        for element in sensors.value.elts
+        if isinstance(element, ast.Tuple) and isinstance(element.elts[0], ast.Constant)
+    ]
+    assert len(keys) == len(set(keys))
+    assert "unavailable_investigation_count" in keys
+    assert "unavailable_investigations" not in keys
+    assert 'if self.key == "unavailable_investigations":' not in source
+    assert 'if self.key == "selected_unavailable_investigation":' in source
+
+
+def test_availability_observations_collect_device_registry_context():
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    observer = (INTEGRATION / "availability_observer.py").read_text(encoding="utf-8")
+    assert "device_registry as dr" in coordinator
+    assert "device_registry.async_get(device_id)" in coordinator
+    for field in ("device_name", "device_manufacturer", "device_model"):
+        assert f'"{field}"' in coordinator
+        assert f'"{field}"' in observer
+
+
+def test_overview_exposes_new_unavailable_and_investigation_status_counts():
+    source = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    for key in (
+        "newly_unavailable_entity_count",
+        "unavailable_investigations_in_progress",
+        "unavailable_investigations_waiting",
+        "unavailable_investigations_expected",
+        "unavailable_investigations_resolved",
+    ):
+        assert f'"{key}"' in source
+    assert "newly_unavailable_entity_ids" in source
+
+
+def test_unavailable_entity_history_events_are_exposed_as_bounded_sensor_attributes():
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    sensor = (INTEGRATION / "sensor.py").read_text(encoding="utf-8")
+    assert '"availability_observation_events": self.availability_data["events"][-100:]' in coordinator
+    assert '("availability_observation_event_count", "Unavailable Entity History Events"' in sensor
+    assert '"events": data.get("availability_observation_events", [])' in sensor
+    assert '"retained_limit": 100' in sensor
+
+
+def test_unavailable_investigation_dashboard_uses_generated_entity_ids():
+    dashboard = (ROOT / "docs" / "DASHBOARD.md").read_text(encoding="utf-8")
+    expected = (
+        "sensor.unavailable_investigation_groups",
+        "sensor.unavailable_investigations",
+        "sensor.unavailable_entity_history_events",
+        "select.unavailable_group_to_investigate",
+        "button.start_unavailable_investigation",
+        "text.unavailable_entity_to_investigate",
+        "button.start_manual_unavailable_investigation",
+        "select.unavailable_investigation_to_update",
+        "select.unavailable_investigation_status",
+        "text.unavailable_investigation_note",
+    )
+    for entity_id in expected:
+        assert entity_id in dashboard
+    assert "home_assistant_health_manager_unavailable_" not in dashboard
+
+
+def test_unavailable_duration_uses_home_assistant_state_last_changed():
+    coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
+    observer = (INTEGRATION / "availability_observer.py").read_text(encoding="utf-8")
+    assert '"last_changed": state.last_changed.isoformat()' in coordinator
+    assert 'state_changed_at = _timestamp(item.get("last_changed"))' in observer

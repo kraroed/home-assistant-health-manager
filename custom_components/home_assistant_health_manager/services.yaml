@@ -148,3 +148,43 @@ review_entity_classifications:
       selector:
         entity:
           multiple: true
+
+start_unavailable_investigation:
+  name: Start unavailable entity investigation
+  description: Manually start tracking one or more currently unavailable entities, even before the automatic persistence threshold is reached.
+  fields:
+    entity_ids:
+      name: Entity IDs
+      description: Exact unavailable entity IDs to include in this user-started investigation.
+      required: true
+      selector:
+        entity:
+          multiple: true
+
+set_unavailable_investigation_status:
+  name: Set unavailable investigation status
+  description: Update your tracking status for an unavailable-entity investigation. Expected and resolved are user decisions only; they do not classify, suppress, or repair entities.
+  fields:
+    investigation_id:
+      name: Investigation ID
+      description: Exact investigation_id from the Unavailable Investigations sensor.
+      required: true
+      selector:
+        text:
+    status:
+      name: Status
+      required: true
+      selector:
+        select:
+          options:
+            - needs_review
+            - investigating
+            - waiting
+            - resolved
+            - expected
+    user_note:
+      name: User note
+      required: false
+      selector:
+        text:
+          multiline: true

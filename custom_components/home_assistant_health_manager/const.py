@@ -8,3 +8,5 @@ SCHEDULE_INTERVAL = timedelta(hours=1)
 REPORT_DIR = "health_manager/reports"
 STORE_VERSION = 1
 STORE_KEY = f"{DOMAIN}_schedule"
+
+DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES = 60

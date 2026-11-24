@@ -4,7 +4,9 @@
       "user": {
         "title": "Set up Home Assistant Health Manager",
         "description": "Diagnostics are collected and processed locally.",
-        "data": {"name": "Name"}
+        "data": {
+          "name": "Name"
+        }
       }
     },
     "abort": {
@@ -19,7 +21,12 @@
           "weekly_reports": "Enable weekly reports",
           "monthly_reviews": "Enable monthly comprehensive reviews",
           "include_core_log": "Include sanitized Core log",
-          "retention_days": "Report retention (days)"
+          "retention_days": "Report retention (days)",
+          "classification_review_notifications": "Enable entity classification review notifications",
+          "unavailable_persistence_minutes": "Unavailable entity persistence threshold (minutes)",
+          "group_related_unavailable_entities": "Group unavailable entities when shared-device or integration evidence supports it",
+          "unavailable_investigation_notifications": "Enable unavailable entity investigation notifications",
+          "unavailable_investigation_reminder_days": "Unavailable investigation reminder interval (days)"
         }
       }
     }

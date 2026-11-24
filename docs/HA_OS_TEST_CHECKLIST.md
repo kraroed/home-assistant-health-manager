@@ -26,8 +26,8 @@ This checklist validates Home Assistant Health Manager on a running Home Assista
 - Report implementation: https://github.com/kraroed/home-assistant-health-manager/blob/main/custom_components/home_assistant_health_manager/report.py
 - Dashboard: https://github.com/kraroed/home-assistant-health-manager/blob/main/docs/DASHBOARD.md
 - Report transaction tests: https://github.com/kraroed/home-assistant-health-manager/blob/main/tests/test_report_transactions.py
-- Latest feature-branch CI run: https://github.com/kraroed/home-assistant-health-manager/actions/runs/44459943415
-- Feature branch commit validated: `f16b0634adb0823e7b681527751913bf505d5fc0` (subsequent documentation-only commits must also pass CI before release).
+- Latest feature-branch CI run: https://github.com/kraroed/home-assistant-health-manager/actions/runs/45311880113
+- Candidate commit under validation: `1223a7060539c7d96ed6d69e7242424eec38e0e8`. Recheck the run and exact commit before release; a passing earlier commit does not validate later changes.
 
 Record the exact commit tested. Recheck the Actions page if testing a later revision; do not assume the linked run validates a different commit.
 
@@ -48,7 +48,7 @@ Stop if backup creation fails or you cannot restore the system.
 
 ## 2. Install from the Home Assistant Marketplace and restart
 
-> **Release gate:** As of this checklist revision, `0.1.0-beta.3` is the published release on `main`; `0.1.0-beta.4` is only a draft. Wait for beta.4 to be published after merge and final validation. Do not install beta.3 expecting the new classification controls or `sensor.health_overview`.
+> **Release gate:** The `0.1.0-beta.9` feature pre-release is the next controlled HA OS test candidate; publish it only after the exact candidate commit passes all automated checks. Confirm the exact Marketplace version and tagged commit before installing. The beta.6 and beta.7 tags point to `main` and do not contain the Recorder attribute-size changes. Do not install either tag for this test.
 
 **Test type:** Safe on production with the backup above.
 
@@ -63,21 +63,21 @@ Repository URL:
 3. In the upper-right corner, select **Add from link**.
 4. Enter the repository URL above under **GitHub link**, then select **Add**. If the Marketplace cannot identify the content type automatically, choose **Integration**.
 5. Open the Home Assistant Health Manager repository page.
-6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.4`; pre-releases are not offered by default.
-7. Select **Install**, verify the version shown is `0.1.0-beta.4`, and confirm.
+6. Enable the repository's **Pre-release** switch. This is required to receive `0.1.0-beta.9`; pre-releases are not offered by default.
+7. Select **Install**, verify the version shown is `0.1.0-beta.9`, and confirm.
 8. Follow the Marketplace prompt if a restart is required. Otherwise, restart Home Assistant normally before adding the integration.
 9. Wait for startup to finish.
 
 - [ ] Marketplace accepts the custom repository.
 - [ ] Repository is identified as an integration.
 - [ ] Pre-release switch is enabled.
-- [ ] Install dialog offers `0.1.0-beta.4`.
+- [ ] Install dialog offers `0.1.0-beta.9`.
 - [ ] Integration installation completes.
 - [ ] Home Assistant starts normally.
 - [ ] No new import/setup errors for `home_assistant_health_manager` appear.
 - [ ] Marketplace shows the integration as installed.
 
-**Expected:** The beta.4 release can be installed through the current Marketplace UI and imported without startup errors. The currently published beta.3 does not contain the classification-management and consolidated-overview work on this feature branch; do not use beta.3 to validate those features. Do not proceed until beta.4 is published from the fully validated release commit.
+**Expected:** The beta.9 pre-release can be installed through the current Marketplace UI and imported without startup errors. Confirm the release tag and exact commit on GitHub before installation; do not substitute the default-branch update or an older beta tag.
 
 If the pre-release version does not appear immediately after publishing, refresh the repository information or allow time for Marketplace's release metadata to update. Do not install the default-branch commit as a substitute for verifying the tagged beta.
 
@@ -139,7 +139,7 @@ Sensor names to look for include:
 - Prioritized Repair Plan Items; Repair Investigations; Selected Investigation
 - Core Update; Supervisor Update; Operating System Update
 - Compatibility Status; Diagnostic Change Events; Diagnostic Coverage
-- Diagnostic Trend; Generated Reports
+- Diagnostic Trend; Generated Reports; Diagnostic Report Verification
 
 Select entities:
 
@@ -177,17 +177,40 @@ For a generated report, inspect:
 - `health_report_*_ai_repair_prompt.md`
 - `health_report_*.zip`
 
-The ZIP is expected to contain `health_report.json`, `summary.txt`, `ai_repair_prompt.md`, and a sanitized Core log when one was collected.
+The ZIP is expected to contain `health_report.json`, `summary.txt`, `ai_repair_prompt.md`, and a sanitized Core log when one was collected. The new `sensor.report_verification` performs this verification in Home Assistant without requiring Terminal or manual ZIP extraction.
 
 - [ ] JSON exists and parses.
 - [ ] TXT summary is readable.
 - [ ] AI prompt Markdown exists and is readable.
-- [ ] ZIP opens successfully.
+- [ ] `sensor.report_verification` state is `verified`.
+- [ ] Its attributes show `exists: true`, `readable: true`, a non-zero `size_bytes`, a `modified_at` timestamp, and all required members verified.
+- [ ] The report path is under `/config/health_manager/reports`.
+- [ ] The sensor reports a clear error and non-verified state if a report is missing, corrupt, unreadable, or incomplete (exercise these fault cases in unit tests or a disposable instance, not by damaging the production report).
+- [ ] ZIP opens successfully when inspected with an available file viewer.
 - [ ] ZIP contains the expected files.
 - [ ] Timestamps, report count, and last-report path agree.
 - [ ] No partial or obviously incomplete artifacts remain after successful generation.
 
 **Expected:** A complete report set is present and readable.
+
+## Recorder attribute-size and detail-page verification
+
+**Test type:** Safe on production after the backup above.
+
+This beta splits detailed diagnostic collections into dynamically registered detail-page sensors. Pages are sized by serialized UTF-8 JSON bytes with a 12 KB target. A single record too large to fit is represented by an explicit overflow notice and report reference; it must not be silently truncated.
+
+- [ ] Search Core logs for `State attributes for sensor.* exceed maximum size` after the first assessment.
+- [ ] Confirm no Recorder attribute-size warnings are emitted for Health Manager sensors.
+- [ ] Confirm the Health Status and Health Overview entities remain compact.
+- [ ] Confirm detail-page entities appear for collections with records.
+- [ ] Confirm page numbers are contiguous for each collection and record counts match the source detail data.
+- [ ] Confirm the card's six views still show the complete merged collections.
+- [ ] If an overflow notice appears, confirm `details_preserved_in_report` is true only when `sensor.report_verification` is `verified`.
+- [ ] If a report exists but is unreadable, corrupt, or incomplete, the card clearly says preservation is unconfirmed rather than claiming the report is missing.
+- [ ] The card Overview displays report status, existence, readability/completeness, size, last-modified time, and path.
+- [ ] Confirm Recorder history stores the attributes after the next assessment and a normal restart.
+
+**Expected:** No Health Manager Recorder size warnings; complete detail collections remain available through page sensors and the card. Record any overflow case separately rather than treating a report pointer as equivalent to visible pagination.
 
 ## 6. Privacy and redaction review
 
@@ -480,11 +503,11 @@ Next action:
 
 ## Beta testing release gate
 
-The beta exists specifically to enable controlled installation and live testing. Do not require live HA OS test results before publishing this clearly labeled pre-release; those results are the purpose of the beta.
+The beta exists specifically to enable controlled installation and live testing. Do not require live HA OS test results before publishing this clearly labeled pre-release; those results are the purpose of the beta. Before publishing, the integration and companion Lovelace card changes must both pass their respective automated checks. The card's report verification display is tracked in https://github.com/kraroed/lovelace-home-assistant-health-manager-card/pull/1.
 
-Before publishing `0.1.0-beta.4`, verify:
+Before publishing `0.1.0-beta.9`, verify:
 
-1. The manifest version is exactly `0.1.0-beta.4` and the Git tag uses the same value.
+1. The manifest version is exactly `0.1.0-beta.9` and the Git tag uses the same value.
 2. The GitHub release is explicitly marked **pre-release**.
 3. The release notes identify this as a feature beta and state that live HA OS validation is outstanding.
 4. The latest GitHub Actions run passes Python syntax and unit tests, hassfest, and HACS validation on the exact tagged commit.
