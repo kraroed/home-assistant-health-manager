@@ -126,8 +126,13 @@ def _clear_transient_missing_review(record, grace_minutes):
     reason_set = {reason for reason in reasons if isinstance(reason, str)}
     if len(reason_set) != len(reasons) or reason_set != {"entity_missing", "entity_returned"}:
         return
+    # Reconcile only a legacy flag created by this exact short return event.
+    # A previous episode's review must never be cleared by a later short restart.
+    returned_at = record.get("returned_at")
+    if not returned_at or record.get("review_due_at") != returned_at:
+        return
     duration = _missing_duration_seconds(
-        record.get("missing_since"), record.get("returned_at")
+        record.get("missing_since"), returned_at
     )
     if duration is None or duration >= max(1, int(grace_minutes)) * 60:
         return
@@ -157,7 +162,6 @@ def mark_entity_observations(
     timestamp = _now_iso(now)
     for entity_id, record in data["entities"].items():
         if entity_id in present:
-            _clear_transient_missing_review(record, missing_grace_minutes)
             if record.get("entity_missing"):
                 duration = _missing_duration_seconds(
                     record.get("missing_since"), now or timestamp
@@ -170,9 +174,16 @@ def mark_entity_observations(
                 grace_seconds = max(1, int(missing_grace_minutes)) * 60
                 if duration is None or duration >= grace_seconds:
                     _flag_review(record, "entity_returned", timestamp)
+                    record["last_presence_recovery"] = (
+                        "after_grace_period" if duration is not None else "duration_unknown"
+                    )
+                    record["last_presence_recovery_at"] = timestamp
                 else:
                     record["last_presence_recovery"] = "within_grace_period"
                     record["last_presence_recovery_at"] = timestamp
+                # Reconcile legacy flags only after this episode's return time
+                # and duration have been recorded.
+                _clear_transient_missing_review(record, missing_grace_minutes)
             elif not record.get("last_seen"):
                 record["last_seen"] = timestamp
             source = sources.get(entity_id, {})
@@ -199,6 +210,12 @@ def mark_entity_observations(
         elif not record.get("entity_missing"):
             record["entity_missing"] = True
             record["missing_since"] = timestamp
+            # Recovery metadata belongs to one disappearance episode only.
+            # Clear stale values when a new episode begins.
+            record.pop("returned_at", None)
+            record.pop("last_missing_duration_seconds", None)
+            record.pop("last_presence_recovery", None)
+            record.pop("last_presence_recovery_at", None)
             record["missing_review_due_after"] = (
                 datetime.fromisoformat(timestamp)
                 + timedelta(minutes=max(1, int(missing_grace_minutes)))
