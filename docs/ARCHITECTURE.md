@@ -36,3 +36,8 @@ Focused repair prompts use the same recoverable publication pattern: a pending m
 Scheduled report generation now advances its weekly or monthly due date in the same candidate schedule and Store write that commits the report metadata. A restart after a successful report commit therefore does not cause the same overdue scheduled review to be generated again simply because a separate due-date save was interrupted.
 
 Cancellation handling: report and focused-prompt writers run in worker threads, which cannot be stopped by cancelling the awaiting coroutine. The async wrappers therefore shield the worker, wait for it to finish after cancellation, and remove the uncommitted artifacts and pending marker before propagating cancellation. If cancellation occurs later during the Store save, the pending marker remains as a recovery signal for the next startup.
+
+
+## Entity classification disappearance grace period
+
+A classified entity that is absent is retained with its first missing timestamp. The default 15-minute configurable grace period avoids treating brief Home Assistant restart/reload gaps as actionable review events. If the entity returns within the grace period, the recovery timestamp and duration are retained without raising a review flag. If it remains absent beyond the grace period, or returns after that period, the classification is flagged for user review. Source identity and availability-change triggers remain independent and are never cleared by transient-disappearance reconciliation. Existing classifications and their user-authored reasons are never changed by this logic.
