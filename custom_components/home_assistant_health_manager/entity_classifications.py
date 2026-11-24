@@ -184,8 +184,12 @@ def mark_entity_observations(
                 # Reconcile legacy flags only after this episode's return time
                 # and duration have been recorded.
                 _clear_transient_missing_review(record, missing_grace_minutes)
-            elif not record.get("last_seen"):
-                record["last_seen"] = timestamp
+            else:
+                # Also reconcile beta.10 legacy records already marked present,
+                # but only when their review timestamp matches that same return.
+                _clear_transient_missing_review(record, missing_grace_minutes)
+                if not record.get("last_seen"):
+                    record["last_seen"] = timestamp
             source = sources.get(entity_id, {})
             if isinstance(source, dict):
                 for field in ("source_domain", "source_unique_id"):
