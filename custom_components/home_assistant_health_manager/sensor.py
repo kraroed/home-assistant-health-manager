@@ -260,7 +260,8 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
                 return {
                     "collection_key": self.key,
                     "page_error": str(err),
-                    "details_preserved_in_report": bool(data.get("last_report_path")),
+                    "details_preserved_in_report": data.get("report_verification", {}).get("status") == "verified",
+                    "report_verification_status": data.get("report_verification", {}).get("status", "missing"),
                     "full_details_report": data.get("last_report_path"),
                 }
 
