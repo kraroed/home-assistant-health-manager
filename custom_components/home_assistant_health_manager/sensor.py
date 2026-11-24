@@ -163,9 +163,6 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
-        if self.key == "report_verification":
-            return data.get("report_verification", {})
-
         if self.key.startswith("detail_page_"):
             try:
                 collection_key, page_text = self.key[len("detail_page_"):].rsplit("_", 1)
@@ -240,6 +237,9 @@ class HealthManagerSensor(CoordinatorEntity, SensorEntity):
     @property
     def _raw_extra_state_attributes(self):
         data = self.coordinator.data or {}
+
+        if self.key == "report_verification":
+            return data.get("report_verification", {})
 
         if self.key.startswith("detail_page_"):
             try:
