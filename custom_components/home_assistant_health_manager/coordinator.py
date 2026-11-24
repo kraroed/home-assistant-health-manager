@@ -11,7 +11,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .collector import collect_snapshot, read_core_log
 from .compatibility import assess_compatibility
-from .const import DOMAIN, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL, DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES
+from .const import DOMAIN, REPORT_DIR, SCHEDULE_INTERVAL, STORE_KEY, STORE_VERSION, UPDATE_INTERVAL, DEFAULT_UNAVAILABLE_PERSISTENCE_MINUTES
 from .history import summarize_issue_history, update_issue_history
 from .change_history import update_change_history
 from .collection_coverage import build_collection_coverage
@@ -20,6 +20,7 @@ from .integration_trends import summarize_integration_trends, update_integration
 from .log_analyzer import analyze_log
 from .recommendations import add_integration_trend_recommendations, add_recurring_issue_recommendations, build_recommendations
 from .redactor import redact_object, redact_text
+from .report_verification import verify_report
 from .report import (
     async_commit_focused_prompt,
     async_commit_report,
@@ -337,6 +338,11 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                     self.schedule = schedule
                 schedule_snapshot = deepcopy(self.schedule)
             history_summary = summarize_issue_history(schedule_snapshot.get("issue_history", {}))
+            report_verification = await self.hass.async_add_executor_job(
+                verify_report,
+                self.hass.config.path(REPORT_DIR),
+                schedule_snapshot.get("last_report_path"),
+            )
             return {
                 **snapshot,
                 **history_summary,
@@ -346,6 +352,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "last_report": schedule_snapshot.get("last_report"),
                 "report_count": schedule_snapshot.get("report_count", 0),
                 "last_report_path": schedule_snapshot.get("last_report_path"),
+                "report_verification": report_verification,
                 "last_ai_repair_prompt_path": (
                     schedule_snapshot.get("last_report_path", "")[:-4] + "_ai_repair_prompt.md"
                     if schedule_snapshot.get("last_report_path", "").endswith(".zip") else None
