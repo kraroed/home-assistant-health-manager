@@ -14,6 +14,21 @@ SPEC.loader.exec_module(CLASSIFICATIONS)
 
 NOW = datetime(2026, 11, 18, 12, 0, tzinfo=timezone.utc)
 
+CONST_MODULE_PATH = (
+    Path(__file__).parents[1]
+    / "custom_components"
+    / "home_assistant_health_manager"
+    / "const.py"
+)
+CONST_SPEC = spec_from_file_location("health_manager_const", CONST_MODULE_PATH)
+CONST = module_from_spec(CONST_SPEC)
+CONST_SPEC.loader.exec_module(CONST)
+
+
+def test_classification_missing_grace_default_is_twenty_minutes():
+    assert CONST.DEFAULT_CLASSIFICATION_MISSING_GRACE_MINUTES == 20
+
+
 
 def test_normalize_initializes_empty_store():
     result = CLASSIFICATIONS.normalize_classifications(None)

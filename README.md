@@ -27,7 +27,7 @@ Copy `custom_components/home_assistant_health_manager` into your Home Assistant 
 
 ## Entity classification review
 
-Saved entity classifications are retained independently of diagnostic reports. Brief missing/return cycles during Home Assistant restarts are recorded but do not trigger review by default. The configurable **Entity classification missing grace period** defaults to 15 minutes (1–120 minutes); entities still missing beyond that period, or returning after a prolonged absence, trigger review. Source identity changes and availability transitions remain review triggers. A short legacy missing/return pair is reconciled without changing the saved classification or explanation.
+Saved entity classifications are retained independently of diagnostic reports. Brief missing/return cycles during Home Assistant restarts are recorded but do not trigger review by default. The configurable **Entity classification missing grace period** defaults to 20 minutes (1–120 minutes); entities still missing beyond that period, or returning after a prolonged absence, trigger review. Source identity changes and availability transitions remain review triggers. A short legacy missing/return pair is reconciled without changing the saved classification or explanation.
 
 ## AI repair and validation prompt
 
@@ -76,7 +76,7 @@ GitHub Actions runs Python tests, Home Assistant hassfest, and HACS integration 
 
 ## Status
 
-The published beta.8 release is the currently installed baseline for controlled Home Assistant OS testing. The `feature/unavailable-entity-investigations` branch contains persistent entity investigations, the consolidated health overview, Recorder attribute-size protections, and diagnostic report verification. The next candidate is `0.1.0-beta.9`; it is not released yet. The beta.6 and beta.7 tags were mistakenly published against `main` and do not contain the feature-branch Recorder changes; do not install either tag. Beta.9 must be tagged against the exact feature-branch commit after its Python tests, Home Assistant validation, and HACS validation pass.
+The published beta.11 release is the currently installed baseline for controlled Home Assistant OS testing. The beta.12 candidate changes the default entity-classification missing grace period from 15 to 20 minutes; the setting remains configurable from 1 to 120 minutes, and existing saved option values are preserved. Beta.12 is not released yet and must pass Python tests, Home Assistant validation, and HACS validation before release.
 
 Live HA OS verification is still outstanding. In particular, verify Recorder attribute-size warnings, dynamically paged detail sensors, the six Lovelace card views, report accessibility, and persistence after restart using the [controlled HA OS test checklist](docs/HA_OS_TEST_CHECKLIST.md). A successful beta installation is not a stable-release certification.
 

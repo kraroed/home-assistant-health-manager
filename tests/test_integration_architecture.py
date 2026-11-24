@@ -995,7 +995,7 @@ def test_classification_missing_grace_period_is_configurable_and_used():
     coordinator = (INTEGRATION / "coordinator.py").read_text(encoding="utf-8")
     strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))
     translations = json.loads((INTEGRATION / "translations" / "en.json").read_text(encoding="utf-8"))
-    assert "DEFAULT_CLASSIFICATION_MISSING_GRACE_MINUTES = 15" in const
+    assert "DEFAULT_CLASSIFICATION_MISSING_GRACE_MINUTES = 20" in const
     assert "classification_missing_grace_minutes" in config
     assert "vol.Range(min=1, max=120)" in config
     assert "missing_grace_minutes=self.entry.options.get(" in coordinator
