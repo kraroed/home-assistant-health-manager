@@ -66,6 +66,7 @@ def test_oversized_attributes_are_replaced_with_explicit_report_reference():
         attributes,
         report_path="/config/www/health_report.zip",
         entity_key="unknown_details",
+        report_verified=True,
         max_bytes=500,
     )
     assert safe["recorder_attribute_overflow"] is True
