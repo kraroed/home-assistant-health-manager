@@ -72,7 +72,7 @@ GitHub Actions runs Python tests, Home Assistant hassfest, and HACS integration 
 
 ## Status
 
-The published default-branch release and the feature-branch beta are separate. The `feature/unavailable-entity-investigations` branch contains the persistent entity investigation work, consolidated health overview, and Recorder attribute-size improvements. Its next candidate is `0.1.0-beta.8`, intended as a pre-release for controlled Home Assistant OS testing. The beta.6 and beta.7 tags were mistakenly published against `main` and do not contain the feature-branch Recorder changes; do not install either tag for this test. The beta.8 tag must be created against commit `f5da09903ce438e4c08788bd5ccfe531566964f3` (or a later feature-branch commit after its CI passes), not the default branch, and the exact tagged commit must pass automated Python tests, Home Assistant validation, and HACS validation.
+The published beta.8 release is the currently installed baseline for controlled Home Assistant OS testing. The `feature/unavailable-entity-investigations` branch contains persistent entity investigations, the consolidated health overview, Recorder attribute-size protections, and diagnostic report verification. The next candidate is `0.1.0-beta.9`; it is not released yet. The beta.6 and beta.7 tags were mistakenly published against `main` and do not contain the feature-branch Recorder changes; do not install either tag. Beta.9 must be tagged against the exact feature-branch commit after its Python tests, Home Assistant validation, and HACS validation pass.
 
 Live HA OS verification is still outstanding. In particular, verify Recorder attribute-size warnings, dynamically paged detail sensors, the six Lovelace card views, report accessibility, and persistence after restart using the [controlled HA OS test checklist](docs/HA_OS_TEST_CHECKLIST.md). A successful beta installation is not a stable-release certification.
 
@@ -100,6 +100,10 @@ An optional native Lovelace dashboard example using Markdown, Entities, and Hist
 ## Consolidated health overview
 
 The `sensor.health_overview` entity provides a single health state (`healthy` or `attention`) with current diagnostic metrics and supporting attributes. It is designed for at-a-glance dashboards and automations while all individual diagnostic sensors remain available. The native Lovelace dashboard in [`docs/DASHBOARD.md`](docs/DASHBOARD.md) includes a live metrics section.
+
+## Diagnostic report verification
+
+The `sensor.report_verification` entity checks the latest recorded diagnostic ZIP on each coordinator refresh. It constrains the path to the configured reports directory, confirms the file exists and is a regular file, checks ZIP integrity, verifies the required report members, and validates the diagnostic JSON schema and system snapshot. Its state is `verified`, `missing`, `invalid_path`, `unreadable`, `corrupt`, or `incomplete`. Attributes expose the recorded path, existence/readability, size in bytes, last-modified timestamp, required/verified/missing members, and an error when verification fails. Recorder overflow metadata reports details as preserved only when the archive is verified; a stored path alone is never proof of preservation. The Lovelace card displays these fields and distinguishes missing reports from existing but unreadable, corrupt, or incomplete files.
 
 ## Persistent entity classifications
 
