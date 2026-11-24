@@ -110,12 +110,12 @@ def recorder_safe_attributes(
         "attribute_budget_bytes": max_bytes,
         "overflowed_attribute_keys": list(attributes),
         "overflowed_collection_counts": record_counts,
-        "details_preserved_in_report": bool(report_path),
-        "full_details_report": report_path,
+        "details_preserved_in_report": bool(report_path and report_verified),
+        "full_details_report": report_path,\n        "report_verification_status": "verified" if report_verified else "unverified",
         "note": (
             "Attributes exceeded the Recorder-safe budget. No records were "
             "truncated; consult the full diagnostic report."
-            if report_path else
+            if report_path and report_verified else
             "Attributes exceeded the Recorder-safe budget. No records were "
             "truncated, but no report path is available yet. Run diagnostics "
             "to generate a full report."
