@@ -118,6 +118,28 @@ def _missing_duration_seconds(missing_since, now):
         return None
 
 
+def _clear_transient_missing_review(record, grace_minutes):
+    """Clear legacy review flags caused only by a brief missing/return cycle."""
+    reasons = record.get("review_due_reasons", [])
+    if not isinstance(reasons, list):
+        return
+    reason_set = set(reasons)
+    if reason_set != {"entity_missing", "entity_returned"}:
+        return
+    duration = _missing_duration_seconds(
+        record.get("missing_since"), record.get("returned_at")
+    )
+    if duration is None or duration >= max(1, int(grace_minutes)) * 60:
+        return
+    record["review_due"] = False
+    record.pop("review_due_reason", None)
+    record.pop("review_due_reasons", None)
+    record.pop("review_due_at", None)
+    record["last_missing_duration_seconds"] = round(duration, 1)
+    record["last_presence_recovery"] = "within_grace_period"
+    record["last_presence_recovery_at"] = record.get("returned_at")
+
+
 def mark_entity_observations(
     stored, present_entity_ids, *, entity_sources=None, entity_states=None,
     now=None, missing_grace_minutes=15,
@@ -135,6 +157,7 @@ def mark_entity_observations(
     timestamp = _now_iso(now)
     for entity_id, record in data["entities"].items():
         if entity_id in present:
+            _clear_transient_missing_review(record, missing_grace_minutes)
             if record.get("entity_missing"):
                 duration = _missing_duration_seconds(
                     record.get("missing_since"), now or timestamp
