@@ -1,13 +1,13 @@
 import json
 import zipfile
 
-from custom_components.home_assistant_health_manager.report_verification import verify_report
+from importlib.util import module_from_spec, spec_from_file_location\nfrom pathlib import Path\n\nMODULE_PATH = Path(__file__).parents[1] / "custom_components" / "home_assistant_health_manager" / "report_verification.py"\nSPEC = spec_from_file_location("health_manager_report_verification", MODULE_PATH)\nMODULE = module_from_spec(SPEC)\nSPEC.loader.exec_module(MODULE)\nverify_report = MODULE.verify_report
 
 
 def _make_report(path, members=None):
     with zipfile.ZipFile(path, "w") as archive:
         for name, payload in (members or {
-            "health_report.json": json.dumps({"schema_version": 1}),
+            "health_report.json": json.dumps({"schema_version": 1, "system": {"entity_count": 1}}),
             "summary.txt": "summary",
             "ai_repair_prompt.md": "prompt",
         }).items():
@@ -63,3 +63,13 @@ def test_missing_path_is_not_verified(tmp_path):
     result = verify_report(tmp_path, None)
     assert result["status"] == "missing"
     assert result["path"] is None
+
+
+
+def test_directory_at_report_path_is_unreadable(tmp_path):
+    report_dir = tmp_path / "not_a_file.zip"
+    report_dir.mkdir()
+    result = verify_report(tmp_path, str(report_dir))
+    assert result["status"] == "unreadable"
+    assert result["exists"] is True
+    assert result["readable"] is False
