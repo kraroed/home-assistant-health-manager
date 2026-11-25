@@ -20,7 +20,7 @@ from .integration_trends import summarize_integration_trends, update_integration
 from .log_analyzer import analyze_log
 from .recommendations import add_integration_trend_recommendations, add_recurring_issue_recommendations, build_recommendations
 from .redactor import redact_object, redact_text
-from .report_verification import verify_report
+from .report_verification import verify_report, verify_focused_prompts
 from .report import (
     async_commit_focused_prompt,
     async_commit_report,
@@ -347,6 +347,11 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 self.hass.config.path(REPORT_DIR),
                 schedule_snapshot.get("last_report_path"),
             )
+            verified_investigations = await self.hass.async_add_executor_job(
+                verify_focused_prompts,
+                self.hass.config.path(REPORT_DIR),
+                schedule_snapshot.get("investigation_history", []),
+            )
             return {
                 **snapshot,
                 **history_summary,
@@ -366,7 +371,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
                 "diagnostic_trend": summarize_trends(schedule_snapshot.get("trend_history", [])),
                 "integration_trend_summary": summarize_integration_trends(schedule_snapshot.get("integration_trend_history", [])),
                 "repair_plan": schedule_snapshot.get("last_repair_plan", {}),
-                **summarize_investigations(schedule_snapshot.get("investigation_history", [])),
+                **summarize_investigations(verified_investigations),
                 **self.availability_summary,
                 **summarize_unavailable_investigations(self.availability_data.get("investigations", {})),
                 "unavailable_investigation_groups": availability_groups,
