@@ -112,3 +112,90 @@ def verify_report(report_directory: str | Path, report_path: str | None) -> dict
             EOFError, zlib.error, NotImplementedError) as err:
         result.update(status="unreadable", error=f"Unable to verify report: {err}")
         return result
+
+
+
+def verify_focused_prompt(report_directory: str | Path, prompt_path: str | None) -> dict:
+    """Verify one focused Markdown prompt and expose compact UI metadata.
+
+    The resolved file must be a regular file directly inside the configured
+    report directory. A stored path alone never counts as preservation.
+    """
+    directory = Path(report_directory).resolve()
+    result = {
+        "status": "missing",
+        "exists": False,
+        "readable": False,
+        "path": None,
+        "size_bytes": None,
+        "modified_at": None,
+        "error": None,
+    }
+    if not isinstance(prompt_path, str) or not prompt_path.strip():
+        result["error"] = "No focused prompt path is recorded."
+        return result
+
+    try:
+        path = Path(prompt_path).resolve()
+        if path.parent != directory:
+            result.update(
+                status="invalid_path",
+                error="Focused prompt path is outside the configured report directory.",
+            )
+            return result
+        result["path"] = str(path)
+        if not path.exists():
+            result["error"] = "The recorded focused prompt file does not exist."
+            return result
+        result["exists"] = True
+        if not path.is_file():
+            result.update(
+                status="unreadable",
+                error="The focused prompt path is not a regular file.",
+            )
+            return result
+
+        stat = path.stat()
+        result["size_bytes"] = stat.st_size
+        result["modified_at"] = datetime.fromtimestamp(
+            stat.st_mtime, timezone.utc
+        ).isoformat()
+        content = path.read_bytes()
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError:
+            result.update(
+                status="unreadable",
+                error="The focused prompt is not valid UTF-8 text.",
+            )
+            return result
+        result["readable"] = True
+        if not content:
+            result.update(
+                status="empty",
+                error="The focused prompt file is empty.",
+            )
+            return result
+        result.update(status="verified", error=None)
+        return result
+    except OSError as err:
+        result.update(
+            status="unreadable",
+            error=f"Unable to verify focused prompt: {err}",
+        )
+        return result
+
+
+def verify_focused_prompts(report_directory: str | Path, investigations) -> list[dict]:
+    """Return investigation records with freshly verified prompt metadata."""
+    records = investigations if isinstance(investigations, list) else []
+    verified_records = []
+    for item in records[:50]:
+        if not isinstance(item, dict):
+            continue
+        record = dict(item)
+        record["prompt_verification"] = verify_focused_prompt(
+            report_directory, record.get("prompt_path")
+        )
+        verified_records.append(record)
+    return verified_records
