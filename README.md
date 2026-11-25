@@ -37,6 +37,8 @@ The latest compatibility triage is exposed through the `Compatibility Status` se
 
 The prompt is generated locally. It excludes raw log lines, entity IDs, config-entry IDs, titles, and configuration contents; however, redaction is best-effort, so users should review it before sharing. The integration does not send the prompt to an AI service. The user chooses where and with whom to share it.
 
+Focused repair prompts are independently verified on coordinator refresh. The `sensor.repair_investigations` entity exposes a `prompt_verification` object on each investigation with `status`, `exists`, `readable`, `path`, `size_bytes`, `modified_at`, and `error`. Verification is constrained to regular files directly inside the configured reports directory and checks that the file can be read as non-empty UTF-8 text. A stored prompt path alone is never treated as proof that the artifact exists. Verification statuses include `verified`, `missing`, `invalid_path`, `unreadable`, and `empty`.
+
 ## Current collection scope
 
 - Home Assistant Core version.
