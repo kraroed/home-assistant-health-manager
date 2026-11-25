@@ -350,7 +350,8 @@ def test_coordinator_refresh_uses_one_locked_schedule_snapshot():
     )
     assert "schedule_snapshot = deepcopy(self.schedule)" in source
     assert '"last_report_path": schedule_snapshot.get("last_report_path")' in source
-    assert 'summarize_investigations(schedule_snapshot.get("investigation_history", []))' in source
+    assert "verify_focused_prompts" in source
+    assert "summarize_investigations(verified_investigations)" in source
 
 
 
