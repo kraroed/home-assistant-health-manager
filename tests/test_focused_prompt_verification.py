@@ -19,7 +19,7 @@ verify_focused_prompts = MODULE.verify_focused_prompts
 
 def test_verifies_existing_readable_focused_prompt(tmp_path):
     path = tmp_path / "focused_repair_example.md"
-    path.write_text("# Focused repair prompt\\nReview before sharing.\\n", encoding="utf-8")
+    path.write_text("# Focused repair prompt. Review before sharing.", encoding="utf-8")
 
     result = verify_focused_prompt(tmp_path, str(path))
 
@@ -85,7 +85,7 @@ def test_empty_focused_prompt_is_not_verified(tmp_path):
 
 def test_non_utf8_focused_prompt_is_unreadable(tmp_path):
     path = tmp_path / "invalid_utf8.md"
-    path.write_bytes(b"\\xff\\xfe")
+    path.write_bytes(bytes([255, 254]))
 
     result = verify_focused_prompt(tmp_path, str(path))
 
