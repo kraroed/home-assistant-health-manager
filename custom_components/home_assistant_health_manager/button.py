@@ -28,22 +28,23 @@ class ApplyEntityClassificationButton(CoordinatorEntity, ButtonEntity):
         self._attr_unique_id = f"{entry.entry_id}_apply_entity_classification"
 
     async def async_press(self):
-        entity_id = getattr(self.coordinator, "selected_entity_classification_id", None)
+        entity_ids = getattr(self.coordinator, "selected_entity_classification_ids", None)
+        if not entity_ids:
+            selected_id = getattr(self.coordinator, "selected_entity_classification_id", None)
+            entity_ids = [selected_id] if selected_id else []
         classification = getattr(self.coordinator, "selected_entity_classification", None)
         reason = getattr(self.coordinator, "selected_entity_classification_reason", "")
-        if not entity_id:
-            raise ValueError("Choose an entity classification record first.")
+        if not entity_ids:
+            raise ValueError("Choose at least one entity to classify.")
         if classification not in {"actionable", "expected", "setup_in_progress", "seasonal"}:
             raise ValueError("Choose a valid classification first.")
         if not isinstance(reason, str) or not reason.strip():
             raise ValueError("Enter a reason before applying the classification.")
-        record = self.coordinator.entity_classifications.get("entities", {}).get(entity_id, {})
-        await self.coordinator.async_set_entity_classification(
-            entity_id, classification, reason,
-            entity_domain=entity_id.split(".", 1)[0],
-            source_domain=record.get("source_domain"),
-            source_unique_id=record.get("source_unique_id"),
+        await self.coordinator.async_set_entity_classifications(
+            entity_ids, classification, reason
         )
+        self.coordinator.selected_entity_classification_ids = list(entity_ids)
+        self.coordinator.selected_entity_classification_id = entity_ids[0]
         self.coordinator.selected_entity_classification_reason = reason.strip()
 
 
