@@ -147,15 +147,12 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             updated = self.entity_classifications
             for entity_id in unique_ids:
                 record = updated.get("entities", {}).get(entity_id, {})
+                entity_metadata = dict(metadata)
+                entity_metadata.setdefault("entity_domain", entity_id.split(".", 1)[0])
+                entity_metadata.setdefault("source_domain", record.get("source_domain"))
+                entity_metadata.setdefault("source_unique_id", record.get("source_unique_id"))
                 updated = set_entity_classification(
-                    updated,
-                    entity_id,
-                    classification,
-                    reason,
-                    entity_domain=entity_id.split(".", 1)[0],
-                    source_domain=record.get("source_domain"),
-                    source_unique_id=record.get("source_unique_id"),
-                    **metadata,
+                    updated, entity_id, classification, reason, **entity_metadata
                 )
             await self.classification_store.async_save(updated)
             self.entity_classifications = updated
