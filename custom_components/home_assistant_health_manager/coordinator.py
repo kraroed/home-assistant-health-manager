@@ -127,19 +127,41 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     async def async_set_entity_classification(
         self, entity_id, classification, reason, **metadata
     ):
-        """Persist one explicit user classification independently of reports."""
+        """Persist one explicit user classification and refresh its summary."""
+        await self.async_set_entity_classifications(
+            [entity_id], classification, reason, **metadata
+        )
+
+    async def async_set_entity_classifications(
+        self, entity_ids, classification, reason, **metadata
+    ):
+        """Atomically save an explicit classification for one or more entities."""
+        unique_ids = list(dict.fromkeys(
+            entity_id.strip() for entity_id in entity_ids
+            if isinstance(entity_id, str) and entity_id.strip()
+        ))
+        if not unique_ids:
+            raise ValueError("At least one entity ID is required.")
+
         async with self._state_lock:
-            updated = set_entity_classification(
-                self.entity_classifications,
-                entity_id,
-                classification,
-                reason,
-                **metadata,
-            )
+            updated = self.entity_classifications
+            for entity_id in unique_ids:
+                record = updated.get("entities", {}).get(entity_id, {})
+                updated = set_entity_classification(
+                    updated,
+                    entity_id,
+                    classification,
+                    reason,
+                    entity_domain=entity_id.split(".", 1)[0],
+                    source_domain=record.get("source_domain"),
+                    source_unique_id=record.get("source_unique_id"),
+                    **metadata,
+                )
             await self.classification_store.async_save(updated)
             self.entity_classifications = updated
         self.async_update_listeners()
         await self.async_notify_classification_reviews()
+        await self.async_request_refresh()
 
     async def async_remove_entity_classification(self, entity_id):
         """Remove only the explicitly selected entity classification."""
