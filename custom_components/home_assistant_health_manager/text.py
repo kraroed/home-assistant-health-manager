@@ -43,7 +43,7 @@ class EntityClassificationTargetText(CoordinatorEntity, TextEntity):
     """Enter any existing entity ID to classify or edit."""
 
     _attr_has_entity_name = True
-    _attr_name = "Entity IDs to Classify (one per line)"
+    _attr_name = "Entity IDs to Classify (comma-separated)"
     _attr_icon = "mdi:form-textbox"
     _attr_native_min = 3
     _attr_native_max = 2000
