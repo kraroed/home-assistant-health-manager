@@ -170,6 +170,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             self.entity_classifications = updated
         self.async_update_listeners()
         await self.async_notify_classification_reviews()
+        await self.async_request_refresh()
 
     async def async_set_classification_review_interval(self, interval):
         """Persist the user's classification review cadence."""
