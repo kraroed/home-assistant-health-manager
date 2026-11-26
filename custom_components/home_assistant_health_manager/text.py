@@ -46,7 +46,7 @@ class EntityClassificationTargetText(CoordinatorEntity, TextEntity):
     _attr_name = "Entity IDs to Classify (comma-separated)"
     _attr_icon = "mdi:form-textbox"
     _attr_native_min = 3
-    _attr_native_max = 2000
+    _attr_native_max = 255
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator)
@@ -56,7 +56,7 @@ class EntityClassificationTargetText(CoordinatorEntity, TextEntity):
     def native_value(self):
         entity_ids = getattr(self.coordinator, "selected_entity_classification_ids", None)
         if entity_ids:
-            return "\n".join(entity_ids)
+            return ", ".join(entity_ids)
         return getattr(self.coordinator, "selected_entity_classification_id", "") or ""
 
     async def async_set_value(self, value):
