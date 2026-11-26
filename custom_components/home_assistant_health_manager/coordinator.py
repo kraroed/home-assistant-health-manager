@@ -48,6 +48,7 @@ from .availability_investigations import (
 from .entity_classifications import (
     normalize_classifications,
     set_entity_classifications,
+    validate_bulk_classification_targets,
     remove_entity_classification,
     mark_entity_observations,
     set_review_interval,
@@ -136,22 +137,11 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         self, entity_ids, classification, reason, *, allow_existing=False, **metadata
     ):
         """Atomically save classifications; bulk calls cannot overwrite saved records."""
-        unique_ids = list(dict.fromkeys(
-            entity_id.strip() for entity_id in entity_ids
-            if isinstance(entity_id, str) and entity_id.strip()
-        ))
-        if not unique_ids:
-            raise ValueError("At least one entity ID is required.")
-
         async with self._state_lock:
+            unique_ids = validate_bulk_classification_targets(
+                self.entity_classifications, entity_ids, allow_existing=allow_existing
+            )
             saved_records = self.entity_classifications.get("entities", {})
-            existing_ids = [entity_id for entity_id in unique_ids if entity_id in saved_records]
-            if existing_ids and not allow_existing:
-                raise ValueError(
-                    "Bulk classification cannot overwrite existing saved classifications: "
-                    + ", ".join(existing_ids)
-                    + ". Use the single-entity classification control to change an existing record."
-                )
             metadata_by_entity = {}
             for entity_id in unique_ids:
                 record = saved_records.get(entity_id, {})
