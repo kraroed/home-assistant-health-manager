@@ -56,13 +56,13 @@ class EntityClassificationTargetText(CoordinatorEntity, TextEntity):
     def native_value(self):
         entity_ids = getattr(self.coordinator, "selected_entity_classification_ids", None)
         if entity_ids:
-            return "\\n".join(entity_ids)
+            return "\n".join(entity_ids)
         return getattr(self.coordinator, "selected_entity_classification_id", "") or ""
 
     async def async_set_value(self, value):
         entity_ids = list(dict.fromkeys(
             item.strip()
-            for item in value.replace(",", "\\n").splitlines()
+            for item in value.replace(",", "\n").splitlines()
             if item.strip()
         ))
         if not entity_ids:
