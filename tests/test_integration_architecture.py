@@ -1007,3 +1007,40 @@ def test_classification_missing_grace_period_is_configurable_and_used():
     assert "missing_grace_minutes=self.entry.options.get(" in coordinator
     assert "classification_missing_grace_minutes" in strings["options"]["step"]["init"]["data"]
     assert "classification_missing_grace_minutes" in translations["options"]["step"]["init"]["data"]
+
+
+def test_classification_coordinator_persists_before_committing_live_state():
+    tree = _parse(INTEGRATION / "coordinator.py")
+    coordinator = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
+    )
+    method = next(
+        node for node in coordinator.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_set_entity_classifications"
+    )
+    calls = [
+        node for node in ast.walk(method)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+    ]
+    save = next(node for node in calls if node.func.attr == "async_save")
+    commit = next(
+        node for node in ast.walk(method)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Attribute)
+            and target.attr == "entity_classifications"
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "self"
+            for target in node.targets
+        )
+    )
+    assert save.lineno < commit.lineno
+    assert any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "validate_bulk_classification_targets"
+        for node in ast.walk(method)
+    )
