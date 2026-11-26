@@ -111,17 +111,28 @@ async def async_setup_services(hass):
 
     schema = vol.Schema({vol.Optional("comprehensive", default=False): bool})
     focused_schema = vol.Schema({vol.Required("plan_id"): str})
-    classification_schema = vol.Schema({
-        vol.Optional("entity_id"): str,
-        vol.Optional("entity_ids"): vol.All([str], vol.Length(min=1)),
-        vol.Required("classification"): vol.In([
-            "actionable", "expected", "setup_in_progress", "seasonal"
-        ]),
-        vol.Required("reason"): str,
-        vol.Optional("entity_domain"): str,
-        vol.Optional("source_domain"): str,
-        vol.Optional("source_unique_id"): str,
-    })
+    def validate_classification_target(data):
+        """Require exactly one classification target form."""
+        has_single = bool(data.get("entity_id"))
+        has_bulk = bool(data.get("entity_ids"))
+        if has_single == has_bulk:
+            raise vol.Invalid("Provide exactly one of entity_id or entity_ids.")
+        return data
+
+    classification_schema = vol.All(
+        vol.Schema({
+            vol.Optional("entity_id"): str,
+            vol.Optional("entity_ids"): vol.All([str], vol.Length(min=1)),
+            vol.Required("classification"): vol.In([
+                "actionable", "expected", "setup_in_progress", "seasonal"
+            ]),
+            vol.Required("reason"): str,
+            vol.Optional("entity_domain"): str,
+            vol.Optional("source_domain"): str,
+            vol.Optional("source_unique_id"): str,
+        }),
+        validate_classification_target,
+    )
     remove_classification_schema = vol.Schema({
         vol.Required("entity_id"): str,
     })
