@@ -47,7 +47,8 @@ from .availability_investigations import (
 )
 from .entity_classifications import (
     normalize_classifications,
-    set_entity_classification,
+    set_entity_classifications,
+    validate_bulk_classification_targets,
     remove_entity_classification,
     mark_entity_observations,
     set_review_interval,
@@ -127,19 +128,40 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     async def async_set_entity_classification(
         self, entity_id, classification, reason, **metadata
     ):
-        """Persist one explicit user classification independently of reports."""
+        """Persist one explicit user classification and refresh its summary."""
+        await self.async_set_entity_classifications(
+            [entity_id], classification, reason, allow_existing=True, **metadata
+        )
+
+    async def async_set_entity_classifications(
+        self, entity_ids, classification, reason, *, allow_existing=False, **metadata
+    ):
+        """Atomically save classifications; bulk calls cannot overwrite saved records."""
         async with self._state_lock:
-            updated = set_entity_classification(
+            unique_ids = validate_bulk_classification_targets(
+                self.entity_classifications, entity_ids, allow_existing=allow_existing
+            )
+            saved_records = self.entity_classifications.get("entities", {})
+            metadata_by_entity = {}
+            for entity_id in unique_ids:
+                record = saved_records.get(entity_id, {})
+                entity_metadata = dict(metadata)
+                entity_metadata.setdefault("entity_domain", entity_id.split(".", 1)[0])
+                entity_metadata.setdefault("source_domain", record.get("source_domain"))
+                entity_metadata.setdefault("source_unique_id", record.get("source_unique_id"))
+                metadata_by_entity[entity_id] = entity_metadata
+            updated = set_entity_classifications(
                 self.entity_classifications,
-                entity_id,
+                unique_ids,
                 classification,
                 reason,
-                **metadata,
+                metadata_by_entity=metadata_by_entity,
             )
             await self.classification_store.async_save(updated)
             self.entity_classifications = updated
         self.async_update_listeners()
         await self.async_notify_classification_reviews()
+        await self.async_request_refresh()
 
     async def async_remove_entity_classification(self, entity_id):
         """Remove only the explicitly selected entity classification."""
@@ -151,6 +173,7 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             self.entity_classifications = updated
         self.async_update_listeners()
         await self.async_notify_classification_reviews()
+        await self.async_request_refresh()
 
     async def async_set_classification_review_interval(self, interval):
         """Persist the user's classification review cadence."""

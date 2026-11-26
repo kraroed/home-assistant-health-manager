@@ -70,6 +70,7 @@ PAGED_COLLECTIONS = {
     "missing_tracked_entity_ids": ("missing_tracked_entity_ids", "list"),
     "unavailable_investigation_groups": ("unavailable_investigation_groups", "list"),
     "classification_review_due_entities": ("classification_review_due_entities", "list"),
+    "entity_classification_records": ("entity_classification_records", "list"),
     "unknown_counts_by_domain": ("unknown_counts_by_domain", "mapping"),
     "integration_attention_domains": ("integration_inventory.attention_domains", "list"),
     "failed_config_entry_domains": ("failed_config_entry_domains", "mapping"),

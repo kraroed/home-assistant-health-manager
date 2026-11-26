@@ -2,6 +2,7 @@ import voluptuous as vol
 from homeassistant.core import ServiceCall
 
 from .const import DOMAIN
+from .entity_classifications import validate_classification_target
 
 
 async def async_setup_services(hass):
@@ -45,8 +46,17 @@ async def async_setup_services(hass):
 
     async def set_entity_classification_service(call: ServiceCall):
         coordinator = _get_coordinator(hass)
+        entity_ids = call.data.get("entity_ids")
+        if entity_ids:
+            await coordinator.async_set_entity_classifications(
+                entity_ids, call.data["classification"], call.data["reason"]
+            )
+            return
+        entity_id = call.data.get("entity_id")
+        if not entity_id:
+            raise ValueError("Provide entity_id or entity_ids.")
         await coordinator.async_set_entity_classification(
-            call.data["entity_id"],
+            entity_id,
             call.data["classification"],
             call.data["reason"],
             entity_domain=call.data.get("entity_domain"),
@@ -102,16 +112,26 @@ async def async_setup_services(hass):
 
     schema = vol.Schema({vol.Optional("comprehensive", default=False): bool})
     focused_schema = vol.Schema({vol.Required("plan_id"): str})
-    classification_schema = vol.Schema({
-        vol.Required("entity_id"): str,
-        vol.Required("classification"): vol.In([
-            "actionable", "expected", "setup_in_progress", "seasonal"
-        ]),
-        vol.Required("reason"): str,
-        vol.Optional("entity_domain"): str,
-        vol.Optional("source_domain"): str,
-        vol.Optional("source_unique_id"): str,
-    })
+    def _validate_classification_target(data):
+        try:
+            return validate_classification_target(data)
+        except ValueError as err:
+            raise vol.Invalid(str(err)) from err
+
+    classification_schema = vol.All(
+        vol.Schema({
+            vol.Optional("entity_id"): str,
+            vol.Optional("entity_ids"): vol.All([str], vol.Length(min=1)),
+            vol.Required("classification"): vol.In([
+                "actionable", "expected", "setup_in_progress", "seasonal"
+            ]),
+            vol.Required("reason"): str,
+            vol.Optional("entity_domain"): str,
+            vol.Optional("source_domain"): str,
+            vol.Optional("source_unique_id"): str,
+        }),
+        _validate_classification_target,
+    )
     remove_classification_schema = vol.Schema({
         vol.Required("entity_id"): str,
     })

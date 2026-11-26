@@ -16,6 +16,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         InvestigationHistorySelect(coordinator, entry),
         InvestigationStatusSelect(coordinator, entry),
         EntityClassificationReviewSelect(coordinator, entry),
+        UnknownEntityClassificationTargetSelect(coordinator, entry, hass),
         ConfirmEntityClassificationReviewSelect(coordinator, entry),
         EntityClassificationValueSelect(coordinator, entry),
         ClassificationReviewIntervalSelect(coordinator, entry),
@@ -317,6 +318,54 @@ class UnavailableInvestigationStatusSelect(CoordinatorEntity, SelectEntity):
             option,
             self.coordinator.selected_unavailable_investigation_note,
         )
+
+
+class UnknownEntityClassificationTargetSelect(CoordinatorEntity, SelectEntity):
+    """Choose a currently unknown entity without typing its entity ID."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Unknown Entity to Classify"
+    _attr_icon = "mdi:form-dropdown"
+
+    def __init__(self, coordinator, entry, hass):
+        super().__init__(coordinator)
+        self.hass = hass
+        self._attr_unique_id = f"{entry.entry_id}_unknown_entity_classification_target"
+        self._option_to_entity_id = {}
+
+    @property
+    def options(self):
+        states = [
+            state for state in self.hass.states.async_all()
+            if state.state == "unknown" and state.domain != "button"
+        ]
+        self._option_to_entity_id = {
+            f"{state.name or state.entity_id} — {state.entity_id}": state.entity_id
+            for state in sorted(states, key=lambda item: (item.name or item.entity_id).lower())
+        }
+        return list(self._option_to_entity_id)
+
+    @property
+    def current_option(self):
+        selected = getattr(self.coordinator, "selected_entity_classification_id", None)
+        return next(
+            (label for label, entity_id in self._option_to_entity_id.items() if entity_id == selected),
+            None,
+        )
+
+    async def async_select_option(self, option):
+        entity_id = self._option_to_entity_id.get(option)
+        if entity_id is None:
+            self.options
+            entity_id = self._option_to_entity_id.get(option)
+        if entity_id is None:
+            raise ValueError("That unknown entity is no longer available.")
+        record = self.coordinator.entity_classifications.get("entities", {}).get(entity_id, {})
+        self.coordinator.selected_entity_classification_ids = [entity_id]
+        self.coordinator.selected_entity_classification_id = entity_id
+        self.coordinator.selected_entity_classification = record.get("classification", "actionable")
+        self.coordinator.selected_entity_classification_reason = record.get("reason", "")
+        self.coordinator.async_update_listeners()
 
 
 class EntityClassificationReviewSelect(CoordinatorEntity, SelectEntity):

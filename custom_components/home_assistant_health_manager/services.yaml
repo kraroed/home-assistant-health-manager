@@ -70,10 +70,17 @@ set_entity_classification:
   fields:
     entity_id:
       name: Entity ID
-      description: Exact Home Assistant entity ID to classify.
-      required: true
+      description: One exact Home Assistant entity ID to classify (legacy single-entity form).
+      required: false
       selector:
         entity:
+    entity_ids:
+      name: Entity IDs
+      description: Multiple exact Home Assistant entity IDs to classify together with one shared reason.
+      required: false
+      selector:
+        entity:
+          multiple: true
     classification:
       name: Classification
       description: How this entity should be tracked.

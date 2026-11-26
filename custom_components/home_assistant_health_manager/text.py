@@ -43,7 +43,7 @@ class EntityClassificationTargetText(CoordinatorEntity, TextEntity):
     """Enter any existing entity ID to classify or edit."""
 
     _attr_has_entity_name = True
-    _attr_name = "Entity ID to Classify"
+    _attr_name = "Entity IDs to Classify (comma-separated)"
     _attr_icon = "mdi:form-textbox"
     _attr_native_min = 3
     _attr_native_max = 255
@@ -54,17 +54,29 @@ class EntityClassificationTargetText(CoordinatorEntity, TextEntity):
 
     @property
     def native_value(self):
+        entity_ids = getattr(self.coordinator, "selected_entity_classification_ids", None)
+        if entity_ids:
+            return ", ".join(entity_ids)
         return getattr(self.coordinator, "selected_entity_classification_id", "") or ""
 
     async def async_set_value(self, value):
-        entity_id = value.strip()
-        if "." not in entity_id or " " in entity_id:
-            raise ValueError("Enter a valid Home Assistant entity ID, such as sensor.example.")
+        entity_ids = list(dict.fromkeys(
+            item.strip()
+            for item in value.replace(",", "\n").splitlines()
+            if item.strip()
+        ))
+        if not entity_ids:
+            raise ValueError("Enter at least one Home Assistant entity ID.")
         registry = er.async_get(self.hass)
-        if self.hass.states.get(entity_id) is None and registry.async_get(entity_id) is None:
-            raise ValueError("That entity ID was not found in Home Assistant.")
-        record = self.coordinator.entity_classifications.get("entities", {}).get(entity_id, {})
-        self.coordinator.selected_entity_classification_id = entity_id
+        for entity_id in entity_ids:
+            if "." not in entity_id or " " in entity_id:
+                raise ValueError(f"Invalid Home Assistant entity ID: {entity_id}")
+            if self.hass.states.get(entity_id) is None and registry.async_get(entity_id) is None:
+                raise ValueError(f"Entity not found in Home Assistant: {entity_id}")
+        selected_id = entity_ids[0]
+        record = self.coordinator.entity_classifications.get("entities", {}).get(selected_id, {})
+        self.coordinator.selected_entity_classification_ids = entity_ids
+        self.coordinator.selected_entity_classification_id = selected_id
         self.coordinator.selected_entity_classification = record.get("classification", "actionable")
         self.coordinator.selected_entity_classification_reason = record.get("reason", "")
         self.coordinator.async_update_listeners()

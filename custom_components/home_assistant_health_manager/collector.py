@@ -42,6 +42,18 @@ def collect_snapshot(hass, entity_classifications=None):
         if classification_for(state) not in NON_ACTIONABLE_CLASSIFICATIONS
     ]
     classified_unknown = [state for state in unknown if classification_for(state)]
+    # Publish the saved record (including its reason) for each currently unknown
+    # entity so dashboard clients can distinguish new items from existing
+    # classifications before offering bulk actions.
+    entity_classification_records = [
+        {
+            "entity_id": state.entity_id,
+            "classification": records[state.entity_id].get("classification"),
+            "reason": records[state.entity_id].get("reason", ""),
+        }
+        for state in classified_unknown
+        if isinstance(records.get(state.entity_id), dict)
+    ]
     classified_unavailable = [state for state in unavailable if classification_for(state)]
     classification_counts = Counter(
         classification_for(state) for state in states if classification_for(state)
@@ -70,6 +82,7 @@ def collect_snapshot(hass, entity_classifications=None):
         "classified_unknown_entity_count": len(classified_unknown),
         "classified_unavailable_entity_count": len(classified_unavailable),
         "entity_classification_counts": dict(classification_counts),
+        "entity_classification_records": entity_classification_records,
         "classification_review_due_count": len(review_due),
         "classification_review_due_entities": review_due,
         "unavailable_counts_by_domain": dict(Counter(state.domain for state in unavailable)),
