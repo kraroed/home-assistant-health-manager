@@ -85,6 +85,29 @@ def set_entity_classification(stored, entity_id, classification, reason, *, now=
     return data
 
 
+def set_entity_classifications(stored, entity_ids, classification, reason, *,
+                              now=None, metadata_by_entity=None):
+    """Apply one explicit classification to a deduplicated entity set."""
+    if not isinstance(entity_ids, (list, tuple, set)):
+        raise ValueError("entity_ids must be a list of entity IDs")
+    unique_ids = list(dict.fromkeys(
+        entity_id.strip() for entity_id in entity_ids
+        if isinstance(entity_id, str) and entity_id.strip()
+    ))
+    if not unique_ids:
+        raise ValueError("At least one entity ID is required.")
+    metadata_by_entity = metadata_by_entity if isinstance(metadata_by_entity, dict) else {}
+    updated = normalize_classifications(stored)
+    for entity_id in unique_ids:
+        metadata = metadata_by_entity.get(entity_id, {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        updated = set_entity_classification(
+            updated, entity_id, classification, reason, now=now, **metadata
+        )
+    return updated
+
+
 def remove_entity_classification(stored, entity_id):
     """Remove a record only after an explicit user request."""
     data = normalize_classifications(stored)
