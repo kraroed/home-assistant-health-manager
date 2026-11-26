@@ -32,7 +32,7 @@ class EntityClassificationReasonText(CoordinatorEntity, TextEntity):
 
     @property
     def native_value(self):
-        return getattr(self.coordinator, "selected_entity_classification_reason", "")
+        return getattr(self.coordinator, "selected_entity_classification_reason", "") or None
 
     async def async_set_value(self, value):
         self.coordinator.selected_entity_classification_reason = value.strip()
@@ -57,7 +57,7 @@ class EntityClassificationTargetText(CoordinatorEntity, TextEntity):
         entity_ids = getattr(self.coordinator, "selected_entity_classification_ids", None)
         if entity_ids:
             return ", ".join(entity_ids)
-        return getattr(self.coordinator, "selected_entity_classification_id", "") or ""
+        return getattr(self.coordinator, "selected_entity_classification_id", "") or None
 
     async def async_set_value(self, value):
         entity_ids = list(dict.fromkeys(
@@ -97,7 +97,7 @@ class UnavailableInvestigationEntityText(CoordinatorEntity, TextEntity):
 
     @property
     def native_value(self):
-        return self.coordinator.selected_manual_unavailable_entity_id or ""
+        return self.coordinator.selected_manual_unavailable_entity_id or None
 
     async def async_set_value(self, value):
         entity_id = value.strip()
