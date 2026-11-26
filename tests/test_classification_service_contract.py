@@ -98,7 +98,7 @@ def test_coordinator_bulk_save_validates_under_lock_and_commits_after_storage():
     )
     assert "async with self._state_lock" in source
     assert source.index("validate_bulk_classification_targets") < source.index(
-        "set_entity_classifications("
+        "updated = set_entity_classifications("
     )
     assert source.index("await self.classification_store.async_save(updated)") < source.index(
         "self.entity_classifications = updated"
