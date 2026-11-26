@@ -78,7 +78,7 @@ GitHub Actions runs Python tests, Home Assistant hassfest, and HACS integration 
 
 ## Status
 
-The installed testing baseline is **0.1.0-beta.13**. The **0.1.0-beta.14 candidate** adds the dashboard-first entity-classification workflow and protected bulk classification. The companion [Lovelace card PR](https://github.com/kraroed/lovelace-home-assistant-health-manager-card/pull/4) must be installed with this integration candidate because its bulk workflow uses the integration's `entity_ids` service support. Beta.14 has not been released; the two pull requests remain under review.
+The previous installed testing baseline is **0.1.0-beta.13**. The **0.1.0-beta.14 release candidate** adds the dashboard-first entity-classification workflow and protected bulk classification. The companion [Lovelace card repository](https://github.com/kraroed/lovelace-home-assistant-health-manager-card) must be updated alongside this integration because its bulk workflow uses the integration's `entity_ids` service support. Both coordinated pull requests have been merged to their `main` branches. The beta.14 tags/releases have not yet been published.
 
 Live HA OS verification is still outstanding. Before treating this candidate as accepted, verify the phone-friendly classification workflow, preservation of existing classifications and reasons, bulk-save failure handling, refreshed counts, all six Lovelace card views, report accessibility, and persistence after restart using the [controlled HA OS test checklist](docs/HA_OS_TEST_CHECKLIST.md). A successful CI run or beta installation is not a stable-release certification.
 
