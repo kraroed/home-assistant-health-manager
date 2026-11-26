@@ -129,13 +129,13 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
     ):
         """Persist one explicit user classification and refresh its summary."""
         await self.async_set_entity_classifications(
-            [entity_id], classification, reason, **metadata
+            [entity_id], classification, reason, allow_existing=True, **metadata
         )
 
     async def async_set_entity_classifications(
-        self, entity_ids, classification, reason, **metadata
+        self, entity_ids, classification, reason, *, allow_existing=False, **metadata
     ):
-        """Atomically save an explicit classification for one or more entities."""
+        """Atomically save classifications; bulk calls cannot overwrite saved records."""
         unique_ids = list(dict.fromkeys(
             entity_id.strip() for entity_id in entity_ids
             if isinstance(entity_id, str) and entity_id.strip()
@@ -144,9 +144,17 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             raise ValueError("At least one entity ID is required.")
 
         async with self._state_lock:
+            saved_records = self.entity_classifications.get("entities", {})
+            existing_ids = [entity_id for entity_id in unique_ids if entity_id in saved_records]
+            if existing_ids and not allow_existing:
+                raise ValueError(
+                    "Bulk classification cannot overwrite existing saved classifications: "
+                    + ", ".join(existing_ids)
+                    + ". Use the single-entity classification control to change an existing record."
+                )
             metadata_by_entity = {}
             for entity_id in unique_ids:
-                record = self.entity_classifications.get("entities", {}).get(entity_id, {})
+                record = saved_records.get(entity_id, {})
                 entity_metadata = dict(metadata)
                 entity_metadata.setdefault("entity_domain", entity_id.split(".", 1)[0])
                 entity_metadata.setdefault("source_domain", record.get("source_domain"))
