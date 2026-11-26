@@ -2,6 +2,7 @@ import voluptuous as vol
 from homeassistant.core import ServiceCall
 
 from .const import DOMAIN
+from .entity_classifications import validate_classification_target
 
 
 async def async_setup_services(hass):
@@ -111,13 +112,11 @@ async def async_setup_services(hass):
 
     schema = vol.Schema({vol.Optional("comprehensive", default=False): bool})
     focused_schema = vol.Schema({vol.Required("plan_id"): str})
-    def validate_classification_target(data):
-        """Require exactly one classification target form."""
-        has_single = bool(data.get("entity_id"))
-        has_bulk = bool(data.get("entity_ids"))
-        if has_single == has_bulk:
-            raise vol.Invalid("Provide exactly one of entity_id or entity_ids.")
-        return data
+    def _validate_classification_target(data):
+        try:
+            return validate_classification_target(data)
+        except ValueError as err:
+            raise vol.Invalid(str(err)) from err
 
     classification_schema = vol.All(
         vol.Schema({
@@ -131,7 +130,7 @@ async def async_setup_services(hass):
             vol.Optional("source_domain"): str,
             vol.Optional("source_unique_id"): str,
         }),
-        validate_classification_target,
+        _validate_classification_target,
     )
     remove_classification_schema = vol.Schema({
         vol.Required("entity_id"): str,
