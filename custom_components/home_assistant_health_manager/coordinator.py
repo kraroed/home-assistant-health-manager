@@ -47,7 +47,6 @@ from .availability_investigations import (
 )
 from .entity_classifications import (
     normalize_classifications,
-    set_entity_classification,
     set_entity_classifications,
     remove_entity_classification,
     mark_entity_observations,
