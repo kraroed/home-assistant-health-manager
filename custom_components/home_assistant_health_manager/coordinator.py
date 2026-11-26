@@ -48,6 +48,7 @@ from .availability_investigations import (
 from .entity_classifications import (
     normalize_classifications,
     set_entity_classification,
+    set_entity_classifications,
     remove_entity_classification,
     mark_entity_observations,
     set_review_interval,
@@ -144,16 +145,21 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
             raise ValueError("At least one entity ID is required.")
 
         async with self._state_lock:
-            updated = self.entity_classifications
+            metadata_by_entity = {}
             for entity_id in unique_ids:
-                record = updated.get("entities", {}).get(entity_id, {})
+                record = self.entity_classifications.get("entities", {}).get(entity_id, {})
                 entity_metadata = dict(metadata)
                 entity_metadata.setdefault("entity_domain", entity_id.split(".", 1)[0])
                 entity_metadata.setdefault("source_domain", record.get("source_domain"))
                 entity_metadata.setdefault("source_unique_id", record.get("source_unique_id"))
-                updated = set_entity_classification(
-                    updated, entity_id, classification, reason, **entity_metadata
-                )
+                metadata_by_entity[entity_id] = entity_metadata
+            updated = set_entity_classifications(
+                self.entity_classifications,
+                unique_ids,
+                classification,
+                reason,
+                metadata_by_entity=metadata_by_entity,
+            )
             await self.classification_store.async_save(updated)
             self.entity_classifications = updated
         self.async_update_listeners()
