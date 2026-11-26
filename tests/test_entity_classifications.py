@@ -584,3 +584,52 @@ def test_bulk_classification_rejects_empty_targets_and_invalid_values():
             pass
         else:
             raise AssertionError("invalid bulk classification should be rejected")
+
+
+def test_service_classification_target_requires_exactly_one_non_empty_target():
+    validate = CLASSIFICATIONS.validate_classification_target
+    assert validate({"entity_id": "sensor.one"}) == {"entity_id": "sensor.one"}
+    assert validate({"entity_ids": ["sensor.one"]}) == {"entity_ids": ["sensor.one"]}
+    for data in (
+        {},
+        {"entity_id": "", "entity_ids": []},
+        {"entity_id": "sensor.one", "entity_ids": ["sensor.two"]},
+        {"entity_ids": []},
+        {"entity_id": "   "},
+    ):
+        try:
+            validate(data)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid classification target accepted: {data!r}")
+
+
+def test_bulk_target_guard_rejects_existing_records_without_mutating_store():
+    original = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.saved", "expected", "Keep this reason.", now=NOW
+    )
+    before = CLASSIFICATIONS.normalize_classifications(original)
+    try:
+        CLASSIFICATIONS.validate_bulk_classification_targets(
+            original, ["sensor.new", "sensor.saved", "sensor.new"]
+        )
+    except ValueError as err:
+        assert "sensor.saved" in str(err)
+    else:
+        raise AssertionError("bulk update should reject a saved classification")
+    assert original == before
+    assert original["entities"]["sensor.saved"]["classification"] == "expected"
+    assert original["entities"]["sensor.saved"]["reason"] == "Keep this reason."
+
+
+def test_bulk_target_guard_deduplicates_new_ids_and_single_edit_can_allow_existing():
+    original = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.saved", "setup_in_progress", "Still configuring.", now=NOW
+    )
+    assert CLASSIFICATIONS.validate_bulk_classification_targets(
+        original, ["sensor.new", "sensor.new", "sensor.other"]
+    ) == ["sensor.new", "sensor.other"]
+    assert CLASSIFICATIONS.validate_bulk_classification_targets(
+        original, ["sensor.saved"], allow_existing=True
+    ) == ["sensor.saved"]
