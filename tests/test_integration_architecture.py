@@ -711,7 +711,12 @@ def test_classification_management_has_native_text_and_button_platforms():
     assert {"ApplyEntityClassificationButton", "RemoveEntityClassificationButton"} <= button_classes
     apply_button = next(node for node in button_tree.body if isinstance(node, ast.ClassDef) and node.name == "ApplyEntityClassificationButton")
     press = next(node for node in apply_button.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_press")
-    assert any(isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "async_set_entity_classification" for node in ast.walk(press))
+    assert any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "async_set_entity_classifications"
+        for node in ast.walk(press)
+    )
     assert any(isinstance(node, ast.Attribute) and node.attr == "strip" for node in ast.walk(press))
 
 
