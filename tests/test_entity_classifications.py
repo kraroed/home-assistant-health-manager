@@ -539,3 +539,48 @@ def test_prolonged_missing_flag_survives_a_later_short_restart_cycle():
     assert {"entity_missing", "entity_returned"}.issubset(
         set(record["review_due_reasons"])
     )
+
+
+
+def test_bulk_classification_deduplicates_ids_and_preserves_per_entity_metadata():
+    original = CLASSIFICATIONS.set_entity_classification(
+        {}, "sensor.one", "setup_in_progress", "Existing reason.",
+        now=NOW, source_domain="demo", source_unique_id="device-one"
+    )
+    result = CLASSIFICATIONS.set_entity_classifications(
+        original,
+        ["sensor.one", "sensor.two", "sensor.one"],
+        "expected",
+        "Shared bulk reason.",
+        now=datetime(2026, 11, 20, 12, 0, tzinfo=timezone.utc),
+        metadata_by_entity={
+            "sensor.one": {
+                "entity_domain": "sensor",
+                "source_domain": "demo",
+                "source_unique_id": "device-one",
+            },
+            "sensor.two": {"entity_domain": "sensor", "source_domain": "demo"},
+        },
+    )
+    assert set(result["entities"]) == {"sensor.one", "sensor.two"}
+    assert result["entities"]["sensor.one"]["classification"] == "expected"
+    assert result["entities"]["sensor.two"]["classification"] == "expected"
+    assert result["entities"]["sensor.one"]["reason"] == "Shared bulk reason."
+    assert result["entities"]["sensor.one"]["source_unique_id"] == "device-one"
+    assert original["entities"]["sensor.one"]["classification"] == "setup_in_progress"
+
+
+def test_bulk_classification_rejects_empty_targets_and_invalid_values():
+    for entity_ids, classification, reason in [
+        ([], "expected", "Reason."),
+        (["sensor.one"], "unsupported", "Reason."),
+        (["sensor.one"], "expected", "  "),
+    ]:
+        try:
+            CLASSIFICATIONS.set_entity_classifications(
+                {}, entity_ids, classification, reason, now=NOW
+            )
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid bulk classification should be rejected")
