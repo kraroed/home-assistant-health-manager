@@ -120,43 +120,58 @@ def test_scheduled_report_uses_imported_timedelta_and_report_generation_is_seria
 
 
 
-def test_report_state_is_committed_only_after_report_write_and_store_save():
-    tree = _parse(INTEGRATION / "coordinator.py")
+def test_report_state_is_committed_only_after_report_write_and_transactional_store_save():
+    coordinator_tree = _parse(INTEGRATION / "coordinator.py")
     coordinator = next(
-        node for node in tree.body
+        node for node in coordinator_tree.body
         if isinstance(node, ast.ClassDef) and node.name == "HealthManagerCoordinator"
     )
     method = next(
         node for node in coordinator.body
         if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_generate_report_locked"
     )
-    calls = [
-        node.func.attr
-        for node in ast.walk(method)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    method_calls = [
+        node for node in ast.walk(method) if isinstance(node, ast.Call)
     ]
-    assert any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "deepcopy" for node in ast.walk(method))
-    assert any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "write_report" for node in ast.walk(method))
-    assert "async_save" in calls
-    save_index = next(
-        index for index, statement in enumerate(method.body)
-        if any(
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "async_save"
-            for node in ast.walk(statement)
-        )
+    assert any(isinstance(node.func, ast.Name) and node.func.id == "deepcopy" for node in method_calls)
+    assert any(isinstance(node.func, ast.Name) and node.func.id == "write_report" for node in method_calls)
+    transaction_call = next(
+        node for node in method_calls
+        if isinstance(node.func, ast.Name)
+        and node.func.id == "async_save_report_transaction"
     )
-    state_commit_index = next(
-        index for index, statement in enumerate(method.body)
-        if isinstance(statement, ast.Assign)
-        and any(
-            isinstance(target, ast.Attribute)
-            and target.attr == "schedule"
-            for target in statement.targets
-        )
+    report_write = next(
+        node for node in method_calls
+        if isinstance(node.func, ast.Name) and node.func.id == "write_report"
     )
-    assert save_index < state_commit_index
+    schedule_commit = next(
+        node for node in ast.walk(method)
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Attribute) and target.attr == "schedule"
+                for target in node.targets)
+    )
+    marker_commit = next(
+        node for node in method_calls
+        if isinstance(node.func, ast.Name) and node.func.id == "async_commit_report"
+    )
+    assert report_write.lineno < transaction_call.lineno < schedule_commit.lineno < marker_commit.lineno
+
+    report_tree = _parse(INTEGRATION / "report.py")
+    helper = next(
+        node for node in report_tree.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_save_report_transaction"
+    )
+    helper_calls = [node for node in ast.walk(helper) if isinstance(node, ast.Call)]
+    assert any(
+        isinstance(node.func, ast.Attribute) and node.func.attr == "async_save"
+        for node in helper_calls
+    )
+    assert any(
+        isinstance(node.func, ast.Name)
+        and node.func.id == "_reconcile_report_transactions_sync"
+        for node in helper_calls
+    )
 
 
 def test_focused_prompt_rejects_unknown_plan_before_writing():
@@ -259,11 +274,38 @@ def test_report_transaction_is_reconciled_at_startup_and_committed_after_store_s
         node for node in coordinator.body
         if isinstance(node, ast.AsyncFunctionDef) and node.name == "_async_generate_report_locked"
     )
-    report_source = ast.get_source_segment(
+    report_calls = [node for node in ast.walk(report) if isinstance(node, ast.Call)]
+    assert any(
+        isinstance(node.func, ast.Name) and node.func.id == "async_save_report_transaction"
+        for node in report_calls
+    )
+    assert any(
+        isinstance(node.func, ast.Name) and node.func.id == "async_commit_report"
+        for node in report_calls
+    )
+    assert 'schedule["last_report_path"] = path' in ast.get_source_segment(
         (INTEGRATION / "coordinator.py").read_text(encoding="utf-8"), report
     )
-    assert 'schedule["last_report_path"] = path' in report_source
-    assert report_source.index("await self.store.async_save(schedule)") < report_source.index("await async_commit_report")
+
+    report_tree = _parse(INTEGRATION / "report.py")
+    helper = next(
+        node for node in report_tree.body
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "async_save_report_transaction"
+    )
+    save = next(
+        node for node in ast.walk(helper)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "async_save"
+    )
+    reconcile = next(
+        node for node in ast.walk(helper)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_reconcile_report_transactions_sync"
+    )
+    assert save.lineno < reconcile.lineno
 
 
 def test_report_module_uses_pending_and_complete_transaction_markers():
@@ -331,7 +373,13 @@ def test_scheduled_report_advances_due_date_in_same_store_transaction():
     )
     assert 'schedule["next_monthly"]' in report_source
     assert 'schedule["next_weekly"]' in report_source
-    assert report_source.index('schedule["next_weekly"]') < report_source.index("await self.store.async_save(schedule)")
+    transaction_call = next(
+        node for node in ast.walk(report)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "async_save_report_transaction"
+    )
+    assert report_source.index('schedule["next_weekly"]') < transaction_call.lineno
 
 
 
