@@ -596,3 +596,95 @@ def test_report_summary_uses_real_line_breaks_and_matches_zip_copy(tmp_path):
     assert summary.startswith("Home Assistant Health Manager report\n")
     with REPORT.zipfile.ZipFile(report_path) as archive:
         assert archive.read("summary.txt").decode("utf-8") == summary
+
+
+
+class _FailingReportStore:
+    async def async_save(self, _schedule):
+        raise OSError("simulated Home Assistant Store save failure")
+
+
+class _SuccessfulReportStore:
+    def __init__(self):
+        self.saved = None
+
+    async def async_save(self, schedule):
+        self.saved = schedule
+
+
+def _fake_hass(directory):
+    return types.SimpleNamespace(
+        config=types.SimpleNamespace(path=lambda _value: str(directory))
+    )
+
+
+def test_store_save_failure_immediately_reconciles_uncommitted_report(tmp_path):
+    previous_path = _write_report(REPORT, tmp_path)
+    REPORT._commit_report_sync(tmp_path, previous_path)
+    new_path = _write_report(REPORT, tmp_path)
+    new_base = Path(new_path).stem
+
+    async def run():
+        try:
+            await REPORT.async_save_report_transaction(
+                _fake_hass(tmp_path),
+                _FailingReportStore(),
+                {"last_report_path": new_path},
+                previous_path,
+            )
+        except OSError as err:
+            assert "Store save failure" in str(err)
+        else:
+            raise AssertionError("expected Store save failure")
+
+    asyncio.run(run())
+
+    assert Path(previous_path).exists()
+    assert Path(previous_path).with_name(f".{Path(previous_path).stem}.complete").exists()
+    assert not list(tmp_path.glob(f"{new_base}*"))
+    assert not (tmp_path / f".{new_base}.pending").exists()
+    assert not (tmp_path / f".{new_base}.complete").exists()
+
+
+def test_store_save_success_keeps_report_for_commit_step(tmp_path):
+    path = _write_report(REPORT, tmp_path)
+    store = _SuccessfulReportStore()
+    schedule = {"last_report_path": path, "report_count": 1}
+
+    asyncio.run(REPORT.async_save_report_transaction(
+        _fake_hass(tmp_path), store, schedule, None
+    ))
+
+    assert store.saved == schedule
+    assert Path(path).exists()
+    assert Path(path).with_name(f".{Path(path).stem}.pending").exists()
+
+
+def test_store_save_failure_retains_pending_marker_when_cleanup_is_incomplete(tmp_path, monkeypatch):
+    path = _write_report(REPORT, tmp_path)
+    base = Path(path).stem
+    original_unlink = Path.unlink
+
+    def fail_one_artifact(candidate, *args, **kwargs):
+        if candidate.name == f"{base}.txt":
+            raise OSError("simulated cleanup failure")
+        return original_unlink(candidate, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_one_artifact)
+
+    async def run():
+        try:
+            await REPORT.async_save_report_transaction(
+                _fake_hass(tmp_path), _FailingReportStore(),
+                {"last_report_path": path}, None
+            )
+        except OSError as err:
+            assert "Store save failure" in str(err)
+        else:
+            raise AssertionError("expected Store save failure")
+
+    asyncio.run(run())
+
+    assert (tmp_path / f"{base}.txt").exists()
+    assert (tmp_path / f".{base}.pending").exists()
+    assert not (tmp_path / f".{base}.complete").exists()
