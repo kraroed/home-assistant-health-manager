@@ -168,8 +168,11 @@ def test_report_state_is_committed_only_after_report_write_and_transactional_sto
         for node in helper_calls
     )
     assert any(
-        isinstance(node.func, ast.Name)
-        and node.func.id == "_reconcile_report_transactions_sync"
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == "to_thread"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "_reconcile_report_transactions_sync"
         for node in helper_calls
     )
 
@@ -299,13 +302,16 @@ def test_report_transaction_is_reconciled_at_startup_and_committed_after_store_s
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "async_save"
     )
-    reconcile = next(
+    reconcile_dispatch = next(
         node for node in ast.walk(helper)
         if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id == "_reconcile_report_transactions_sync"
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "to_thread"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "_reconcile_report_transactions_sync"
     )
-    assert save.lineno < reconcile.lineno
+    assert save.lineno < reconcile_dispatch.lineno
 
 
 def test_report_module_uses_pending_and_complete_transaction_markers():
@@ -379,7 +385,21 @@ def test_scheduled_report_advances_due_date_in_same_store_transaction():
         and isinstance(node.func, ast.Name)
         and node.func.id == "async_save_report_transaction"
     )
-    assert report_source.index('schedule["next_weekly"]') < transaction_call.lineno
+    due_date_assignments = [
+        node for node in ast.walk(report)
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign))
+        and any(
+            isinstance(target, ast.Subscript)
+            and isinstance(target.slice, ast.Constant)
+            and target.slice.value in {"next_monthly", "next_weekly"}
+            for target in (
+                node.targets if isinstance(node, ast.Assign)
+                else [node.target]
+            )
+        )
+    ]
+    assert due_date_assignments
+    assert max(node.lineno for node in due_date_assignments) < transaction_call.lineno
 
 
 
