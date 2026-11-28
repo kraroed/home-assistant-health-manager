@@ -24,6 +24,7 @@ from .report_verification import verify_report, verify_focused_prompts
 from .report import (
     async_commit_focused_prompt,
     async_commit_report,
+    async_save_report_transaction,
     async_reconcile_focused_prompt_transactions,
     async_reconcile_report_transactions,
     write_report,
@@ -501,7 +502,9 @@ class HealthManagerCoordinator(DataUpdateCoordinator):
         elif scheduled_period == "next_weekly":
             schedule["next_weekly"] = (now + timedelta(days=7)).isoformat()
         schedule["report_count"] = schedule.get("report_count", 0) + 1
-        await self.store.async_save(schedule)
+        await async_save_report_transaction(
+            self.hass, self.store, schedule, self.schedule.get("last_report_path")
+        )
         self.schedule = schedule
         try:
             await async_commit_report(self.hass, path)
