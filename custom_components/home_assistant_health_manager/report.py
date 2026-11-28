@@ -236,6 +236,25 @@ def _reconcile_report_transactions_sync(directory, committed_report_path=None):
                 continue
 
 
+async def async_save_report_transaction(hass, store, schedule, previous_report_path=None):
+    """Persist report metadata, cleaning up the new artifact set if Store save fails."""
+    try:
+        await store.async_save(schedule)
+    except Exception:
+        # Keep the previous durable report and remove only transactions that
+        # are not referenced by the Store's previously committed state.
+        directory = Path(hass.config.path(REPORT_DIR))
+        try:
+            await asyncio.to_thread(
+                _reconcile_report_transactions_sync, directory, previous_report_path
+            )
+        except Exception:
+            # Preserve the original Store exception. Any incomplete cleanup
+            # retains its pending marker for startup reconciliation.
+            pass
+        raise
+
+
 async def async_commit_report(hass, report_path):
     """Mark a report transaction committed after its Store record is durable."""
     directory = Path(hass.config.path(REPORT_DIR))
